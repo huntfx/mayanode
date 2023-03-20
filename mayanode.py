@@ -109,6 +109,10 @@ class AttributeProxy(object):
         logger.debug('Creating connection: %s >> %s', connection, self.name)
         mc.connectAttr(connection, self.name, force=True)
 
+    def split(self, *args, **kwargs):
+        """Add the ability to split for backwards compatibility."""
+        return self.name.split(*args, **kwargs)
+
     @property
     def exists(self):
         """Determine if the attribute already exists."""
@@ -201,6 +205,18 @@ class AttributeProxy(object):
         logger.debug('Setting %s keyable state: %s', self.name, value)
         mc.setAttr(self.name, keyable=value)
 
+    @property
+    def connections(self):
+        """Get the node connections as plugs.
+
+        Raises:
+            ValueError: "No object matches name: {self.name}"
+        """
+        logger.debug('Reading %s connections', self.name)
+        for nodeAttr in mc.listConnections(self.name, plugs=True) or ():
+            node, attr = nodeAttr.split('.', 1)
+            yield type(self)(Node(node), attr)
+
     def create(self, attrType=None, **kwargs):
         """Create the attribute.
 
@@ -224,6 +240,10 @@ class AttributeProxy(object):
         if self.exists:
             return self
         return self.create(attrType, **kwargs)
+
+    def delete(self):
+        """Delete the attribute."""
+        mc.deleteAttr(self.name)
 
 
 class NodeAttributes(dict):
@@ -357,6 +377,18 @@ class Node(object):
         logger.debug('Renaming %r to %r', self.name, name)
         self._name = mc.rename(self.name, name)
 
+    @property
+    def longName(self):
+        """Get the node long name.
+
+        Raises:
+            RuntimeError: "No object matches name: {self.name}"
+        """
+        result = mc.ls(self.name, long=True)
+        if result:
+            return result[0]
+        raise RuntimeError('No object matches name: {}'.format(self.name))
+
     def create(self, nodeType, **kwargs):
         """Create a new node.
 
@@ -396,3 +428,7 @@ class Node(object):
         if self.exists:
             return self
         return self.create(nodeType, **kwargs)
+
+    def delete(self):
+        """Delete the node."""
+        mc.delete(self)
