@@ -48,6 +48,9 @@ import maya.cmds as mc
 
 logger = logging.getLogger(__name__)
 
+if str is not bytes:
+    unicode = str
+
 
 class AttributeProxy(object):
     """Easy way of handling attribute values and connections.
@@ -66,7 +69,7 @@ class AttributeProxy(object):
         return '{}({!r})'.format(type(self).__name__, self.name)
 
     def __bool__(self):
-        return bool(mc.ls(self.name))
+        return self.exists
     __nonzero__ = __bool__
 
     def __str__(self):
@@ -107,45 +110,120 @@ class AttributeProxy(object):
         mc.connectAttr(connection, self.name, force=True)
 
     @property
+    def exists(self):
+        """Determine if the attribute already exists."""
+        return mc.attributeQuery(self.attr, node=self.node, exists=True)
+
+    @property
+    def type(self):
+        """Get the attribute type.
+
+        Raises:
+            ValueError: "No object matches name: {self.name}"
+        """
+        logger.debug('Reading %s type', self.name)
+        attrType = mc.getAttr(self.name, type=True)
+        if attrType == 'bool':
+            return bool
+        elif attrType in ('long', 'short'):
+            return int
+        elif attrType == 'string':
+            return str
+        elif attrType in ('double', 'float'):
+            return float
+        return attrType
+
+    @property
     def name(self):
         """Get the full node and attribute name for Maya to use."""
         return '{}.{}'.format(self.node, self.attr)
 
     @property
     def value(self):
-        """Get an attribute value."""
+        """Get an attribute value.
+
+        Raises:
+            ValueError: "No object matches name: {self.name}"
+        """
         logger.debug('Reading %s value', self.name)
         return mc.getAttr(self.name)
 
     @value.setter
     def value(self, value):
-        """Set a new attribute value."""
+        """Set a new attribute value.
+
+        Raises:
+            ValueError: "setAttr: No object matches name: {self.name}"
+        """
         logger.debug('Setting %s value: %r', self.name, value)
-        mc.setAttr(self.name, value)
+        if isinstance(value, (str, unicode)):
+            mc.setAttr(self.name, value, type='string')
+        else:
+            mc.setAttr(self.name, value)
 
     @property
     def locked(self):
-        """Get the node locked state."""
+        """Get the node locked state.
+
+        Raises:
+            ValueError: "No object matches name: {self.name}"
+        """
         logger.debug('Reading %s locked state', self.name)
         return mc.getAttr(self.name, lock=True)
 
     @locked.setter
     def locked(self, value):
-        """Set the node locked state."""
+        """Set the node locked state.
+
+        Raises:
+            ValueError: "setAttr: No object matches name: {self.name}"
+        """
         logger.debug('Setting %s locked state: %r', self.name, value)
         mc.setAttr(self.name, lock=value)
 
     @property
     def keyable(self):
-        """Get the node keyable state."""
+        """Get the node keyable state.
+
+        Raises:
+            ValueError: "No object matches name: {self.name}"
+        """
         logger.debug('Reading %s keyable state', self.name)
         return mc.getAttr(self.name, keyable=True)
 
     @keyable.setter
     def keyable(self, value):
-        """Set the node keyable state."""
+        """Set the node keyable state.
+
+        Raises:
+            ValueError: "setAttr: No object matches name: {self.name}"
+        """
         logger.debug('Setting %s keyable state: %s', self.name, value)
         mc.setAttr(self.name, keyable=value)
+
+    def create(self, attrType=None, **kwargs):
+        """Create the attribute.
+
+        Raises:
+            ValueError: "No object matches name: {self.name}"
+        """
+        if attrType is not None:
+            if attrType is bool:
+                kwargs['attributeType'] = 'bool'
+            elif attrType is int:
+                kwargs['attributeType'] = 'long'
+            elif attrType is str:
+                kwargs['dataType'] = 'string'
+            elif attrType is float:
+                kwargs['attributeType'] = 'double'
+        mc.addAttr(self.node, longName=self.attr, **kwargs)
+        return self
+
+    def ensure(self, attrType, **kwargs):
+        """Create the attribute if it doesn't exist."""
+        if self.exists:
+            return self
+        return self.create(attrType, **kwargs)
 
 
 class NodeAttributes(dict):
@@ -192,11 +270,15 @@ class NodeAttributes(dict):
         super(NodeAttributes, self).__setitem__(attr, value)
 
     def _ensureAttrs(self, reload=False):
-        """Load in all attribute proxies if required."""
+        """Load in all attribute proxies if required.
+
+        Raises:
+            ValueError: "No object matches name: {self.node}"
+        """
         if not reload and self._loaded:
             return
         logger.debug('Building full attribute list for %s', self.node)
-        for attr in mc.listAttr(str(self.node)):
+        for attr in mc.listAttr(self.node.name):
             self._ensureAttr(attr)
         self._loaded = True
 
@@ -210,16 +292,16 @@ class Node(object):
         'shader': set(mc.listNodeTypes('shader')),
     }
 
-    def __init__(self, name):
+    def __init__(self, name=None):
         self._name = name
         self._attrs = NodeAttributes(self)
 
     def __repr__(self):
-        return '{}({!r})'.format(type(self).__name__, self._name)
+        return '{}({!r})'.format(type(self).__name__, self.name)
 
-    def __new__(cls, name):
+    def __new__(cls, name=None):
         """Create a new node, or attribute proxy if an attribute was given."""
-        if '.' in name:
+        if name and '.' in name:
             node, attr = name.split('.', 1)
             return cls(node).attrs[attr]
         return super(Node, cls).__new__(cls, name)
@@ -231,28 +313,25 @@ class Node(object):
         return type(self)(str(self) + attr)
 
     def __str__(self):
-        return self._name
+        return self.name
 
-    @classmethod
-    def create(cls, nodeType, name=None, **kwargs):
-        """Create a new node."""
-        kwargs = {}
-        if name is not None:
-            kwargs['name'] = name
+    @property
+    def exists(self):
+        """Determine if the node exists."""
+        if not self._name:
+            return False
+        logger.debug('Reading if %s exists', self.name)
+        return bool(mc.ls(self.name))
 
-        # Create shading node
-        if nodeType in cls.NODE_TYPES['shader']:
-            return cls(mc.shadingNode(nodeType, asShader=True, **kwargs))
+    @property
+    def type(self):
+        """Get the node type.
 
-        # Create shading engine
-        elif nodeType == 'shadingEngine':
-            kwargs.setdefault('renderable', True)
-            kwargs.setdefault('noSurfaceShader', True)
-            kwargs.setdefault('empty', True)
-            return cls(mc.sets(**kwargs))
-
-        # Create other
-        return cls(mc.createNode(nodeType, **kwargs))
+        Raises:
+            RuntimeError: "No object matches name: {self.name}"
+        """
+        logger.debug('Reading %s type', self.name)
+        return mc.nodeType(self.name)
 
     @property
     def attrs(self):
@@ -262,10 +341,58 @@ class Node(object):
     @property
     def name(self):
         """Get the node name."""
-        return self._name
+        return self._name or ''
 
     @name.setter
     def name(self, name):
-        """Set a new node name."""
-        mc.rename(self, name)
-        self._name = name
+        """Set a new node name.
+
+        Warnings:
+            "New name contains invalid characters. Illegal characters were converted to \"_\"."
+
+        Raises:
+            RuntimeError: "New name has no legal characters."
+            RuntimeError: "No object matches name"
+        """
+        logger.debug('Renaming %r to %r', self.name, name)
+        self._name = mc.rename(self.name, name)
+
+    def create(self, nodeType, **kwargs):
+        """Create a new node.
+
+        Usage:
+            >>> node = Node('myNode')
+            >>> node.create('transform')
+            Node('myNode')
+            >>> node.create('transform')
+            Node('myNode1')
+
+        Warnings:
+            "Unrecognized node type '{nodeType}'; preserving node information during this session."
+        """
+        kwargs = {}
+        if self._name:
+            kwargs['name'] = self._name
+        logger.debug('Creating %r node with arguments %s', nodeType, kwargs)
+
+        # Create shading node
+        if nodeType in self.NODE_TYPES['shader']:
+            self._name = mc.shadingNode(nodeType, asShader=True, **kwargs)
+
+        # Create shading engine
+        elif nodeType == 'shadingEngine':
+            kwargs.setdefault('renderable', True)
+            kwargs.setdefault('noSurfaceShader', True)
+            kwargs.setdefault('empty', True)
+            self._name = mc.sets(**kwargs)
+
+        # Create other
+        else:
+            self._name = mc.createNode(nodeType, **kwargs)
+        return self
+
+    def ensure(self, nodeType, **kwargs):
+        """Make sure the node exists."""
+        if self.exists:
+            return self
+        return self.create(nodeType, **kwargs)
