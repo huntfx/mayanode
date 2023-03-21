@@ -52,7 +52,23 @@ if str is not bytes:
     unicode = str
 
 
-class AttributeProxy(object):
+class StrMixin(object):  # pylint: disable=useless-object-inheritance
+    """Add methods to make the classes behave like strings."""
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '{}({!r})'.format(type(self).__name__, self.name)
+
+    def __contains__(self, value):
+        return self.name.__contains__(value)
+
+    def split(self, *args, **kwargs):
+        return self.name.split(*args, **kwargs)
+
+
+class AttributeProxy(StrMixin):
     """Easy way of handling attribute values and connections.
 
     A value is read and set using `.value`.
@@ -65,15 +81,9 @@ class AttributeProxy(object):
         self.node = node
         self.attr = attr
 
-    def __repr__(self):
-        return '{}({!r})'.format(type(self).__name__, self.name)
-
     def __bool__(self):
         return self.exists
     __nonzero__ = __bool__
-
-    def __str__(self):
-        return str(self.value)
 
     def __float__(self):
         return float(self.value)
@@ -303,7 +313,7 @@ class NodeAttributes(dict):
         self._loaded = True
 
 
-class Node(object):
+class Node(StrMixin):
     """Object orientated approach to nodes."""
 
     __slots__ = ['_name', '_attrs']
@@ -313,14 +323,15 @@ class Node(object):
     }
 
     def __init__(self, name=None):
+        if name is not None:
+            name = str(name)
         self._name = name
         self._attrs = NodeAttributes(self)
 
-    def __repr__(self):
-        return '{}({!r})'.format(type(self).__name__, self.name)
-
     def __new__(cls, name=None):
         """Create a new node, or attribute proxy if an attribute was given."""
+        if isinstance(name, cls):
+            return name
         if name and '.' in name:
             node, attr = name.split('.', 1)
             return cls(node).attrs[attr]
@@ -331,9 +342,6 @@ class Node(object):
         if attr[0] == '.':
             return self.attrs[attr[1:]]
         return type(self)(str(self) + attr)
-
-    def __str__(self):
-        return self.name
 
     @property
     def exists(self):
@@ -388,6 +396,14 @@ class Node(object):
         if result:
             return result[0]
         raise RuntimeError('No object matches name: {}'.format(self.name))
+
+    @property
+    def namespace(self):
+        """Get the node namespace."""
+        parts = self.name.split(':', 1)
+        if len(parts) == 1:
+            return ':'
+        return parts[0]
 
     def create(self, nodeType, **kwargs):
         """Create a new node.
