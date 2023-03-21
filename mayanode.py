@@ -223,9 +223,11 @@ class AttributeProxy(StrMixin):
             ValueError: "No object matches name: {self.name}"
         """
         logger.debug('Reading %s connections', self.name)
+        connections = []
         for nodeAttr in mc.listConnections(self.name, plugs=True) or ():
             node, attr = nodeAttr.split('.', 1)
-            yield type(self)(Node(node), attr)
+            connections.append(type(self)(Node(node), attr))
+        return connections
 
     def create(self, attrType=None, **kwargs):
         """Create the attribute.
