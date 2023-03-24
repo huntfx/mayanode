@@ -407,6 +407,31 @@ class Node(StrMixin):
             return ':'
         return parts[0]
 
+    @property
+    def parents(self):
+        """Get the node parents.
+        This may be required if the node is instanced.
+        """
+        return [Node(parent) for parent in mc.listRelatives(self, parent=True, fullPath=True)]
+
+    @property
+    def parent(self):
+        """Get the node parent."""
+        parents = self.parents
+        if parents:
+            return self.parents[0]
+        return None
+
+    @parent.setter
+    def parent(self, parent):
+        """Set a new node parent."""
+        mc.parent(self, parent)
+
+    @property
+    def children(self):
+        """Get all node children."""
+        return [Node(child) for child in mc.listRelatives(self, children=True, fullPath=True)]
+
     def create(self, nodeType, **kwargs):
         """Create a new node.
 
