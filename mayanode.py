@@ -345,6 +345,24 @@ class Node(StrMixin):
             return self.attrs[attr[1:]]
         return type(self)(str(self) + attr)
 
+    def __eq__(self, other):
+        return self.name == other
+
+    def __ne__(self, other):
+        return self.name != other
+
+    def __gt__(self, other):
+        return self.name > other
+
+    def __ge__(self, other):
+        return self.name >= other
+
+    def __lt__(self, other):
+        return self.name < other
+
+    def __le__(self, other):
+        return self.name <= other
+
     @property
     def exists(self):
         """Determine if the node exists."""
