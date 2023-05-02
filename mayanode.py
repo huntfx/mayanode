@@ -121,14 +121,14 @@ class AttributeProxy(StrMixin):
 
         >>> AttributeProxy('node.attr') >> 'othernode.attr'
         """
-        self.connect(connection, reverse=True)
+        self.connect(connection)
 
     def __rrshift__(self, connection):
         """Create an incoming connection.
 
         >>> 'othernode.attr' >> AttributeProxy('node.attr')
         """
-        self.connect(connection)
+        self.connect(connection, reverse=True)
 
     def split(self, *args, **kwargs):
         """Add the ability to split for backwards compatibility."""
