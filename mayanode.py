@@ -99,25 +99,36 @@ class AttributeProxy(StrMixin):
         """
         return type(self)(self.node, self.attr + value)
 
+    def connect(self, connection, reverse=False):
+        """Create a connection.
+        Set `reverse` to reverse the connection direction.
+
+        >>> AttributeProxy('node.attr').connect('othernode.attr1')
+        >>> AttributeProxy('node.attr').connect('othernode.attr2', reverse=True)
+        """
+        if isinstance(connection, type(self)):
+            connection = connection.name
+
+        if reverse:
+            logger.debug('Creating connection: %s >> %s', connection, self.name)
+            mc.connectAttr(connection, self.name, force=True)
+        else:
+            logger.debug('Creating connection: %s >> %s', self.name, connection)
+            mc.connectAttr(self.name, connection, force=True)
+
     def __rshift__(self, connection):
         """Create an outgoing connection.
 
         >>> AttributeProxy('node.attr') >> 'othernode.attr'
         """
-        if isinstance(connection, type(self)):
-            connection = connection.name
-        logger.debug('Creating connection: %s >> %s', self.name, connection)
-        mc.connectAttr(self.name, connection, force=True)
+        self.connect(connection, reverse=True)
 
     def __rrshift__(self, connection):
         """Create an incoming connection.
 
         >>> 'othernode.attr' >> AttributeProxy('node.attr')
         """
-        if isinstance(connection, type(self)):
-            connection = connection.name
-        logger.debug('Creating connection: %s >> %s', connection, self.name)
-        mc.connectAttr(connection, self.name, force=True)
+        self.connect(connection)
 
     def split(self, *args, **kwargs):
         """Add the ability to split for backwards compatibility."""
