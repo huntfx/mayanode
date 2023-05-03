@@ -70,13 +70,21 @@ class GenerateFnCall(object):
             module = 'mc'
         elif module == 'pymel.core':
             module = 'pm'
-        params = ', '.join([repr(a) for a in self.args] + ['{}={!r}'.format(k, v) for k, v in self.kwargs.items()])
+        args = map(self.repr, self.args)
+        kwargs = ('{}={}'.format(k, self.repr(v)) for k, v in self.kwargs.items())
+        params = ', '.join(list(args) + list(kwargs))
         return '{}.{}({})'.format(module, self.fn.__name__, params)
+
+    def repr(self, item):
+        if isinstance(item, StrMixin):
+            item = str(item)
+        return repr(item)
 
 
 def runAndLog(fn, *args, **kwargs):
     """Run functions and log them."""
-    logger.debug('%s', GenerateFnCall(fn, *args, **kwargs))
+    fnCall = GenerateFnCall(fn, *args, **kwargs)
+    logger.debug('%s', fnCall)
     return fn(*args, **kwargs)
 
 
@@ -138,11 +146,11 @@ class AttributeProxy(StrMixin):
             connection = connection.name
 
         if reverse:
-            logger.info('Creating connection: %s >> %s', connection, self.name)
-            runAndLog(mc.connectAttr, connection, self.name, force=True)
+            logger.info('Creating connection: %s >> %s', connection, self)
+            runAndLog(mc.connectAttr, connection, self, force=True)
         else:
-            logger.info('Creating connection: %s >> %s', self.name, connection)
-            runAndLog(mc.connectAttr, self.name, connection, force=True)
+            logger.info('Creating connection: %s >> %s', self, connection)
+            runAndLog(mc.connectAttr, self, connection, force=True)
 
     def __rshift__(self, connection):
         """Create an outgoing connection.
@@ -165,7 +173,7 @@ class AttributeProxy(StrMixin):
     @property
     def exists(self):
         """Determine if the attribute already exists."""
-        return runAndLog(mc.attributeQuery, self.attr, node=self.node, exists=True)
+        return runAndLog(mc.attributeQuery, self.attr, node=self.node.name, exists=True)
 
     @property
     def type(self):
@@ -174,9 +182,8 @@ class AttributeProxy(StrMixin):
         Raises:
             ValueError: "No object matches name: {self.name}"
         """
-        logger.info('Reading %s type', self.name)
-        logger.debug('mc.getAttr(%r, type=True)', self.name)
-        attrType = runAndLog(mc.getAttr, self.name, type=True)
+        logger.debug('mc.getAttr(%r, type=True)', self)
+        attrType = runAndLog(mc.getAttr, self, type=True)
         if attrType == 'bool':
             return bool
         elif attrType in ('long', 'short'):
@@ -199,8 +206,7 @@ class AttributeProxy(StrMixin):
         Raises:
             ValueError: "No object matches name: {self.name}"
         """
-        logger.info('Reading %s value', self.name)
-        return runAndLog(mc.getAttr, self.name)
+        return runAndLog(mc.getAttr, self)
 
     @value.setter
     def value(self, value):
@@ -209,11 +215,11 @@ class AttributeProxy(StrMixin):
         Raises:
             ValueError: "setAttr: No object matches name: {self.name}"
         """
-        logger.info('Setting %s value: %r', self.name, value)
+        logger.info('Setting %s value: %r', self, value)
         if isinstance(value, (str, unicode)):
-            runAndLog(mc.setAttr, self.name, value, type='string')
+            runAndLog(mc.setAttr, self, value, type='string')
         else:
-            runAndLog(mc.setAttr, self.name, value)
+            runAndLog(mc.setAttr, self, value)
 
     @property
     def locked(self):
@@ -222,8 +228,7 @@ class AttributeProxy(StrMixin):
         Raises:
             ValueError: "No object matches name: {self.name}"
         """
-        logger.info('Reading %s locked state', self.name)
-        return runAndLog(mc.getAttr, self.name, lock=True)
+        return runAndLog(mc.getAttr, self, lock=True)
 
     @locked.setter
     def locked(self, value):
@@ -232,8 +237,8 @@ class AttributeProxy(StrMixin):
         Raises:
             ValueError: "setAttr: No object matches name: {self.name}"
         """
-        logger.info('Setting %s locked state: %r', self.name, value)
-        runAndLog(mc.setAttr, self.name, lock=value)
+        logger.info('Setting %s locked state: %r', self, value)
+        runAndLog(mc.setAttr, self, lock=value)
 
     @property
     def keyable(self):
@@ -242,8 +247,7 @@ class AttributeProxy(StrMixin):
         Raises:
             ValueError: "No object matches name: {self.name}"
         """
-        logger.info('Reading %s keyable state', self.name)
-        return runAndLog(mc.getAttr, self.name, keyable=True)
+        return runAndLog(mc.getAttr, self, keyable=True)
 
     @keyable.setter
     def keyable(self, value):
@@ -252,8 +256,8 @@ class AttributeProxy(StrMixin):
         Raises:
             ValueError: "setAttr: No object matches name: {self.name}"
         """
-        logger.info('Setting %s keyable state: %s', self.name, value)
-        runAndLog(mc.setAttr, self.name, keyable=value)
+        logger.info('Setting %s keyable state: %s', self, value)
+        runAndLog(mc.setAttr, self, keyable=value)
 
     @property
     def connections(self):
@@ -262,9 +266,8 @@ class AttributeProxy(StrMixin):
         Raises:
             ValueError: "No object matches name: {self.name}"
         """
-        logger.info('Reading %s connections', self.name)
         connections = []
-        for nodeAttr in runAndLog(mc.listConnections, self.name, plugs=True) or ():
+        for nodeAttr in runAndLog(mc.listConnections, self, plugs=True) or ():
             node, attr = nodeAttr.split('.', 1)
             connections.append(type(self)(Node(node), attr))
         return connections
@@ -285,7 +288,7 @@ class AttributeProxy(StrMixin):
             elif attrType is float:
                 kwargs['attributeType'] = 'double'
 
-        logger.info('Adding attribute %s.%s with arguments %s', self.node, self.attr, kwargs)
+        logger.info('Adding attribute %s with arguments %s', self, kwargs)
         runAndLog(mc.addAttr, self.node, longName=self.attr, **kwargs)
         return self
 
@@ -297,7 +300,8 @@ class AttributeProxy(StrMixin):
 
     def delete(self):
         """Delete the attribute."""
-        runAndLog(mc.deleteAttr, self.name)
+        logger.info('Deleting attribute: %s', self)
+        runAndLog(mc.deleteAttr, self)
 
 
 class NodeAttributes(dict):
@@ -351,8 +355,7 @@ class NodeAttributes(dict):
         """
         if not reload and self._loaded:
             return
-        logger.info('Building full attribute list for %s', self.node)
-        for attr in runAndLog(mc.listAttr, self.node.name):
+        for attr in runAndLog(mc.listAttr, self.node):
             self._ensureAttr(attr)
         self._loaded = True
 
@@ -410,8 +413,7 @@ class Node(StrMixin):
         """Determine if the node exists."""
         if not self._name:
             return False
-        logger.info('Reading if %s exists', self.name)
-        return bool(runAndLog(mc.ls, self.name))
+        return bool(runAndLog(mc.ls, self))
 
     @property
     def type(self):
@@ -420,8 +422,7 @@ class Node(StrMixin):
         Raises:
             RuntimeError: "No object matches name: {self.name}"
         """
-        logger.info('Reading %s type', self.name)
-        return runAndLog(mc.nodeType, self.name)
+        return runAndLog(mc.nodeType, self)
 
     @property
     def attrs(self):
@@ -444,8 +445,8 @@ class Node(StrMixin):
             RuntimeError: "New name has no legal characters."
             RuntimeError: "No object matches name"
         """
-        logger.info('Renaming %r to %r', self.name, name)
-        self._name = runAndLog(mc.rename, self.name, name)
+        logger.info('Renaming %r to %r', self, name)
+        self._name = runAndLog(mc.rename, self, name)
 
     @property
     def longName(self):
@@ -457,7 +458,7 @@ class Node(StrMixin):
         result = mc.ls(self.name, long=True)
         if result:
             return result[0]
-        raise RuntimeError('No object matches name: {}'.format(self.name))
+        raise RuntimeError('No object matches name: {}'.format(self))
 
     @property
     def namespace(self):
@@ -472,7 +473,7 @@ class Node(StrMixin):
         """Get the node parents.
         This may be required if the node is instanced.
         """
-        return [Node(parent) for parent in runAndLog(mc.listRelatives, str(self), parent=True, fullPath=True)]
+        return [Node(parent) for parent in runAndLog(mc.listRelatives, self, parent=True, fullPath=True)]
 
     @property
     def parent(self):
@@ -485,12 +486,12 @@ class Node(StrMixin):
     @parent.setter
     def parent(self, parent):
         """Set a new node parent."""
-        runAndLog(mc.parent, str(self), parent)
+        runAndLog(mc.parent, self, parent)
 
     @property
     def children(self):
         """Get all node children."""
-        return [Node(child) for child in runAndLog(mc.listRelatives, str(self), children=True, fullPath=True)]
+        return [Node(child) for child in runAndLog(mc.listRelatives, self, children=True, fullPath=True)]
 
     @property
     def shape(self):
@@ -505,7 +506,7 @@ class Node(StrMixin):
         """Get the shading engine assigned to the node.
         Note that this will be assigned to a shape.
         """
-        shapes = runAndLog(mc.ls, str(self), dag=True, shapes=True)
+        shapes = runAndLog(mc.ls, self, dag=True, shapes=True)
         engines = runAndLog(mc.listConnections, shapes, type='shadingEngine')
         if engines:
             return Node(engines[0])
@@ -515,7 +516,7 @@ class Node(StrMixin):
     def shadingEngine(self, shadingEngine):
         """Set a new shadingEngine."""
         logger.info('Setting %s shader to %s', self, shadingEngine)
-        runAndLog(mc.sets, str(self), edit=True, forceElement=shadingEngine)
+        runAndLog(mc.sets, self, edit=True, forceElement=shadingEngine)
 
     def create(self, nodeType, **kwargs):
         """Create a new node.
@@ -563,4 +564,5 @@ class Node(StrMixin):
 
     def delete(self):
         """Delete the node."""
-        runAndLog(mc.delete, str(self))
+        logger.info('Deleting node: %s', self)
+        runAndLog(mc.delete, self)
