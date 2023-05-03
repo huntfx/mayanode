@@ -502,6 +502,11 @@ class Node(StrMixin):
         return None
 
     @property
+    def instances(self):
+        """Get all the node instances including self."""
+        return [Node(inst) for inst in runAndLog(mc.ls, self, allPaths=True)]
+
+    @property
     def shadingEngine(self):
         """Get the shading engine assigned to the node.
         Note that this will be assigned to a shape.
