@@ -492,6 +492,31 @@ class Node(StrMixin):
         """Get all node children."""
         return [Node(child) for child in runAndLog(mc.listRelatives, str(self), children=True, fullPath=True)]
 
+    @property
+    def shape(self):
+        """Get the node shape if it has one."""
+        shapes = runAndLog(mc.listRelatives, shapes=True, noIntermediate=True, fullPath=True)
+        if shapes:
+            return Node(shapes[0])
+        return None
+
+    @property
+    def shadingEngine(self):
+        """Get the shading engine assigned to the node.
+        Note that this will be assigned to a shape.
+        """
+        shapes = runAndLog(mc.ls, str(self), dag=True, shapes=True)
+        engines = runAndLog(mc.listConnections, shapes, type='shadingEngine')
+        if engines:
+            return Node(engines[0])
+        return None
+
+    @shadingEngine.setter
+    def shadingEngine(self, shadingEngine):
+        """Set a new shadingEngine."""
+        logger.info('Setting %s shader to %s', self, shadingEngine)
+        runAndLog(mc.sets, str(self), edit=True, forceElement=shadingEngine)
+
     def create(self, nodeType, **kwargs):
         """Create a new node.
 
