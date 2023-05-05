@@ -103,6 +103,9 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
     def split(self, *args, **kwargs):
         return self.name.split(*args, **kwargs)
 
+    def rsplit(self, *args, **kwargs):
+        return self.name.rsplit(*args, **kwargs)
+
 
 class AttributeProxy(StrMixin):
     """Easy way of handling attribute values and connections.
