@@ -39,7 +39,7 @@ Examples:
     NodeAttribute('lambert3.diffuse')
 """
 
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 
 import logging
 
@@ -520,6 +520,11 @@ class Node(StrMixin):
             return Node(engines[0])
         return None
 
+    @property
+    def boundingBox(self):
+        """Get the bounding box of the node."""
+        return BoundingBox(self)
+
     @shadingEngine.setter
     def shadingEngine(self, shadingEngine):
         """Set a new shadingEngine."""
@@ -574,3 +579,93 @@ class Node(StrMixin):
         """Delete the node."""
         logger.info('Deleting node: %s', self)
         runAndLog(mc.delete, self)
+
+
+class BoundingBox(tuple):
+    """Get the bounding box of a node and perform calculations."""
+
+    def __new__(cls, node):
+        boundingBox = runAndLog(mc.exactWorldBoundingBox, node)
+        new = tuple.__new__(cls, boundingBox)
+        new.node = node
+        return new
+
+    @property
+    def x(self):
+        """Get the min and max X values."""
+        return self.xMin, self.xMax
+
+    @property
+    def y(self):
+        """Get the min and max Y values."""
+        return self.yMin, self.yMax
+
+    @property
+    def z(self):
+        """Get the min and max Z values."""
+        return self.zMin, self.zMax
+
+    @property
+    def xMin(self):
+        """Get the minimum X limit."""
+        return self.__getitem__(0)
+
+    @property
+    def yMin(self):
+        """Get the minimum Y limit."""
+        return self.__getitem__(1)
+
+    @property
+    def zMin(self):
+        """Get the minimum Z limit."""
+        return self.__getitem__(2)
+
+    @property
+    def xMax(self):
+        """Get the maximum X limit."""
+        return self.__getitem__(3)
+
+    @property
+    def yMax(self):
+        """Get the maximum Y limit."""
+        return self.__getitem__(4)
+
+    @property
+    def zMax(self):
+        """Get the maximum Z limit."""
+        return self.__getitem__(5)
+
+    @property
+    def width(self):
+        """Get the width."""
+        return self.xMax - self.xMin
+
+    @property
+    def height(self):
+        """Get the height."""
+        return self.yMax - self.yMin
+
+    @property
+    def depth(self):
+        """Get the depth."""
+        return self.zMax - self.zMin
+
+    @property
+    def midX(self):
+        """Get the X coordinate."""
+        return self.xMin + self.width / 2
+
+    @property
+    def midY(self):
+        """Get the Y coordinate."""
+        return self.yMin + self.height / 2
+
+    @property
+    def midZ(self):
+        """Get the Z coordinate."""
+        return self.zMin + self.depth / 2
+
+    @property
+    def midPoint(self):
+        """Get the coordinate."""
+        return self.midX, self.midY, self.midZ
