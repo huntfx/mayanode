@@ -224,7 +224,7 @@ class AttributeProxy(StrMixin):
             ValueError: "setAttr: No object matches name: {self.name}"
         """
         logger.info('Setting %s value: %r', self, value)
-        if isinstance(value, (str, unicode)):
+        if isinstance(value, (str, unicode, StrMixin)):
             runAndLog(mc.setAttr, self, value, type='string')
         elif isinstance(value, (tuple, list, set)):
             runAndLog(mc.setAttr, self, *value)
