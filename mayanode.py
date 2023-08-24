@@ -226,6 +226,8 @@ class AttributeProxy(StrMixin):
         logger.info('Setting %s value: %r', self, value)
         if isinstance(value, (str, unicode)):
             runAndLog(mc.setAttr, self, value, type='string')
+        elif isinstance(value, (tuple, list, set)):
+            runAndLog(mc.setAttr, self, *value)
         else:
             runAndLog(mc.setAttr, self, value)
 
