@@ -698,18 +698,23 @@ class BoundingBox(tuple):
 
     @property
     def x(self):
-        """Get the min and max X values."""
-        return self.xMin, self.xMax
+        """Get the X coordinate."""
+        return (self.xMax + self.xMin) / 2
 
     @property
     def y(self):
-        """Get the min and max Y values."""
-        return self.yMin, self.yMax
+        """Get the Y coordinate."""
+        return (self.yMax + self.yMin) / 2
 
     @property
     def z(self):
-        """Get the min and max Z values."""
-        return self.zMin, self.zMax
+        """Get the Z coordinate."""
+        return (self.zMax + self.zMin) / 2
+
+    @property
+    def origin(self):
+        """Get the origin coordinate."""
+        return (self.x, self.y, self.z)
 
     @property
     def xMin(self):
@@ -744,34 +749,21 @@ class BoundingBox(tuple):
     @property
     def width(self):
         """Get the width."""
-        return self.xMax - self.xMin
+        return abs(self.xMax - self.xMin)
 
     @property
     def height(self):
         """Get the height."""
-        return self.yMax - self.yMin
+        return abs(self.yMax - self.yMin)
 
     @property
     def depth(self):
         """Get the depth."""
-        return self.zMax - self.zMin
+        return abs(self.zMax - self.zMin)
 
-    @property
-    def midX(self):
-        """Get the X coordinate."""
-        return self.xMin + self.width / 2
-
-    @property
-    def midY(self):
-        """Get the Y coordinate."""
-        return self.yMin + self.height / 2
-
-    @property
-    def midZ(self):
-        """Get the Z coordinate."""
-        return self.zMin + self.depth / 2
-
-    @property
-    def midPoint(self):
-        """Get the coordinate."""
-        return self.midX, self.midY, self.midZ
+    def drawCube(self):
+        """Draw a cube representation of the bounding box."""
+        cube = mc.polyCube(width=self.width, height=self.height, depth=self.depth, name='BoundingBox')[0]
+        mc.move(self.x, self.y, self.z, cube, absolute=True)
+        mc.parent(cube, self.node)
+        return cube
