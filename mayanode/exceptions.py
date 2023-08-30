@@ -1,0 +1,39 @@
+class BaseError(RuntimeError):
+    MESSAGE = 'Error'
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        super(BaseError, self).__init__(self.MESSAGE.format(**self.kwargs))
+
+
+class NodeError(BaseError):
+    MESSAGE = 'Error: {node}'
+
+    def __init__(self, node, **kwargs):
+        super(NodeError, self).__init__(node=node, **kwargs)
+
+
+class NodeNotFoundError(NodeError):
+    MESSAGE = 'No node matches name: {node}'
+
+
+class InvalidNodeError(NodeError):
+    MESSAGE = '"{node}" is not valid'
+
+
+class AlreadyIsChildError(NodeError):
+    MESSAGE = '"{node}" is already a child of "{parent}"'
+
+    def __init__(self, node, parent):
+        super(AlreadyIsChildError, self).__init__(node, parent=parent)
+
+
+class NoBoundingBoxError(NodeError):
+    MESSAGE = '"{node}" has no bounding box'
+
+
+class DeleteNodeError(NodeError):
+    MESSAGE = '{message}'
+
+    def __init__(self, node, message):
+        super(DeleteNodeError, self).__init__(node, message=message)
