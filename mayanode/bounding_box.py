@@ -2,14 +2,14 @@ from __future__ import absolute_import
 
 import maya.cmds as mc
 
-from .. import utils
+from . import utils
 
 
 class BoundingBox(tuple):
-    """Get the bounding box of a node and perform calculations."""
+    """Get the bounding box of a group of nodes and perform calculations."""
 
-    def __new__(cls, node):
-        boundingBox = utils.runAndLog(mc.exactWorldBoundingBox, node)
+    def __new__(cls, nodes):
+        boundingBox = utils.runAndLog(mc.exactWorldBoundingBox, nodes)
         return tuple.__new__(cls, boundingBox)
 
     @property
@@ -79,7 +79,7 @@ class BoundingBox(tuple):
 
     def drawCube(self, name='BoundingBox'):
         """Draw a cube representation of the bounding box."""
-        from . import Node
+        from .node import Node
         transform, shape = utils.runAndLog(mc.polyCube, width=self.width, height=self.height, depth=self.depth, name=name)
         cube = Node(transform)
         cube.translation = self.origin

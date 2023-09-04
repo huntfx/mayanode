@@ -2,7 +2,7 @@ import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
 from .attributes import NodeAttributes
-from .bounding_box import BoundingBox
+from ..bounding_box import BoundingBox
 from .. import exceptions, types, utils
 
 
