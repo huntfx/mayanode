@@ -183,6 +183,17 @@ class TestNode(unittest.TestCase):
         mc.delete(node.name)
         mc.namespace(removeNamespace='new:namespace')
 
+    def testNamespaceRename(self):
+        node = Node(mc.polyCube(name='namespaceTest1')[0])
+        node.namespace = 'new:namespace'
+        node.parent = 'persp'
+        node.name = 'namespaceTest2'
+        self.assertEqual(node.namespace, 'new:namespace')
+        self.assertEqual(node.parent.namespace, '')
+
+        mc.delete(node.name)
+        mc.namespace(removeNamespace='new:namespace')
+
 
 class TestBoundingBox(unittest.TestCase):
 
@@ -227,14 +238,14 @@ class TestBoundingBox(unittest.TestCase):
     def testCube(self):
         pCube = Node(mc.polyCube()[0])
         boundingBox = pCube.boundingBox
-        cube = boundingBox.drawCube()
-        self.assertEqual(cube.boundingBox, boundingBox)
+        bbCube1 = boundingBox.drawCube()
+        self.assertEqual(bbCube1.boundingBox, boundingBox)
 
         mc.rotate(32, 72, 47, pCube)
-        cube = pCube.boundingBox.drawCube()
-        self.assertNotEqual(cube.boundingBox, boundingBox)
+        bbCube2 = pCube.boundingBox.drawCube()
+        self.assertNotEqual(bbCube2.boundingBox, boundingBox)
 
-        mc.delete(pCube)
+        mc.delete(pCube, bbCube1, bbCube2)
 
 
 class TestAttr(unittest.TestCase):
@@ -285,6 +296,13 @@ class TestAttr(unittest.TestCase):
     def testType(self):
         self.assertEqual(self.node.attrs['colorR'].type, float)
         self.assertEqual(self.node.attrs['color'].type, (float, float, float))
+
+    def testParentRename(self):
+        cube = Node(mc.polyCube()[0])
+        tx = cube.attrs['translateX']
+        cube.name = 'rename'
+        self.assertEqual(str(tx), str(cube.attrs['translateX']))
+        mc.delete(cube)
 
 
 class TestKeyframes(unittest.TestCase):

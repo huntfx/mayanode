@@ -132,7 +132,7 @@ class Node(utils.StrMixin):
             RuntimeError: No object matches name
         """
         utils.logger.info('Renaming %r to %r', self, name)
-        utils.runAndLog(mc.rename, self, name)
+        utils.runAndLog(mc.rename, self, self.namespace + ':' + name)
 
     @property
     def longName(self):

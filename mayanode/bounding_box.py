@@ -83,5 +83,4 @@ class BoundingBox(tuple):
         transform, shape = utils.runAndLog(mc.polyCube, width=self.width, height=self.height, depth=self.depth, name=name)
         cube = Node(transform)
         cube.translation = self.origin
-        cube.parent = self.node
         return cube
