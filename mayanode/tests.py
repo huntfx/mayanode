@@ -304,6 +304,16 @@ class TestAttr(unittest.TestCase):
         self.assertEqual(str(tx), str(cube.attrs['translateX']))
         mc.delete(cube)
 
+    def testContains(self):
+        attrs = Node('lambert1').attrs
+        self.assertEqual(dict.__len__(attrs), 0)
+        self.assertNotIn('test', attrs)
+        self.assertEqual(dict.__len__(attrs), 0)
+        self.assertIn('color', attrs)
+        self.assertEqual(dict.__len__(attrs), 1)
+        self.assertTrue(len(attrs) > 1)
+        self.assertTrue(dict.__len__(attrs) > 1)
+
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):

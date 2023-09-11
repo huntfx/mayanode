@@ -38,6 +38,21 @@ class NodeAttributes(dict):
         self._ensureAttrs()
         return super(NodeAttributes, self).__iter__()
 
+    def __len__(self):
+        self._ensureAttrs()
+        return super(NodeAttributes, self).__len__()
+
+    def __contains__(self, value):
+        """Determine if the attribute exists on the node."""
+        if not self._loaded:
+            if super(NodeAttributes, self).__contains__(value):
+                return True
+            if utils.runAndLog(mc.attributeQuery, value, node=self.node, exists=True):
+                self._ensureAttr(value)
+                return True
+            return False
+        return super(NodeAttributes, self).__contains__(value)
+
     def keys(self):
         self._ensureAttrs()
         return super(NodeAttributes, self).keys()
@@ -52,7 +67,7 @@ class NodeAttributes(dict):
 
     def _ensureAttr(self, attr, reload=False):
         """Load in the attribute proxy if required."""
-        if not reload and attr in self:
+        if not reload and super(NodeAttributes, self).__contains__(attr):
             return
         value = AttributeProxy(self.node, attr)
         super(NodeAttributes, self).__setitem__(attr, value)
