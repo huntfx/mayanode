@@ -98,11 +98,16 @@ class Node(utils.StrMixin):
         return hash((self.uuid, self.namespace))
 
     def _ensureDagLoaded(self):
-        """Lazily load all DAG paths."""
+        """Lazily load all DAG paths.
+        The instance number is used to make sure they remain in order.
+        """
         if self._flags & _Flags.LoadedInstances:
             return
         if self._dagPaths:
-            self._dagPaths = om2.MDagPath.getAllPathsTo(self._mObject)
+            currentInstNum = self._dagPaths[0].instanceNumber()
+            self._dagPaths = list(om2.MDagPath.getAllPathsTo(self._mObject))
+            if currentInstNum:
+                self._dagPaths.insert(0, self._dagPaths.pop(currentInstNum))
         self._flags |= _Flags.LoadedInstances
 
     @classmethod

@@ -119,15 +119,27 @@ class TestNode(unittest.TestCase):
     def testInstanceNames(self):
         node = Node(mc.polyCube(name='instTest1')[0])
         inst = node.instance()
-        shape = node.shape
-        self.assertEqual(shape.name, 'instTest1|instTest1Shape')
-        self.assertEqual(len(shape._dagPaths), 1)
-        self.assertEqual(shape.names, ['instTest1|instTest1Shape', 'instTest2|instTest1Shape'])
-        self.assertEqual(len(shape._dagPaths), 2)
-        self.assertEqual(shape.longNames, ['|instTest1|instTest1Shape', '|instTest2|instTest1Shape'])
-        inst.name = 'inst'
-        shape.name = 'new'
-        self.assertEqual(shape.longNames, ['|instTest1|new1', '|inst|new1'])
+        nodeShape = node.shape
+        instanceShape = inst.shape
+
+        self.assertEqual(nodeShape.name, 'instTest1|instTest1Shape')
+        self.assertEqual(len(nodeShape._dagPaths), 1)
+        self.assertEqual(nodeShape.names, ['instTest1|instTest1Shape', 'instTest2|instTest1Shape'])
+        self.assertEqual(len(nodeShape._dagPaths), 2)
+        self.assertEqual(nodeShape.longNames, ['|instTest1|instTest1Shape', '|instTest2|instTest1Shape'])
+        self.assertEqual(nodeShape.name, 'instTest1|instTest1Shape')
+
+        self.assertEqual(instanceShape.name, 'instTest2|instTest1Shape')
+        self.assertEqual(len(instanceShape._dagPaths), 1)
+        self.assertEqual(instanceShape.names, ['instTest2|instTest1Shape', 'instTest1|instTest1Shape'])
+        self.assertEqual(len(instanceShape._dagPaths), 2)
+        self.assertEqual(instanceShape.longNames, ['|instTest2|instTest1Shape', '|instTest1|instTest1Shape'])
+        self.assertEqual(instanceShape.name, 'instTest2|instTest1Shape')
+
+        inst.name = 'instRename'
+        nodeShape.name = 'instNewShape'
+        self.assertEqual(nodeShape.longNames, ['|instTest1|instNewShape', '|instRename|instNewShape'])
+        self.assertEqual(instanceShape.longNames, ['|instRename|instNewShape', '|instTest1|instNewShape'])
         mc.delete(node, inst)
 
     def testInstanceNameNonDag(self):
