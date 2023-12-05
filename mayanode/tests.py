@@ -116,6 +116,26 @@ class TestNode(unittest.TestCase):
         self.assertEqual(len({node.shape, inst.shape}), 1)
         mc.delete(node, inst)
 
+    def testInstanceNames(self):
+        node = Node(mc.polyCube(name='instTest1')[0])
+        inst = node.instance()
+        shape = node.shape
+        self.assertEqual(shape.name, 'instTest1|instTest1Shape')
+        self.assertEqual(len(shape._dagPaths), 1)
+        self.assertEqual(shape.names, ['instTest1|instTest1Shape', 'instTest2|instTest1Shape'])
+        self.assertEqual(len(shape._dagPaths), 2)
+        self.assertEqual(shape.longNames, ['|instTest1|instTest1Shape', '|instTest2|instTest1Shape'])
+        inst.name = 'inst'
+        shape.name = 'new'
+        self.assertEqual(shape.longNames, ['|instTest1|new1', '|inst|new1'])
+        mc.delete(node, inst)
+
+    def testInstanceNameNonDag(self):
+        node = Node('time1')
+        self.assertEqual(node.name, 'time1')
+        self.assertEqual(node.names, ['time1'])
+        self.assertEqual(node.longNames, ['time1'])
+
     def testShadingEngine(self):
         node = Node(mc.polyCube(name='shadingEngineTest')[0])
         self.assertEqual(node.shadingEngine, 'initialShadingGroup')
