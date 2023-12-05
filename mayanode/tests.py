@@ -144,13 +144,14 @@ class TestNode(unittest.TestCase):
 
     def testInstanceList(self):
         node = Node(mc.polyCube(name='instTest1')[0])
+        shape = node.shape
 
         self.assertEqual(node.instances, ['instTest1'])
-        self.assertEqual(node.shape.instances, ['instTest1Shape'])
+        self.assertEqual(shape.instances, ['instTest1Shape'])
 
         inst = node.instance()
         self.assertEqual(node.instances, ['instTest1'])
-        self.assertEqual(node.shape.instances, ['instTest1|instTest1Shape', 'instTest2|instTest1Shape'])
+        self.assertEqual(shape.instances, ['instTest1|instTest1Shape', 'instTest2|instTest1Shape'])
 
         mc.delete(node)
         self.assertEqual(inst.shape.instances, ['instTest1Shape'])

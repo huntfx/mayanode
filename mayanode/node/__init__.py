@@ -6,44 +6,12 @@ from ..bounding_box import BoundingBox
 from .. import exceptions, types, utils
 
 
-class _Flags:
-    """Flags for the Node class to query.
-
-    LoadedInstances: Determine if all the DAG paths been loaded.
-        This is slower than just getting one DAG path, so it's lazily
-        loaded when needed. Tests were done to determine which method
-        is fastest.
-
-        Given the OpenMaya selection:
-            >>> selection = om2.MSelectionList()
-            >>> selection.add(node)
-        By default the DAG path is read like this:
-            >>> selection.getDagPath(0)
-            <OpenMaya.MDagPath object at *>
-        To get multiple, these methods can be used:
-            >>> om2.MFnDagNode(selection.getDagPath(0)).getAllPaths()[0]
-            [<OpenMaya.MDagPath object at *>, <OpenMaya.MDagPath object at *>]
-            >>> mobj = selection.getDependNode(0)
-            >>> om2.MFnDagNode(mobj).getAllPaths()
-            [<OpenMaya.MDagPath object at *>, <OpenMaya.MDagPath object at *>]
-            >>> om2.MDagPath.getAllPathsTo(mobj)
-            [<OpenMaya.MDagPath object at *>, <OpenMaya.MDagPath object at *>]
-        These are the ordered speed results from a large scene:
-            selection.getDagPath(0): 0.6 seconds
-            om2.MDagPath.getAllPathsTo(mobj): 3.8 seconds
-            om2.MFnDagNode(mobj).getAllPaths(): 4.9 seconds
-            om2.MFnDagNode(dagPath).getAllPaths(): 5.9 seconds
-    """
-
-    LoadedInstances = 0x1
-
-
 class Node(utils.StrMixin):
     """Pointer to a Maya node.
     OpenMaya code adapted from https://www.toadstorm.com/blog/?p=628.
     """
 
-    __slots__ = ['_mObject', '_dagPaths', '_dependencyNode', '_attrs', '_flags']
+    __slots__ = ['_mObject', '_dagPaths', '_dependencyNode', '_attrs']
 
     NODE_TYPES = {
         'shader': set(mc.listNodeTypes('shader')),
@@ -55,7 +23,6 @@ class Node(utils.StrMixin):
             self._mObject = name._mObject
             self._dependencyNode = name._dependencyNode
             self._dagPaths = name._dagPaths
-            self._flags = name._flags
 
         else:
             selection = om2.MSelectionList()
@@ -66,7 +33,6 @@ class Node(utils.StrMixin):
                     raise exceptions.NodeNotFoundError(name)
                 raise
             else:
-                self._flags = 0
                 self._mObject = selection.getDependNode(0)
                 self._dependencyNode = om2.MFnDependencyNode(self._mObject)
                 try:
@@ -97,18 +63,17 @@ class Node(utils.StrMixin):
     def __hash__(self):
         return hash((self.uuid, self.namespace))
 
-    def _ensureDagLoaded(self):
-        """Lazily load all DAG paths.
+    def _updateDagPaths(self):
+        """Lazily load all instance DAG paths.
         The instance number is used to make sure they remain in order.
         """
-        if self._flags & _Flags.LoadedInstances:
+        if not self._dagPaths:
             return
-        if self._dagPaths:
-            currentInstNum = self._dagPaths[0].instanceNumber()
-            self._dagPaths = list(om2.MDagPath.getAllPathsTo(self._mObject))
-            if currentInstNum:
-                self._dagPaths.insert(0, self._dagPaths.pop(currentInstNum))
-        self._flags |= _Flags.LoadedInstances
+
+        currentInstNum = self._dagPaths[0].instanceNumber()
+        self._dagPaths = list(om2.MDagPath.getAllPathsTo(self._mObject))
+        if currentInstNum:
+            self._dagPaths.insert(0, self._dagPaths.pop(currentInstNum))
 
     @classmethod
     def create(cls, nodeType, **kwargs):
@@ -187,7 +152,7 @@ class Node(utils.StrMixin):
     @property
     def names(self):
         """Get all the node instance names."""
-        self._ensureDagLoaded()
+        self._updateDagPaths()
         result = [dagPath.partialPathName() for dagPath in self._dagPaths if dagPath.isValid()]
         if result:
             return result
@@ -203,7 +168,7 @@ class Node(utils.StrMixin):
     @property
     def longNames(self):
         """Get all the node instance long names."""
-        self._ensureDagLoaded()
+        self._updateDagPaths()
         result = [dagPath.fullPathName() for dagPath in self._dagPaths if dagPath.isValid()]
         if result:
             return result
