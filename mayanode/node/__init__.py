@@ -346,11 +346,7 @@ class Node(utils.StrMixin):
     @property
     def instances(self):
         """Get all the node instances including this."""
-        shape = self.shape
-        if shape is None:
-            return [self]
-        else:
-            return shape.parents
+        return list(map(type(self), self.names))
 
     @property
     def shadingEngine(self):

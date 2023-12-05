@@ -95,17 +95,17 @@ class TestNode(unittest.TestCase):
 
     def testInstances(self):
         node = Node(mc.polyCube(name='instTest1')[0])
-        self.assertEqual(node.instances, ['instTest1'])
-        inst = node.instance()
-        self.assertTrue(node.shape.instanced)
+        shape = node.shape
         self.assertFalse(node.instanced)
+        self.assertFalse(shape.instanced)
+        inst = node.instance(name='newInst')
+        self.assertFalse(node.instanced)
+        self.assertTrue(shape.instanced)
         self.assertFalse(inst.instanced)
-        self.assertEqual(node.shape, inst.shape)
-        self.assertEqual(node.instances, ['instTest1', 'instTest2'])
-        self.assertEqual(inst.instances, ['instTest1', 'instTest2'])
-        mc.delete(node)
-        self.assertEqual(inst.instances, ['instTest2'])
-        mc.delete(inst)
+        self.assertTrue(inst.shape.instanced)
+        self.assertEqual(node.name, 'instTest1')
+        self.assertEqual(inst.name, 'newInst')
+        mc.delete(node, inst)
 
     def testInstanceHash(self):
         node = Node(mc.polyCube(name='instTest1')[0])
@@ -141,6 +141,20 @@ class TestNode(unittest.TestCase):
         self.assertEqual(nodeShape.longNames, ['|instTest1|instNewShape', '|instRename|instNewShape'])
         self.assertEqual(instanceShape.longNames, ['|instRename|instNewShape', '|instTest1|instNewShape'])
         mc.delete(node, inst)
+
+    def testInstanceList(self):
+        node = Node(mc.polyCube(name='instTest1')[0])
+
+        self.assertEqual(node.instances, ['instTest1'])
+        self.assertEqual(node.shape.instances, ['instTest1Shape'])
+
+        inst = node.instance()
+        self.assertEqual(node.instances, ['instTest1'])
+        self.assertEqual(node.shape.instances, ['instTest1|instTest1Shape', 'instTest2|instTest1Shape'])
+
+        mc.delete(node)
+        self.assertEqual(inst.shape.instances, ['instTest1Shape'])
+        mc.delete(inst)
 
     def testInstanceNameNonDag(self):
         node = Node('time1')
