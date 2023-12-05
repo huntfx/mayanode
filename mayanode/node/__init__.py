@@ -8,21 +8,26 @@ from .. import exceptions, types, utils
 
 class Node(utils.StrMixin):
     """Pointer to a Maya node.
+
     OpenMaya code adapted from https://www.toadstorm.com/blog/?p=628.
     """
 
-    __slots__ = ['_mObject', '_dagPaths', '_dependencyNode', '_attrs']
+    __slots__ = ['_mObject', '_dagPaths', '_instanceNumber', '_dependencyNode', '_attrs']
 
     NODE_TYPES = {
         'shader': set(mc.listNodeTypes('shader')),
     }
 
-    def __init__(self, name):
+    def __init__(self, name, _instanceNumber=None):
         """Get the handles to the API objects."""
+        self._instanceNumber = -1
+
         if isinstance(name, Node):
             self._mObject = name._mObject
             self._dependencyNode = name._dependencyNode
             self._dagPaths = name._dagPaths
+            if _instanceNumber is not None:
+                self._instanceNumber = _instanceNumber
 
         else:
             selection = om2.MSelectionList()
@@ -42,12 +47,12 @@ class Node(utils.StrMixin):
 
         self._attrs = NodeAttributes(self)
 
-    def __new__(cls, name):
+    def __new__(cls, name, *args, **kwargs):
         """Create a new class instance, or attribute proxy if an attribute was given."""
         if not isinstance(name, cls) and name and '.' in name:
             node, attr = name.split('.', 1)
-            return cls(node).attrs[attr]
-        return super(Node, cls).__new__(cls, name)
+            return cls(node, *args, **kwargs).attrs[attr]
+        return super(Node, cls).__new__(cls, name, *args, **kwargs)
 
     def __add__(self, attr):
         """Get a new object or attribute."""
@@ -56,6 +61,7 @@ class Node(utils.StrMixin):
         return type(self)(str(self) + attr)
 
     def __eq__(self, other):
+        """Determine if two nodes are equal."""
         if isinstance(other, Node):
             return self.uuid == other.uuid and self.namespace == other.namespace
         return super(Node, self).__eq__(other)
@@ -63,27 +69,17 @@ class Node(utils.StrMixin):
     def __hash__(self):
         return hash((self.uuid, self.namespace))
 
-    def _updateDagPaths(self):
-        """Lazily load all instance DAG paths.
-        The instance number is used to make sure they remain in order.
-        """
-        if not self._dagPaths:
-            return
-
-        currentInstNum = self._dagPaths[0].instanceNumber()
-        self._dagPaths = list(om2.MDagPath.getAllPathsTo(self._mObject))
-        if currentInstNum:
-            self._dagPaths.insert(0, self._dagPaths.pop(currentInstNum))
-
     @classmethod
     def create(cls, nodeType, **kwargs):
         """Create a new node.
+
         Usage:
             >>> node = Node('myNode')
             >>> node.create('transform')
             Node('myNode')
             >>> node.create('transform')
             Node('myNode1')
+
         Warnings:
             Unrecognized node type '{nodeType}'; preserving node information during this session.
         """
@@ -131,8 +127,8 @@ class Node(utils.StrMixin):
     @property
     def name(self):
         """Get the node name."""
-        if self._dagPaths and self._dagPaths[0].isValid():
-            return self._dagPaths[0].partialPathName()
+        if self._dagPaths and self._dagPaths[self._instanceNumber].isValid():
+            return self._dagPaths[self._instanceNumber].partialPathName()
         if self._mObject.isNull():
             raise exceptions.InvalidNodeError(self)
         return self._dependencyNode.name()
@@ -140,8 +136,10 @@ class Node(utils.StrMixin):
     @name.setter
     def name(self, name):
         """Set a new node name.
+
         Warnings:
             New name contains invalid characters. Illegal characters were converted to "_".
+
         Raises:
             RuntimeError: New name has no legal characters.
             RuntimeError: No object matches name
@@ -150,29 +148,11 @@ class Node(utils.StrMixin):
         utils.runAndLog(mc.rename, self, self.namespace + ':' + name)
 
     @property
-    def names(self):
-        """Get all the node instance names."""
-        self._updateDagPaths()
-        result = [dagPath.partialPathName() for dagPath in self._dagPaths if dagPath.isValid()]
-        if result:
-            return result
-        return [self.name]
-
-    @property
     def longName(self):
         """Get the node long name."""
-        if self._dagPaths and self._dagPaths[0].isValid():
-            return self._dagPaths[0].fullPathName()
+        if self._dagPaths and self._dagPaths[self._instanceNumber].isValid():
+            return self._dagPaths[self._instanceNumber].fullPathName()
         return self.name
-
-    @property
-    def longNames(self):
-        """Get all the node instance long names."""
-        self._updateDagPaths()
-        result = [dagPath.fullPathName() for dagPath in self._dagPaths if dagPath.isValid()]
-        if result:
-            return result
-        return [self.longName]
 
     @property
     def type(self):
@@ -267,8 +247,10 @@ class Node(utils.StrMixin):
     def parent(self, parent):
         """Set a new node parent.
         Note that Maya will error if setting the parent to the current parent.
+
         Warnings:
             Object, '{node}', skipped. It is already a child of the parent, '{parent}'.
+
         Raises:
             AlreadyIsChildError: "{node}" is already a child of "{parent}"
         """
@@ -305,13 +287,30 @@ class Node(utils.StrMixin):
     def instanced(self):
         """Return if the node is instanced."""
         if self._dagPaths:
-            return self._dagPaths[0].isInstanced()
+            return self._dagPaths[self._instanceNumber].isInstanced()
         return False
 
     @property
     def instances(self):
         """Get all the node instances including this."""
-        return list(map(type(self), self.names))
+        if not self._dagPaths or not self.instanced:
+            return [self] if self.exists else []
+
+        # Get the correct instance number before populating the paths
+        if self._instanceNumber < 0:
+            self._instanceNumber = self._dagPaths[0].instanceNumber()
+
+        # Load all the DAG paths
+        # There are a few ways to get all the paths:
+        #     om2.MDagPath.getAllPathsTo(mObject): 3.8 seconds
+        #     om2.MFnDagNode(mObject).getAllPaths()[0]: 4.9 seconds
+        #     om2.MFnDagNode(dagPath).getAllPaths()[0]: 5.9 seconds
+        self._dagPaths = om2.MDagPath.getAllPathsTo(self._mObject)
+        if len(self._dagPaths) == 1:
+            return [self] if self.exists else []
+
+        return [self if instanceNumber == self._instanceNumber else type(self)(self, _instanceNumber=instanceNumber)
+                for instanceNumber, dagPath in enumerate(self._dagPaths) if dagPath.isValid()]
 
     @property
     def shadingEngine(self):
@@ -325,6 +324,7 @@ class Node(utils.StrMixin):
     @shadingEngine.setter
     def shadingEngine(self, shadingEngine):
         """Set a new shadingEngine.
+
         Warnings:
             No objects specified that can have connections.
         """
@@ -333,6 +333,7 @@ class Node(utils.StrMixin):
 
     def delete(self):
         """Delete the node.
+
         Raises:
             DeleteNodeError: No object matches name: {node}
         """
@@ -345,6 +346,7 @@ class Node(utils.StrMixin):
     @property
     def boundingBox(self):
         """Get the bounding box of the node.
+
         Raises:
             NoBoundingBoxError: "{node}" has no bounding box
         """

@@ -116,32 +116,6 @@ class TestNode(unittest.TestCase):
         self.assertEqual(len({node.shape, inst.shape}), 1)
         mc.delete(node, inst)
 
-    def testInstanceNames(self):
-        node = Node(mc.polyCube(name='instTest1')[0])
-        inst = node.instance()
-        nodeShape = node.shape
-        instanceShape = inst.shape
-
-        self.assertEqual(nodeShape.name, 'instTest1|instTest1Shape')
-        self.assertEqual(len(nodeShape._dagPaths), 1)
-        self.assertEqual(nodeShape.names, ['instTest1|instTest1Shape', 'instTest2|instTest1Shape'])
-        self.assertEqual(len(nodeShape._dagPaths), 2)
-        self.assertEqual(nodeShape.longNames, ['|instTest1|instTest1Shape', '|instTest2|instTest1Shape'])
-        self.assertEqual(nodeShape.name, 'instTest1|instTest1Shape')
-
-        self.assertEqual(instanceShape.name, 'instTest2|instTest1Shape')
-        self.assertEqual(len(instanceShape._dagPaths), 1)
-        self.assertEqual(instanceShape.names, ['instTest2|instTest1Shape', 'instTest1|instTest1Shape'])
-        self.assertEqual(len(instanceShape._dagPaths), 2)
-        self.assertEqual(instanceShape.longNames, ['|instTest2|instTest1Shape', '|instTest1|instTest1Shape'])
-        self.assertEqual(instanceShape.name, 'instTest2|instTest1Shape')
-
-        inst.name = 'instRename'
-        nodeShape.name = 'instNewShape'
-        self.assertEqual(nodeShape.longNames, ['|instTest1|instNewShape', '|instRename|instNewShape'])
-        self.assertEqual(instanceShape.longNames, ['|instRename|instNewShape', '|instTest1|instNewShape'])
-        mc.delete(node, inst)
-
     def testInstanceList(self):
         node = Node(mc.polyCube(name='instTest1')[0])
         shape = node.shape
@@ -153,15 +127,31 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.instances, ['instTest1'])
         self.assertEqual(shape.instances, ['instTest1|instTest1Shape', 'instTest2|instTest1Shape'])
 
+        instShape = inst.shape
+        instA, instB = instShape.instances
+        self.assertIs(instShape._dagPaths, instB._dagPaths)
+        self.assertNotEqual(instShape._instanceNumber, instA._instanceNumber)
+        self.assertEqual(instShape._instanceNumber, instB._instanceNumber)
+        self.assertEqual(instShape, instA)
+        self.assertEqual(instShape, instB)
+
         mc.delete(node)
         self.assertEqual(inst.shape.instances, ['instTest1Shape'])
         mc.delete(inst)
 
-    def testInstanceNameNonDag(self):
+    def testInstanceNonDag(self):
         node = Node('time1')
         self.assertEqual(node.name, 'time1')
-        self.assertEqual(node.names, ['time1'])
-        self.assertEqual(node.longNames, ['time1'])
+        self.assertEqual(node.instances, ['time1'])
+
+    def testInstanceDelete(self):
+        node = Node(mc.polyCube(name='instDeleteTest1')[0])
+        inst = node.instance()
+        shape = node.shape
+        self.assertEqual(shape.instances, [node.shape, inst.shape])
+        mc.delete(shape)
+        self.assertFalse(shape.instances)
+        mc.delete(node, inst)
 
     def testShadingEngine(self):
         node = Node(mc.polyCube(name='shadingEngineTest')[0])
