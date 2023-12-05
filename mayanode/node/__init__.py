@@ -60,6 +60,9 @@ class Node(utils.StrMixin):
             return self.uuid == other.uuid and self.namespace == other.namespace
         return super(Node, self).__eq__(other)
 
+    def __hash__(self):
+        return hash((self.uuid, self.namespace))
+
     @classmethod
     def create(cls, nodeType, **kwargs):
         """Create a new node.

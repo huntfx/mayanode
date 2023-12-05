@@ -107,6 +107,15 @@ class TestNode(unittest.TestCase):
         self.assertEqual(inst.instances, ['instTest2'])
         mc.delete(inst)
 
+    def testInstanceHash(self):
+        node = Node(mc.polyCube(name='instTest1')[0])
+        self.assertEqual(node.instances, ['instTest1'])
+        inst = node.instance()
+        self.assertEqual(node.shape, inst.shape)
+        self.assertIsNot(node.shape, inst.shape)
+        self.assertEqual(len({node.shape, inst.shape}), 1)
+        mc.delete(node, inst)
+
     def testShadingEngine(self):
         node = Node(mc.polyCube(name='shadingEngineTest')[0])
         self.assertEqual(node.shadingEngine, 'initialShadingGroup')
