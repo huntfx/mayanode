@@ -300,12 +300,19 @@ class TestAttr(unittest.TestCase):
 
     def testExists(self):
         self.assertTrue(self.node.attrs['diffuse'].exists)
-        self.assertFalse(self.node.attrs['something'].exists)
+        with self.assertRaises(exceptions.AttributeNotFoundError):
+            self.node.attrs['something']
+
+    def testExistsIn(self):
+        self.assertIn('diffuse', self.node.attrs)
+        self.assertNotIn('something', self.node.attrs)
 
     def testConcatenate(self):
         self.assertEqual(self.node.attrs['color'], 'lambert1.color')
         self.assertEqual(str(self.node + '.color'), 'lambert1.color')
-        self.assertEqual(self.node.attrs['colo'] + 'r', 'lambert1.color')
+        self.assertEqual(self.node.attrs['color'] + 'R', 'lambert1.colorR')
+        with self.assertRaises(exceptions.AttributeNotFoundError):
+            self.node.attrs['color'] + 'Y'
 
         with self.assertRaises(exceptions.NodeNotFoundError):
             self.node + '0.color'
@@ -315,8 +322,22 @@ class TestAttr(unittest.TestCase):
 
     def testGet(self):
         self.assertEqual(self.node.attrs['color'], 'lambert1.color')
-        self.assertEqual(self.node.attrs['color'].value, [(0.5, 0.5, 0.5)])
+        self.assertEqual(self.node.attrs['color'].value, (0.5, 0.5, 0.5))
         self.assertEqual(self.node.attrs['colorR'].value, 0.5)
+
+    def testSet(self):
+        self.node.attrs['color'] = (1, 2, 1.0)
+        self.assertEqual(self.node.attrs['colorR'].value, 1)
+        self.node.attrs['colorR'] = 0.5
+        self.assertEqual(self.node.attrs['color'].value, (0.5, 2.0, 1.0))
+        self.node.attrs['color'] = [0.5] * 3
+
+    def testTypes(self):
+        self.assertEqual(self.node.attrs['color'].type, (float, float, float))
+        self.assertEqual(self.node.attrs['colorR'].type, float)
+        self.assertEqual(self.node.attrs['diffuse'].type, float)
+        self.assertEqual(self.node.attrs['hideSource'].type, bool)
+        self.assertEqual(self.node.attrs['matteOpacityMode'].type, 'enum')
 
     def testLock(self):
         self.node.attrs['diffuse'].locked = True

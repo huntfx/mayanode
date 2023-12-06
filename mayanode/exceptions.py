@@ -21,6 +21,13 @@ class InvalidNodeError(NodeError):
     MESSAGE = '"{node}" is not valid'
 
 
+class AttributeNotFoundError(NodeError):
+    MESSAGE = 'No attribute found: {node}.{attr}'
+
+    def __init__(self, node, attr):
+        super(AttributeNotFoundError, self).__init__(node, attr=attr)
+
+
 class AlreadyIsChildError(NodeError):
     MESSAGE = '"{node}" is already a child of "{parent}"'
 
