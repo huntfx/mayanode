@@ -6,6 +6,26 @@ from ..bounding_box import BoundingBox
 from .. import exceptions, types, utils
 
 
+_WORLD_HANDLE = None
+
+
+def _getWorldHandle():
+    """Get the handle to the world MObject.
+    This is needed as it's parented to everything, but not wanted when
+    querying DAG parents.
+    """
+    global _WORLD_HANDLE
+    if _WORLD_HANDLE is not None:
+        return _WORLD_HANDLE
+    iterator = om2.MItDependencyNodes(om2.MSpace.kWorld)
+    while not iterator.isDone():
+        mObject = iterator.thisNode()
+        if om2.MFnDependencyNode(mObject).name() == 'world':
+            _WORLD_HANDLE = om2.MObjectHandle(mObject)
+            return _WORLD_HANDLE
+        iterator.next()
+
+
 class Node(utils.StrMixin):
     """Pointer to a Maya node.
 
@@ -29,6 +49,15 @@ class Node(utils.StrMixin):
             if _instanceNumber is not None:
                 self._instanceNumber = _instanceNumber
 
+        elif isinstance(name, om2.MObject):
+            self._mObject = name
+            self._dependencyNode = om2.MFnDependencyNode(self._mObject)
+            self._dagPaths = om2.MDagPath.getAllPathsTo(self._mObject)
+            self._instanceNumber = _instanceNumber or 0
+
+            if len(self._dagPaths) > 1:
+                raise NotImplementedError('unable to determine which path to use for mobject')
+
         else:
             selection = om2.MSelectionList()
             try:
@@ -49,7 +78,7 @@ class Node(utils.StrMixin):
 
     def __new__(cls, name, *args, **kwargs):
         """Create a new class instance, or attribute proxy if an attribute was given."""
-        if not isinstance(name, cls) and name and '.' in name:
+        if not isinstance(name, (Node, om2.MObject)) and name and '.' in name:
             node, attr = name.split('.', 1)
             return cls(node, *args, **kwargs).attrs[attr]
         return super(Node, cls).__new__(cls, name, *args, **kwargs)
@@ -63,6 +92,7 @@ class Node(utils.StrMixin):
     def __eq__(self, other):
         """Determine if two nodes are equal."""
         if isinstance(other, Node):
+            return om2.MObjectHandle(self._mObject) == om2.MObjectHandle(other._mObject)
             return self.uuid == other.uuid and self.namespace == other.namespace
         return super(Node, self).__eq__(other)
 
@@ -228,8 +258,13 @@ class Node(utils.StrMixin):
 
     @property
     def _parents(self):
-        """Get the node parents as a generator."""
-        return map(type(self), utils.runAndLog(mc.listRelatives, self, allParents=True, fullPath=True) or [])
+        """Get the node parents.
+        This is not technically a generator but treat it as such.
+        """
+        cls = type(self)
+        dagNode = om2.MFnDagNode(self._mObject)
+        return (cls(parent) for parent in map(dagNode.parent, range(dagNode.parentCount()))
+                if om2.MObjectHandle(parent) != _getWorldHandle())
 
     @property
     def parents(self):
