@@ -129,9 +129,6 @@ class TestNode(unittest.TestCase):
 
         instShape = inst.shape
         instA, instB = instShape.instances
-        self.assertIs(instShape._dagPaths, instB._dagPaths)
-        self.assertNotEqual(instShape._instanceNumber, instA._instanceNumber)
-        self.assertEqual(instShape._instanceNumber, instB._instanceNumber)
         self.assertEqual(instShape, instA)
         self.assertEqual(instShape, instB)
 

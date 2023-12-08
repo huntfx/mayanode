@@ -230,7 +230,7 @@ class AttributeProxy(types.StrMixin):
         self.attr = attr
 
         try:
-            self._plug = self.node._dependencyNode.findPlug(attr, False)
+            self._plug = self.node.api.dependencyNode.findPlug(attr, False)
         except RuntimeError as e:
             if str(e) != '(kInvalidParameter): Object is incompatible with this method':
                 raise
