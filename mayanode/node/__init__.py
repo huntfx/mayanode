@@ -471,9 +471,6 @@ class Node(utils.StrMixin):
             return [self] if self.exists else []
 
         instanceNumber = self.api.recalculateDagPaths()
-        #if self.api.dagPaths is None or len(self.api.dagPaths) < 2:
-        #    return [self] if self.exists else []
-
         return [self if instanceNumber == i else type(self)(self, _instanceNumber=i)
                 for i, dagPath in enumerate(self.api.dagPaths) if dagPath.isValid()]
 

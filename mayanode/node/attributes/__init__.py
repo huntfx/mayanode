@@ -36,6 +36,11 @@ def _getPlugValue(plug):
         if numericType == om2.MFnNumericData.kShort:
             return plug.asShort()
 
+    elif apiType in (om2.MFn.kFloatAngleAttribute, om2.MFn.kDoubleAngleAttribute):
+        return plug.asMAngle().asDegrees()  # Equivalent to `math.degrees(plug.asDouble())`
+    elif apiType in (om2.MFn.kFloatLinearAttribute, om2.MFn.kDoubleLinearAttribute):
+        return plug.asMDistance().asCentimeters()  # Equivalent to `plug.asDouble()`
+
     elif apiType == om2.MFn.kEnumAttribute:
         return plug.asInt()
 
