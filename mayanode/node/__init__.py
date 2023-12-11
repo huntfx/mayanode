@@ -332,7 +332,8 @@ class Node(utils.StrMixin):
         """Get the node type."""
         if self.api.object.isNull():
             raise exceptions.InvalidNodeError(self)
-        return utils.runAndLog(mc.nodeType, self)
+        return self.api.dependencyNode.typeName
+        # return utils.runAndLog(mc.nodeType, self)
 
     @property
     def attrs(self):
