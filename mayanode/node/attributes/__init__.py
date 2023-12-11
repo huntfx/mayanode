@@ -123,7 +123,7 @@ class NodeAttributes(dict):
         if not self._loaded:
             if super(NodeAttributes, self).__contains__(value):
                 return True
-            if utils.runAndLog(mc.attributeQuery, value, node=self.node, exists=True):
+            if self.node.api.dependencyNode.hasAttribute(value):
                 self._ensureAttr(value)
                 return True
             return False
@@ -232,14 +232,18 @@ class AttributeProxy(types.StrMixin):
 
     def __init__(self, node, attr):
         self.node = node
-        self.attr = attr
+        if isinstance(attr, om2.MPlug):
+            self._plug = attr
+            self.attr = attr.partialName()
 
-        try:
-            self._plug = self.node.api.dependencyNode.findPlug(attr, False)
-        except RuntimeError as e:
-            if str(e) != '(kInvalidParameter): Object is incompatible with this method':
-                raise
-            raise exceptions.AttributeNotFoundError(self.node, attr)
+        else:
+            self.attr = attr
+            try:
+                self._plug = self.node.api.dependencyNode.findPlug(attr, False)
+            except RuntimeError as e:
+                if str(e) != '(kInvalidParameter): Object is incompatible with this method':
+                    raise
+                raise exceptions.AttributeNotFoundError(self.node, attr)
         self._keyframes = AttributeKeyframes(self)
 
     def __bool__(self):
@@ -298,7 +302,8 @@ class AttributeProxy(types.StrMixin):
     @property
     def exists(self):
         """Determine if the attribute already exists."""
-        return utils.runAndLog(mc.attributeQuery, self.attr, node=self.node.name, exists=True)
+        return self.node.api.dependencyNode.hasAttribute(self.attr)
+        # return utils.runAndLog(mc.attributeQuery, self.attr, node=self.node.name, exists=True)
 
     @property
     def type(self):
@@ -395,15 +400,19 @@ class AttributeProxy(types.StrMixin):
 
     @property
     def connections(self):
-        """Get the node connections as plugs.
+        """Get the node connections as plugs."""
+        cls = type(self)
+        Node = type(self.node)
 
-        Raises:
-            ValueError: "No object matches name: {self.name}"
-        """
         connections = []
-        for nodeAttr in utils.runAndLog(mc.listConnections, self, plugs=True) or ():
-            node, attr = nodeAttr.split('.', 1)
-            connections.append(type(self)(type(self.node)(node), attr))
+        if self._plug is None:
+            for nodeAttr in utils.runAndLog(mc.listConnections, self, plugs=True) or ():
+                node, attr = nodeAttr.split('.', 1)
+                connections.append(cls(Node(node), attr))
+        else:
+            for plug in self._plug.connectedTo(True, True):
+                node = plug.node()
+                connections.append(cls(Node(node), plug))
         return connections
 
     def ensure(self, attrType, **kwargs):

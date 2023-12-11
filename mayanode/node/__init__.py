@@ -318,7 +318,8 @@ class Node(utils.StrMixin):
             RuntimeError: No object matches name
         """
         utils.logger.info('Renaming %r to %r', self, name)
-        utils.runAndLog(mc.rename, self, self.namespace + ':' + name)
+        self.api.dependencyNode.setName(self.namespace + ':' + name)
+        # utils.runAndLog(mc.rename, self, self.namespace + ':' + name)
 
     @property
     def longName(self):
@@ -385,10 +386,7 @@ class Node(utils.StrMixin):
     @property
     def namespace(self):
         """Get the node namespace."""
-        parts = self.name.rsplit(':', 1)
-        if len(parts) == 1:
-            return ''
-        return parts[0]
+        return self.api.dependencyNode.namespace
 
     @namespace.setter
     def namespace(self, namespace):
