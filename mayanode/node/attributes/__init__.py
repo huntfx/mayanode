@@ -11,6 +11,52 @@ if str is not bytes:
     unicode = str  # pylint:disable=invalid-name
 
 
+if str is not bytes:
+    unicode = str  # pylint:disable=invalid-name
+
+
+ATTR_TYPES = {
+    'bool': bool,
+    'byte': int,
+    'short': int,
+    'short2': (int, int),
+    'short3': (int, int, int),
+    'long': int,
+    'long2': (int, int),
+    'long3': (int, int, int),
+    'int32Array': [int],
+    'char': str,
+    'string': str,
+    'stringArray': [str],
+    'double': float,
+    'double2': (float, float),
+    'double3': (float, float, float),
+    'doubleArray': [float],
+    'float': float,
+    'float2': (float, float),
+    'float3': (float, float, float),
+    'floatArray': [float],
+    'int3': (int, int, int),
+    om2.MFnData.kString: str,
+    om2.MFnNumericData.kBoolean: bool,
+    om2.MFnNumericData.kInt: int,
+    om2.MFnNumericData.kInt64: int,
+    om2.MFnNumericData.kShort: int,
+    om2.MFnNumericData.kLong: int,
+    om2.MFnNumericData.kFloat: float,
+    om2.MFnNumericData.kDouble: float,
+    om2.MFn.kAttribute2Float: [float, float],
+    om2.MFn.kAttribute2Double: [float, float],
+    om2.MFn.kAttribute2Int: [int, int],
+    om2.MFn.kAttribute2Short: [int, int],
+    om2.MFn.kAttribute3Float: [float, float, float],
+    om2.MFn.kAttribute3Double: [float, float, float],
+    om2.MFn.kAttribute3Int: [int, int, int],
+    om2.MFn.kAttribute3Short: [int, int, int],
+    om2.MFn.kAttribute4Double: [float, float, float, float],
+}
+
+
 def _getPlugValue(plug):
     """Get the value of the plug as the correct type.
     If unsupported, None will be returned.
@@ -63,7 +109,7 @@ def _getPlugValue(plug):
     elif apiType == om2.MFn.kAttribute4Double:
         return tuple(plug.child(i).asDouble() for i in range(4))
 
-    return None
+    raise NotImplementedError(attribute.apiTypeStr)
 
 
 def _setPlugValue(plug, value):
@@ -81,9 +127,49 @@ def _setPlugValue(plug, value):
     elif isinstance(value, (list, tuple)):
         for i, val in enumerate(value):
             _setPlugValue(plug.child(i), val)
-    else:
-        return False
-    return True
+    raise NotImplementedError(type(value))
+
+
+class _ApiData(object):
+    """Hold the OpenMaya API objects for an attribute."""
+
+    __slots__ = ['_plug', '_attribute']
+
+    def __init__(self, plug):
+        self._plug = plug
+        self._attribute = None
+
+    @classmethod
+    def fromNode(cls, node, attr):
+        """Get an attribute from a Node instance.
+
+        Raises:
+            AttributeNotFoundError
+        """
+        try:
+            plug = node.api.dependencyNode.findPlug(attr, False)
+        except RuntimeError as e:
+            if str(e) != '(kInvalidParameter): Object is incompatible with this method':
+                raise
+            raise exceptions.AttributeNotFoundError(node, attr)
+        return cls(plug)
+
+    @property
+    def plug(self):
+        """Get the `MPlug`."""
+        return self._plug
+
+    @property
+    def attribute(self):
+        """Get the `MFnAttribute`.
+
+        Notable methods:
+            `name`
+            `shortName`
+        """
+        if self._attribute is None:
+            self._attribute = om2.MFnAttribute(self.plug.attribute())
+        return self._attribute
 
 
 class NodeAttributes(dict):
@@ -187,63 +273,19 @@ class AttributeProxy(types.StrMixin):
     A connection is made by using the >> operator between two attributes.
     """
 
-    __slots__ = ['node', 'attr', '_plug', '_keyframes']
+    __slots__ = ['node', 'attr', 'api', '_keyframes']
 
-    ATTR_TYPES = {
-        'bool': bool,
-        'byte': int,
-        'short': int,
-        'short2': (int, int),
-        'short3': (int, int, int),
-        'long': int,
-        'long2': (int, int),
-        'long3': (int, int, int),
-        'int32Array': [int],
-        'char': str,
-        'string': str,
-        'stringArray': [str],
-        'double': float,
-        'double2': (float, float),
-        'double3': (float, float, float),
-        'doubleArray': [float],
-        'float': float,
-        'float2': (float, float),
-        'float3': (float, float, float),
-        'floatArray': [float],
-        'int3': (int, int, int),
-        om2.MFnData.kString: str,
-        om2.MFnNumericData.kBoolean: bool,
-        om2.MFnNumericData.kInt: int,
-        om2.MFnNumericData.kInt64: int,
-        om2.MFnNumericData.kShort: int,
-        om2.MFnNumericData.kLong: int,
-        om2.MFnNumericData.kFloat: float,
-        om2.MFnNumericData.kDouble: float,
-        om2.MFn.kAttribute2Float: [float, float],
-        om2.MFn.kAttribute2Double: [float, float],
-        om2.MFn.kAttribute2Int: [int, int],
-        om2.MFn.kAttribute2Short: [int, int],
-        om2.MFn.kAttribute3Float: [float, float, float],
-        om2.MFn.kAttribute3Double: [float, float, float],
-        om2.MFn.kAttribute3Int: [int, int, int],
-        om2.MFn.kAttribute3Short: [int, int, int],
-        om2.MFn.kAttribute4Double: [float, float, float, float],
-    }
 
     def __init__(self, node, attr):
         self.node = node
         if isinstance(attr, om2.MPlug):
-            self._plug = attr
-            self.attr = attr.partialName()
+            self.api = _ApiData(attr)
+            self.attr = self.api.attribute.name
 
         else:
             self.attr = attr
-            try:
-                self._plug = self.node.api.dependencyNode.findPlug(attr, False)
-            except RuntimeError as e:
-                if str(e) != '(kInvalidParameter): Object is incompatible with this method':
-                    raise
-                raise exceptions.AttributeNotFoundError(self.node, attr)
+            self.api = _ApiData.fromNode(self.node, attr)
+
         self._keyframes = AttributeKeyframes(self)
 
     def __bool__(self):
@@ -315,64 +357,67 @@ class AttributeProxy(types.StrMixin):
             List of a single type if an array attribute.
             String if unsupported (eg. "enum").
         """
-        if self._plug is not None:
-            attribute = self._plug.attribute()
+        if self.api:
+            attribute = self.api.plug.attribute()
             apiType = attribute.apiType()
 
             if apiType == om2.MFn.kTypedAttribute:
                 attrType = om2.MFnTypedAttribute(attribute).attrType()
-                if attrType in self.ATTR_TYPES:
-                    return self.ATTR_TYPES[attrType]
+                if attrType in ATTR_TYPES:
+                    return ATTR_TYPES[attrType]
 
             elif apiType == om2.MFn.kNumericAttribute:
                 numericType = om2.MFnNumericAttribute(attribute).numericType()
-                if numericType in self.ATTR_TYPES:
-                    return self.ATTR_TYPES[numericType]
+                if numericType in ATTR_TYPES:
+                    return ATTR_TYPES[numericType]
 
             elif apiType == om2.MFn.kEnumAttribute:
                 return 'enum'  # Match the getAttr result
 
         attrType = utils.runAndLog(mc.getAttr, self, type=True)
-        return self.ATTR_TYPES.get(attrType, attrType)
+        return ATTR_TYPES.get(attrType, attrType)
 
     @property
     def name(self):
         """Get the full node and attribute name for Maya to use."""
-        if self._plug is not None:
-            return self._plug.name()
+        if self.api:
+            return self.api.plug.name()
         return '{}.{}'.format(self.node, self.attr)
 
     @property
     def value(self):
         """Get an attribute value."""
-        if self._plug is not None:
-            value = _getPlugValue(self._plug)
-            if value is not None:
-                return value
-
+        if self.api:
+            try:
+                return _getPlugValue(self.api.plug)
+            except NotImplementedError:
+                pass
         return utils.runAndLog(mc.getAttr, self)
 
     @value.setter
     def value(self, value):
         """Set a new attribute value."""
         utils.logger.info('Setting %s value: %r', self, value)
-        if self._plug is not None and _setPlugValue(self._plug, value):
-            return
+        if self.api:
+            while True:
+                try:
+                    _setPlugValue(self.api.plug, value)
+                except NotImplementedError:
+                    break
+                return
 
         if isinstance(value, (str, unicode, types.StrMixin)):
             utils.runAndLog(mc.setAttr, self, value, type='string')
         elif isinstance(value, (tuple, list)):
             utils.runAndLog(mc.setAttr, self, *value)
         else:
-            if self._plug is not None:
-                self._plug.setString(value)
             utils.runAndLog(mc.setAttr, self, value)
 
     @property
     def locked(self):
         """Get the node locked state."""
-        if self._plug is not None:
-            return self._plug.isLocked
+        if self.api:
+            return self.api.plug.isLocked
         return utils.runAndLog(mc.getAttr, self, lock=True)
 
     @locked.setter
@@ -384,8 +429,8 @@ class AttributeProxy(types.StrMixin):
     @property
     def keyable(self):
         """Get the node keyable state."""
-        if self._plug is not None:
-            return self._plug.isKeyable
+        if self.api:
+            return self.api.plug.isKeyable
         return utils.runAndLog(mc.getAttr, self, keyable=True)
 
     @keyable.setter
@@ -405,14 +450,14 @@ class AttributeProxy(types.StrMixin):
         Node = type(self.node)
 
         connections = []
-        if self._plug is None:
+        if self.api:
+            for plug in self.api.plug.connectedTo(True, True):
+                node = plug.node()
+                connections.append(cls(Node(node), plug))
+        else:
             for nodeAttr in utils.runAndLog(mc.listConnections, self, plugs=True) or ():
                 node, attr = nodeAttr.split('.', 1)
                 connections.append(cls(Node(node), attr))
-        else:
-            for plug in self._plug.connectedTo(True, True):
-                node = plug.node()
-                connections.append(cls(Node(node), plug))
         return connections
 
     def ensure(self, attrType, **kwargs):

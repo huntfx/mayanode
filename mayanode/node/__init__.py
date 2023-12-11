@@ -10,6 +10,10 @@ if str is not bytes:
     unicode = str
 
 
+NODE_TYPES = {
+    'shader': set(mc.listNodeTypes('shader')),
+}
+
 _WORLD_HANDLE = None
 
 
@@ -30,7 +34,7 @@ def _getWorldHandle():
         iterator.next()
 
 
-class ApiData(object):
+class _ApiData(object):
     """Hold the OpenMaya API objects for a node."""
 
     __slots__ = ['_object', '_handle', '_instanceNumber',
@@ -43,7 +47,7 @@ class ApiData(object):
         self._dependencyNode = self._dagNode = self._dagPaths = None
 
     def __eq__(self, other):
-        if isinstance(other, ApiData):
+        if isinstance(other, _ApiData):
             return self.handle == other.handle
         return False
 
@@ -201,10 +205,6 @@ class Node(utils.StrMixin):
 
     __slots__ = ['api', '_attrs']
 
-    NODE_TYPES = {
-        'shader': set(mc.listNodeTypes('shader')),
-    }
-
     def __init__(self, name, _instanceNumber=-1):
         """Setup the data.
 
@@ -217,9 +217,9 @@ class Node(utils.StrMixin):
         if isinstance(name, Node):
             self.api = name.api.copy(instanceNumber=_instanceNumber)
         elif isinstance(name, om2.MObject):
-            self.api = ApiData(name, instanceNumber=_instanceNumber)
+            self.api = _ApiData(name, instanceNumber=_instanceNumber)
         else:
-            self.api = ApiData.fromName(name)
+            self.api = _ApiData.fromName(name)
 
         self._attrs = NodeAttributes(self)
 
@@ -265,7 +265,7 @@ class Node(utils.StrMixin):
             utils.logger.info('Creating "%s" node', nodeType)
 
         # Create shading node
-        if nodeType in cls.NODE_TYPES['shader']:
+        if nodeType in NODE_TYPES['shader']:
             result = utils.runAndLog(mc.shadingNode, nodeType, asShader=True, **kwargs)
 
         # Create shading engine
