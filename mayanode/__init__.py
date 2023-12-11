@@ -80,7 +80,14 @@ Examples:
     True
 """
 
+__all__ = [
+    'exceptions',
+    'Node',
+    'BoundingBox',
+    'Reference',
+]
+
 from . import exceptions
-from .node import Node
-from .bounding_box import BoundingBox
-from .reference import Reference
+from .core.node import Node
+from .core.bounding_box import BoundingBox
+from .core.reference import Reference

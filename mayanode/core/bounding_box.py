@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import maya.cmds as mc
 
-from . import utils
+from .. import utils
 
 
 class BoundingBox(tuple):

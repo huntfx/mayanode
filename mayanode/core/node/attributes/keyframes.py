@@ -7,7 +7,7 @@ except ImportError:
 
 import maya.cmds as mc
 
-from ... import utils
+from .... import utils
 
 
 class AttributeKeyframes(MutableMapping):

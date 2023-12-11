@@ -4,7 +4,7 @@ import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
 from .keyframes import AttributeKeyframes
-from ... import exceptions, types, utils
+from .... import exceptions, types, utils
 
 
 if str is not bytes:

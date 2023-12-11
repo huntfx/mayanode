@@ -3,7 +3,7 @@ import maya.cmds as mc
 
 from .attributes import NodeAttributes
 from ..bounding_box import BoundingBox
-from .. import exceptions, types, utils
+from ... import exceptions, types, utils
 
 
 if str is not bytes:

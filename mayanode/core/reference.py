@@ -1,6 +1,7 @@
 import maya.cmds as mc
 
-from .node import Node, utils
+from .node import Node
+from .. import utils
 
 
 class Reference(Node):
