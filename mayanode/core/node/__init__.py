@@ -62,14 +62,15 @@ class _ApiData(object):
         try:
             selection.add(name)
         except Exception as e:
-            if 'kInvalidParameter' in e.message:
+            if str(e) == '(kInvalidParameter): Object does not exist':
                 raise exceptions.NodeNotFoundError(name)
             raise
 
-        new = cls(selection.getDependNode(0))
-        try:
+        mobject = selection.getDependNode(0)
+        new = cls(mobject)
+        if mobject.hasFn(om2.MFn.kDagNode):
             new._dagPaths = [selection.getDagPath(0)]
-        except TypeError:
+        else:
             new._dagPaths = []
         return new
 
@@ -143,11 +144,9 @@ class _ApiData(object):
         """
         # Load for the first time
         if self._dagPaths is None:
-            try:
+            if self.object.hasFn(om2.MFn.kDagNode):
                 self._dagPaths = [om2.MDagPath.getAPathTo(self.object)]
-            except RuntimeError as e:
-                if str(e) != '(kInvalidParameter): Object is incompatible with this method':
-                    raise
+            else:
                 self._dagPaths = []
 
         if not self._dagPaths:
