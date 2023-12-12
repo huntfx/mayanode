@@ -143,14 +143,15 @@ class _ApiData(object):
         """
         # Load for the first time
         if self._dagPaths is None:
-            dagPath = om2.MDagPath.getAPathTo(self.object)
-            self._dagPaths = [dagPath]
-            return dagPath
+            try:
+                self._dagPaths = [om2.MDagPath.getAPathTo(self.object)]
+            except RuntimeError as e:
+                if str(e) != '(kInvalidParameter): Object is incompatible with this method':
+                    raise
+                self._dagPaths = []
 
-        # Loaded before and none exist
-        if self._instanceNumber < 1 and not self._dagPaths:
+        if not self._dagPaths:
             return None
-
         return self._dagPaths[self._instanceNumber]
 
     @property
@@ -300,7 +301,7 @@ class Node(utils.StrMixin):
     @property
     def name(self):
         """Get the node name."""
-        if self.api.dagPath and self.api.dagPath.isValid():
+        if self.api.dagPath is not None and self.api.dagPath.isValid():
             return self.api.dagPath.partialPathName()
         if self.api.object.isNull():
             raise exceptions.InvalidNodeError(self)
@@ -324,7 +325,7 @@ class Node(utils.StrMixin):
     @property
     def longName(self):
         """Get the node long name."""
-        if self.api.dagPath and self.api.dagPath.isValid():
+        if self.api.dagPath is not None and self.api.dagPath.isValid():
             return self.api.dagPath.fullPathName()
         return self.name
 
