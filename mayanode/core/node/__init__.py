@@ -127,7 +127,13 @@ class _ApiData(object):
             `parent(idx)`
         """
         if self._dagNode is None:
-            self._dagNode = om2.MFnDagNode(self.object)
+            if self.object.hasFn(om2.MFn.kDagNode):
+                self._dagNode = om2.MFnDagNode(self.object)
+            else:
+                self._dagNode = -1
+
+        if self._dagNode == -1:
+            return None
         return self._dagNode
 
     @property
@@ -442,16 +448,20 @@ class Node(utils.StrMixin):
     @property
     def children(self):
         """Get all node children."""
-        result = utils.runAndLog(mc.listRelatives, self, children=True, fullPath=True) or []
-        return [type(self)(child) for child in result]
+        if self.api.dagNode is None:
+            return []
+        apiChildren = map(self.api.dagNode.child, range(self.api.dagNode.childCount()))
+        return list(map(type(self), apiChildren))
 
     @property
     def shape(self):
         """Get the node shape if it has one."""
-        shapes = utils.runAndLog(mc.listRelatives, self, shapes=True, noIntermediate=True, fullPath=True)
-        if shapes:
-            return type(self)(shapes[0])
-        return None
+        if self.api.dagNode is None:
+            return None
+        for i in range(self.api.dagNode.childCount()):
+            shape = self.api.dagNode.child(i)
+            if shape.hasFn(om2.MFn.kShape):
+                return type(self)(shape)
 
     def instance(self, **kwargs):
         """Create an instance of the object."""
