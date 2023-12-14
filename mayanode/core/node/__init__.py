@@ -1,7 +1,7 @@
 import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
-from .attributes import NodeAttributes
+from .attributes import NodeAttributes, AttributeProxy
 from ..bounding_box import BoundingBox
 from ... import exceptions, types, utils
 
@@ -452,6 +452,22 @@ class Node(utils.StrMixin):
             return []
         apiChildren = map(self.api.dagNode.child, range(self.api.dagNode.childCount()))
         return list(map(type(self), apiChildren))
+
+    @property
+    def connections(self):
+        """Get the node connections as plugs."""
+        plugs = self.api.dependencyNode.getConnections()
+        if not plugs:
+            return []
+
+        from ..connection import Connection  # pylint: disable=import-outside-toplevel
+        connections = []
+        for plug in plugs:
+            for otherPlug in plug.connectedTo(False, True):
+                connections.append(Connection(self, plug, otherPlug, reverse=True))
+            for otherPlug in plug.connectedTo(True, False):
+                connections.append(Connection(self, plug, otherPlug))
+        return connections
 
     @property
     def shape(self):

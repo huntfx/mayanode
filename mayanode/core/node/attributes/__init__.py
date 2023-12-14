@@ -59,7 +59,9 @@ ATTR_TYPES = {
 
 def _getPlugValue(plug):
     """Get the value of the plug as the correct type.
-    If unsupported, None will be returned.
+
+    Raises:
+        NotImplementedError: If the type is not yet supported.
     """
     attribute = plug.attribute()
     apiType = attribute.apiType()
@@ -445,19 +447,16 @@ class AttributeProxy(types.StrMixin):
 
     @property
     def connections(self):
-        """Get the node connections as plugs."""
-        cls = type(self)
-        Node = type(self.node)
+        """Get the attribute connections as plugs."""
+        if not self.api:
+            return []
+        from ...connection import Connection  # pylint: disable=import-outside-toplevel
 
         connections = []
-        if self.api:
-            for plug in self.api.plug.connectedTo(True, True):
-                node = plug.node()
-                connections.append(cls(Node(node), plug))
-        else:
-            for nodeAttr in utils.runAndLog(mc.listConnections, self, plugs=True) or ():
-                node, attr = nodeAttr.split('.', 1)
-                connections.append(cls(Node(node), attr))
+        for plug in self.api.plug.connectedTo(False, True):
+            connections.append(Connection(self.node, self.api.plug, plug))
+        for plug in self.api.plug.connectedTo(True, False):
+            connections.append(Connection(self.node, self.api.plug, plug, reverse=True))
         return connections
 
     def ensure(self, attrType, **kwargs):
