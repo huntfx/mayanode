@@ -74,6 +74,15 @@ class _ApiData(object):
             new._dagPaths = []
         return new
 
+    @classmethod
+    def fromDagPath(cls, dagPath):
+        # pylint: disable=protected-access
+        """Get API data from an `MDagPath`."""
+        instanceNumber = dagPath.instanceNumber()
+        new = cls(dagPath.node(), instanceNumber=instanceNumber)
+        new._dagPaths = [None for _ in range(instanceNumber)] + [dagPath]
+        return new
+
     def copy(self, instanceNumber=-1):
         # pylint: disable=protected-access
         """Create a new copy of the object."""
@@ -224,6 +233,8 @@ class Node(utils.StrMixin):
             self.api = name.api.copy(instanceNumber=_instanceNumber)
         elif isinstance(name, om2.MObject):
             self.api = _ApiData(name, instanceNumber=_instanceNumber)
+        elif isinstance(name, om2.MDagPath):
+            self.api = _ApiData.fromDagPath(name)
         else:
             self.api = _ApiData.fromName(name)
 
@@ -231,7 +242,7 @@ class Node(utils.StrMixin):
 
     def __new__(cls, name, *args, **kwargs):
         """Create a new class instance, or attribute proxy if an attribute was given."""
-        if not isinstance(name, (Node, om2.MObject)) and name and '.' in name:
+        if not isinstance(name, (Node, om2.MObject, om2.MDagPath)) and name and '.' in name:
             node, attr = name.split('.', 1)
             return cls(node, *args, **kwargs).attrs[attr]
         return super(Node, cls).__new__(cls, name, *args, **kwargs)
@@ -447,11 +458,31 @@ class Node(utils.StrMixin):
 
     @property
     def children(self):
-        """Get all node children."""
+        """Get all node children.
+
+        TODO: Test correct instance.
+        """
         if self.api.dagNode is None:
             return []
         apiChildren = map(self.api.dagNode.child, range(self.api.dagNode.childCount()))
         return list(map(type(self), apiChildren))
+
+    @property
+    def descendents(self):
+        """Get all node descendents."""
+        cls = type(self)
+        dag = om2.MItDag()
+        dag.reset(self.api.dagPath, om2.MItDag.kBreadthFirst)
+        dag.next()
+        return [cls(dag.currentItem()) for _ in dag]
+
+    @property
+    def ancestors(self):
+        """Get all node ancestors."""
+        parents = self.parents
+        for parent in list(parents):
+            parents.extend(parent.parents)
+        return parents
 
     @property
     def connections(self):
@@ -471,13 +502,26 @@ class Node(utils.StrMixin):
 
     @property
     def shape(self):
-        """Get the node shape if it has one."""
-        if self.api.dagNode is None:
+        """Get the shape node."""
+        if self.api.dagPath is None:
             return None
-        for i in range(self.api.dagNode.childCount()):
-            shape = self.api.dagNode.child(i)
-            if shape.hasFn(om2.MFn.kShape):
-                return type(self)(shape)
+
+        shapeDagPath = om2.MDagPath(self.api.dagPath)
+        shapeDagPath.extendToShape()
+        if self.api.dagPath == shapeDagPath:
+            return None
+        return Node(shapeDagPath)
+
+    @property
+    def transform(self):
+        """Get the transform node."""
+        if self.api.dagPath is None:
+            return None
+
+        transformObject = self.api.dagPath.transform()
+        if self.api.handle == om2.MObjectHandle(transformObject):
+            return None
+        return Node(transformObject)
 
     def instance(self, **kwargs):
         """Create an instance of the object."""
