@@ -16,13 +16,15 @@ NODE_TYPES = {
 
 _WORLD_HANDLE = None
 
+_WORLD_DAG_PATH = None
+
 
 def _getWorldHandle():
-    """Get the handle to the world MObject.
+    """Get the handle to the world `MObject`.
     This is needed as it's parented to everything, but not wanted when
     querying DAG parents.
     """
-    global _WORLD_HANDLE
+    global _WORLD_HANDLE, _WORLD_DAG_PATH
     if _WORLD_HANDLE is not None:
         return _WORLD_HANDLE
     iterator = om2.MItDependencyNodes(om2.MSpace.kWorld)
@@ -30,8 +32,17 @@ def _getWorldHandle():
         mObject = iterator.thisNode()
         if om2.MFnDependencyNode(mObject).name() == 'world':
             _WORLD_HANDLE = om2.MObjectHandle(mObject)
+            _WORLD_DAG_PATH = om2.MDagPath.getAPathTo(mObject)
             return _WORLD_HANDLE
         iterator.next()
+
+
+def _getWorldDagPath():
+    """Get the world `MDagPath`."""
+    global _WORLD_DAG_PATH
+    if _WORLD_DAG_PATH is None:
+        _getWorldHandle()
+    return _WORLD_DAG_PATH
 
 
 class _ApiData(object):
@@ -416,24 +427,23 @@ class Node(utils.StrMixin):
         utils.runAndLog(mc.rename, self.name, namespace + ':' + self.name.rsplit(':', 1)[-1])
 
     @property
-    def _parents(self):
-        """Get the node parents as a generator."""
-        cls = type(self)
-        dagParents = map(self.api.dagNode.parent, range(self.api.dagNode.parentCount()))
-        return (cls(parent) for parent in dagParents
-                if om2.MObjectHandle(parent) != _getWorldHandle())
-
-    @property
     def parents(self):
         """Get the node parents."""
-        return list(self._parents)
+        result = []
+        for parent in map(self.api.dagNode.parent, range(self.api.dagNode.parentCount())):
+            if om2.MObjectHandle(parent) == _getWorldHandle():
+                continue
+            node = type(self)(parent)
+            result.append(node)
+        return result
 
     @property
     def parent(self):
         """Get the node parent."""
-        for parent in self._parents:
-            return parent
-        return None
+        dagPath = om2.MDagPath(self.api.dagPath).pop()
+        if dagPath == _getWorldDagPath():
+            return None
+        return type(self)(dagPath)
 
     @parent.setter
     def parent(self, parent):
@@ -480,9 +490,15 @@ class Node(utils.StrMixin):
     def ancestors(self):
         """Get all node ancestors."""
         parents = self.parents
-        for parent in list(parents):
-            parents.extend(parent.parents)
-        return parents
+        ancestors = []
+
+        for parent in parents:
+            ancestors.append(parent)
+            ancestors.extend(parent.ancestors)
+
+        seen = set()
+        return [ancestor for ancestor in ancestors
+                if not (ancestor in seen or seen.add(ancestor))]
 
     @property
     def connections(self):
