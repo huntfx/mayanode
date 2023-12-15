@@ -151,9 +151,9 @@ class _ApiData(object):
         try:
             plug = node.api.dependencyNode.findPlug(attr, False)
         except RuntimeError as e:
-            if str(e) != '(kInvalidParameter): Object is incompatible with this method':
-                raise
-            raise exceptions.AttributeNotFoundError(node, attr)
+            if str(e) == '(kInvalidParameter): Object is incompatible with this method':
+                raise exceptions.AttributeNotFoundError(node, attr)
+            raise
         return cls(plug)
 
     @property
@@ -314,16 +314,40 @@ class AttributeProxy(types.StrMixin):
 
         >>> AttributeProxy('node.attr').connect('othernode.attr1')
         >>> AttributeProxy('node.attr').connect('othernode.attr2', reverse=True)
-        """
-        if isinstance(connection, AttributeProxy):
-            connection = connection.name
 
+        Raises:
+            DestinationAttributeNotFoundError
+        """
+        # Get the plug
+        plug = None
+        if isinstance(connection, AttributeProxy):
+            plug = connection.api.plug
+        elif connection.count('.') == 1:
+            node, attr = connection.split('.')
+            selection = om2.MSelectionList()
+            selection.add(node)
+            dependNode = selection.getDependNode(0)
+            dependencyNode = om2.MFnDependencyNode(dependNode)
+            try:
+                plug = dependencyNode.findPlug(attr, False)
+            except RuntimeError as e:
+                if str(e) == '(kInvalidParameter): Object is incompatible with this method':
+                    raise exceptions.DestinationAttributeNotFoundError(node, attr)
+                raise
+
+        # Create the connection
         if reverse:
             utils.logger.info('Creating connection: %s >> %s', connection, self)
-            utils.runAndLog(mc.connectAttr, connection, self, force=True)
+            if plug is None:
+                utils.runAndLog(mc.connectAttr, connection, self, force=True)
+            else:
+                om2.MDGModifier().connect(plug, self.api.plug).doIt()
         else:
             utils.logger.info('Creating connection: %s >> %s', self, connection)
-            utils.runAndLog(mc.connectAttr, self, connection, force=True)
+            if plug is None:
+                utils.runAndLog(mc.connectAttr, self, connection, force=True)
+            else:
+                om2.MDGModifier().connect(self.api.plug, plug).doIt()
 
     def __rshift__(self, connection):
         """Create an outgoing connection.
@@ -338,6 +362,61 @@ class AttributeProxy(types.StrMixin):
         >>> 'othernode.attr' >> AttributeProxy('node.attr')
         """
         self.connect(connection, reverse=True)
+
+    def disconnect(self, connection, reverse=False):
+        """Remove a connection.
+        Set `reverse` to reverse the direction.
+
+        >>> AttributeProxy('node.attr').disconnect('othernode.attr1')
+        >>> AttributeProxy('node.attr').disconnect('othernode.attr2', reverse=True)
+
+        Raises:
+            DestinationAttributeNotFoundError
+        """
+        # Get the plug
+        plug = None
+        if isinstance(connection, AttributeProxy):
+            plug = connection.api.plug
+        elif connection.count('.') == 1:
+            node, attr = connection.split('.')
+            selection = om2.MSelectionList()
+            selection.add(node)
+            dependNode = selection.getDependNode(0)
+            dependencyNode = om2.MFnDependencyNode(dependNode)
+            try:
+                plug = dependencyNode.findPlug(attr, False)
+            except RuntimeError as e:
+                if str(e) == '(kInvalidParameter): Object is incompatible with this method':
+                    raise exceptions.DestinationAttributeNotFoundError(node, attr)
+                raise
+
+        # Create the connection
+        if reverse:
+            utils.logger.info('Breaking connection: %s // %s', connection, self)
+            if plug is None:
+                utils.runAndLog(mc.disconnectAttr, connection, self, force=True)
+            else:
+                om2.MDGModifier().disconnect(plug, self.api.plug).doIt()
+        else:
+            utils.logger.info('Breaking connection: %s // %s', self, connection)
+            if plug is None:
+                utils.runAndLog(mc.disconnectAttr, self, connection, force=True)
+            else:
+                om2.MDGModifier().disconnect(self.api.plug, plug).doIt()
+
+    def __floordiv__(self, connection):
+        """Break an outgoing connection.
+
+        >>> AttributeProxy('node.attr') // 'othernode.attr'
+        """
+        self.disconnect(connection)
+
+    def __rfloordiv__(self, connection):
+        """Break an incoming connection.
+
+        >>> 'othernode.attr' // AttributeProxy('node.attr')
+        """
+        self.disconnect(connection, reverse=True)
 
     def split(self, *args, **kwargs):
         """Add the ability to split for backwards compatibility."""

@@ -28,6 +28,10 @@ class AttributeNotFoundError(NodeError):
         super(AttributeNotFoundError, self).__init__(node, attr=attr)
 
 
+class DestinationAttributeNotFoundError(AttributeNotFoundError):
+    MESSAGE = 'The destination attribute "{node}.{attr}" cannot be found.'
+
+
 class AlreadyIsChildError(NodeError):
     MESSAGE = '"{node}" is already a child of "{parent}"'
 
