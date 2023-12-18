@@ -86,7 +86,7 @@ class Connection(utils.StrMixin):
         """Get the destination attribute name."""
         return self.target.name
 
-    def connect(self, reverse=False):
+    def create(self, reverse=False):
         """Create a connection.
         Set `reverse` to connect the other direction.
 
@@ -107,7 +107,7 @@ class Connection(utils.StrMixin):
             om2.MDGModifier().connect(direction[0].api.plug, direction[1].api.plug).doIt()
         return True
 
-    def disconnect(self, reverse=False):
+    def delete(self, reverse=False):
         """Break a connection.
         Set `reverse` to disconnect the other direction.
 

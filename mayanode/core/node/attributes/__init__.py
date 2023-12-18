@@ -478,7 +478,7 @@ class AttributeProxy(types.StrMixin):
             plug = AttributeProxy.ApiData.fromAttr(target).plug
 
         from ...connection import Connection  # pylint: disable=import-outside-toplevel
-        return Connection(self.node, self.api.plug, plug).connect(reverse=reverse)
+        return Connection(self.node, self.api.plug, plug).create(reverse=reverse)
 
     def disconnect(self, target, reverse=False):
         """Remove a connection.
@@ -498,7 +498,7 @@ class AttributeProxy(types.StrMixin):
             plug = AttributeProxy.ApiData.fromAttr(target).plug
 
         from ...connection import Connection  # pylint: disable=import-outside-toplevel
-        return Connection(self.node, self.api.plug, plug).disconnect(reverse=reverse)
+        return Connection(self.node, self.api.plug, plug).delete(reverse=reverse)
 
     @property
     def connections(self):

@@ -375,6 +375,9 @@ class TestAttr(unittest.TestCase):
         cube1.attrs['tx'] // cube2.attrs['tx']
         self.assertNotIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
         self.assertTrue(cube1.attrs['tx'].connect(cube2.attrs['tx']))
+        connection = cube2.attrs['tx'].connections[0]
+        self.assertTrue(connection.delete())
+        self.assertTrue(connection.create())
         self.assertTrue(cube1.attrs['tx'].disconnect(cube2.attrs['tx']))
         mc.delete(cube1, cube2)
 
