@@ -96,23 +96,15 @@ class Connection(utils.StrMixin):
         Returns:
             True if successful otherwise False.
         """
-        if not self.origin.api or not self.target.api:
-            if reverse:
-                utils.logger.info('Creating connection: %s >> %s', self.target, self.origin)
-                utils.runAndLog(mc.disconnectAttr, self.target, self.origin)
-            else:
-                utils.logger.info('Creating connection: %s >> %s', self.origin, self.target)
-                utils.runAndLog(mc.disconnectAttr, self.origin, self.target)
-            return True
-
-        dgModifier = om2.MDGModifier()
+        direction = [self.origin, self.target]
         if reverse:
-            utils.logger.info('Creating connection: %s >> %s', self.target, self.origin)
-            dgModifier.connect(self.target.api.plug, self.origin.api.plug)
+            direction.reverse()
+        utils.logger.info('Creating connection: %s >> %s', *direction)
+
+        if not self.origin.api or not self.target.api:
+            utils.runAndLog(mc.connectAttr, *direction)
         else:
-            utils.logger.info('Creating connection: %s >> %s', self.origin, self.target)
-            dgModifier.connect(self.origin.api.plug, self.target.api.plug)
-        dgModifier.doIt()
+            om2.MDGModifier().connect(direction[0].api.plug, direction[1].api.plug).doIt()
         return True
 
     def disconnect(self, reverse=False):
@@ -125,21 +117,13 @@ class Connection(utils.StrMixin):
         Returns:
             True if successful otherwise False.
         """
-        if not self.origin.api or not self.target.api:
-            if reverse:
-                utils.logger.info('Breaking connection: %s // %s', self.target, self.origin)
-                utils.runAndLog(mc.disconnectAttr, self.target, self.origin)
-            else:
-                utils.logger.info('Breaking connection: %s // %s', self.origin, self.target)
-                utils.runAndLog(mc.disconnectAttr, self.origin, self.target)
-            return True
-
-        dgModifier = om2.MDGModifier()
+        direction = [self.origin, self.target]
         if reverse:
-            utils.logger.info('Breaking connection: %s // %s', self.target, self.origin)
-            dgModifier.disconnect(self.target.api.plug, self.origin.api.plug)
+            direction.reverse()
+        utils.logger.info('Breaking connection: %s >> %s', *direction)
+
+        if not self.origin.api or not self.target.api:
+            utils.runAndLog(mc.disconnectAttr, *direction)
         else:
-            utils.logger.info('Breaking connection: %s // %s', self.origin, self.target)
-            dgModifier.disconnect(self.origin.api.plug, self.target.api.plug)
-        dgModifier.doIt()
+            om2.MDGModifier().disconnect(direction[0].api.plug, direction[1].api.plug).doIt()
         return True
