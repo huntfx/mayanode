@@ -30,6 +30,25 @@ class Connection(utils.StrMixin):
     def __repr__(self):
         return "<{}(source='{}', destination='{}')>".format(type(self).__name__, self.source, self.destination)
 
+    def __eq__(self, other):
+        """Check for equality.
+        This takes into account the direction of the connection. For
+        example, with `pCube1.tx >> pCube2.tx`, then it will equal
+        `pCube2.tx` only.
+        """
+        if isinstance(other, Connection):
+            current = [self._srcPlug, other._dstPlug]
+            if self._reverse != other._reverse:
+                current = current[::-1]
+            return current == [other._srcPlug, other._dstPlug]
+        if isinstance(other, AttributeProxy):
+            if self._reverse:
+                return self._srcPlug == other.api.plug
+            return self._dstPlug == other.api.plug
+        if self._reverse:
+            return self._srcPlug.name() == other
+        return self._dstPlug.name() == other
+
     @property
     def origin(self):
         """Load the attribute proxy for the origin attribute."""

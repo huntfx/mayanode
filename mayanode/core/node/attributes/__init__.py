@@ -372,9 +372,20 @@ class AttributeProxy(types.StrMixin):
 
         Raises:
             DestinationAttributeNotFoundError
+
+        Returns:
+            True if successful otherwise False
         """
+        if not self.api:
+            if reverse:
+                utils.logger.info('Breaking connection: %s // %s', connection, self)
+                utils.runAndLog(mc.disconnectAttr, connection, self)
+            else:
+                utils.logger.info('Breaking connection: %s // %s', self, connection)
+                utils.runAndLog(mc.disconnectAttr, self, connection)
+            return True
+
         # Get the plug
-        plug = None
         if isinstance(connection, AttributeProxy):
             plug = connection.api.plug
         elif connection.count('.') == 1:
@@ -389,20 +400,24 @@ class AttributeProxy(types.StrMixin):
                 if str(e) == '(kInvalidParameter): Object is incompatible with this method':
                     raise exceptions.DestinationAttributeNotFoundError(node, attr)
                 raise
+        else:
+            raise NotImplementedError(type(connection))
 
-        # Create the connection
+        # Break the connection
+        dgMod = om2.MDGModifier()
         if reverse:
             utils.logger.info('Breaking connection: %s // %s', connection, self)
-            if plug is None:
-                utils.runAndLog(mc.disconnectAttr, connection, self, force=True)
-            else:
-                om2.MDGModifier().disconnect(plug, self.api.plug).doIt()
+            dgMod.disconnect(plug, self.api.plug)
         else:
             utils.logger.info('Breaking connection: %s // %s', self, connection)
-            if plug is None:
-                utils.runAndLog(mc.disconnectAttr, self, connection, force=True)
-            else:
-                om2.MDGModifier().disconnect(self.api.plug, plug).doIt()
+            dgMod.disconnect(self.api.plug, plug)
+        try:
+            dgMod.doIt()
+        except RuntimeError as e:
+            if str(e) == '(kFailure): Unexpected Internal Failure':
+                return False
+            raise
+        return True
 
     def __floordiv__(self, connection):
         """Break an outgoing connection.

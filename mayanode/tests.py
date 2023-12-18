@@ -89,9 +89,17 @@ class TestNode(unittest.TestCase):
         self.assertEqual(Node('persp').children, ['perspShape'])
         self.assertEqual(Node('lambert1').children, [])
 
-    def testShape(self):
-        self.assertEqual(Node('persp').shape, 'perspShape')
+    def testTransformShape(self):
+        node = Node(mc.polyCube(name='shapeTest')[0])
+        self.assertIsNone(node.transform)
+        shape = node.shape
+        self.assertEqual(shape, 'shapeTestShape')
+        self.assertIsNone(shape.shape)
+        self.assertEqual(shape.transform, node)
+
         self.assertIsNone(Node('lambert1').shape)
+        self.assertIsNone(Node('lambert1').transform)
+        mc.delete(node)
 
     def testInstances(self):
         node = Node(mc.polyCube(name='instTest1')[0])
@@ -352,6 +360,10 @@ class TestAttr(unittest.TestCase):
     def testConnections(self):
         self.assertIn('initialShadingGroup.surfaceShader', self.node.attrs['outColor'].connections)
         self.assertEqual(self.node.attrs['colorR'].connections, [])
+
+        self.assertIn(Node('initialShadingGroup').attrs['surfaceShader'], self.node.attrs['outColor'].connections)
+        self.assertNotIn(self.node.attrs['outColor'], self.node.attrs['outColor'].connections)
+        self.assertIn(self.node.attrs['outColor'].connections[0], self.node.attrs['outColor'].connections)
 
     def testList(self):
         self.assertIn('outColor', list(self.node.attrs))
