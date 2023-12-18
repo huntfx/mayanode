@@ -132,48 +132,6 @@ def _setPlugValue(plug, value):
     raise NotImplementedError(type(value))
 
 
-class _ApiData(object):
-    """Hold the OpenMaya API objects for an attribute."""
-
-    __slots__ = ['_plug', '_attribute']
-
-    def __init__(self, plug):
-        self._plug = plug
-        self._attribute = None
-
-    @classmethod
-    def fromNode(cls, node, attr):
-        """Get an attribute from a Node instance.
-
-        Raises:
-            AttributeNotFoundError
-        """
-        try:
-            plug = node.api.dependencyNode.findPlug(attr, False)
-        except RuntimeError as e:
-            if str(e) == '(kInvalidParameter): Object is incompatible with this method':
-                raise exceptions.AttributeNotFoundError(node, attr)
-            raise
-        return cls(plug)
-
-    @property
-    def plug(self):
-        """Get the `MPlug`."""
-        return self._plug
-
-    @property
-    def attribute(self):
-        """Get the `MFnAttribute`.
-
-        Notable methods:
-            `name`
-            `shortName`
-        """
-        if self._attribute is None:
-            self._attribute = om2.MFnAttribute(self.plug.attribute())
-        return self._attribute
-
-
 class NodeAttributes(dict):
     """Lazy dictionary storing a cache of all the AttributeProxy values.
     The full list of attributes is not populated until it is requested.
@@ -277,16 +235,76 @@ class AttributeProxy(types.StrMixin):
 
     __slots__ = ['node', 'attr', 'api', '_keyframes']
 
+    class ApiData(object):
+        """Hold the OpenMaya API objects."""
+
+        __slots__ = ['_plug', '_attribute']
+
+        def __init__(self, plug):
+            self._plug = plug
+            self._attribute = None
+
+        @classmethod
+        def fromNode(cls, node, attr):
+            """Get an attribute from a Node instance.
+
+            Raises:
+                AttributeNotFoundError
+            """
+            try:
+                plug = node.api.dependencyNode.findPlug(attr, False)
+            except RuntimeError as e:
+                if str(e) == '(kInvalidParameter): Object is incompatible with this method':
+                    raise exceptions.AttributeNotFoundError(node, attr)
+                raise
+            return cls(plug)
+
+        @classmethod
+        def fromAttr(cls, attr):
+            """Get an attribute from an attribute string.
+
+            Raises:
+                AttributeNotFoundError
+            """
+            node, attr = attr.split('.')
+            selection = om2.MSelectionList()
+            selection.add(node)
+            dependNode = selection.getDependNode(0)
+            dependencyNode = om2.MFnDependencyNode(dependNode)
+            try:
+                plug = dependencyNode.findPlug(attr, False)
+            except RuntimeError as e:
+                if str(e) == '(kInvalidParameter): Object is incompatible with this method':
+                    raise exceptions.AttributeNotFoundError(node, attr)
+                raise
+            return cls(plug)
+
+        @property
+        def plug(self):
+            """Get the `MPlug`."""
+            return self._plug
+
+        @property
+        def attribute(self):
+            """Get the `MFnAttribute`.
+
+            Notable methods:
+                `name`
+                `shortName`
+            """
+            if self._attribute is None:
+                self._attribute = om2.MFnAttribute(self.plug.attribute())
+            return self._attribute
 
     def __init__(self, node, attr):
         self.node = node
         if isinstance(attr, om2.MPlug):
-            self.api = _ApiData(attr)
+            self.api = AttributeProxy.ApiData(attr)
             self.attr = self.api.attribute.name
 
         else:
             self.attr = attr
-            self.api = _ApiData.fromNode(self.node, attr)
+            self.api = AttributeProxy.ApiData.fromNode(self.node, attr)
 
         self._keyframes = AttributeKeyframes(self)
 
@@ -308,47 +326,6 @@ class AttributeProxy(types.StrMixin):
         """
         return type(self)(self.node, self.attr + value)
 
-    def connect(self, connection, reverse=False):
-        """Create a connection.
-        Set `reverse` to reverse the connection direction.
-
-        >>> AttributeProxy('node.attr').connect('othernode.attr1')
-        >>> AttributeProxy('node.attr').connect('othernode.attr2', reverse=True)
-
-        Raises:
-            DestinationAttributeNotFoundError
-        """
-        # Get the plug
-        plug = None
-        if isinstance(connection, AttributeProxy):
-            plug = connection.api.plug
-        elif connection.count('.') == 1:
-            node, attr = connection.split('.')
-            selection = om2.MSelectionList()
-            selection.add(node)
-            dependNode = selection.getDependNode(0)
-            dependencyNode = om2.MFnDependencyNode(dependNode)
-            try:
-                plug = dependencyNode.findPlug(attr, False)
-            except RuntimeError as e:
-                if str(e) == '(kInvalidParameter): Object is incompatible with this method':
-                    raise exceptions.DestinationAttributeNotFoundError(node, attr)
-                raise
-
-        # Create the connection
-        if reverse:
-            utils.logger.info('Creating connection: %s >> %s', connection, self)
-            if plug is None:
-                utils.runAndLog(mc.connectAttr, connection, self, force=True)
-            else:
-                om2.MDGModifier().connect(plug, self.api.plug).doIt()
-        else:
-            utils.logger.info('Creating connection: %s >> %s', self, connection)
-            if plug is None:
-                utils.runAndLog(mc.connectAttr, self, connection, force=True)
-            else:
-                om2.MDGModifier().connect(self.api.plug, plug).doIt()
-
     def __rshift__(self, connection):
         """Create an outgoing connection.
 
@@ -362,62 +339,6 @@ class AttributeProxy(types.StrMixin):
         >>> 'othernode.attr' >> AttributeProxy('node.attr')
         """
         self.connect(connection, reverse=True)
-
-    def disconnect(self, connection, reverse=False):
-        """Remove a connection.
-        Set `reverse` to reverse the direction.
-
-        >>> AttributeProxy('node.attr').disconnect('othernode.attr1')
-        >>> AttributeProxy('node.attr').disconnect('othernode.attr2', reverse=True)
-
-        Raises:
-            DestinationAttributeNotFoundError
-
-        Returns:
-            True if successful otherwise False
-        """
-        if not self.api:
-            if reverse:
-                utils.logger.info('Breaking connection: %s // %s', connection, self)
-                utils.runAndLog(mc.disconnectAttr, connection, self)
-            else:
-                utils.logger.info('Breaking connection: %s // %s', self, connection)
-                utils.runAndLog(mc.disconnectAttr, self, connection)
-            return True
-
-        # Get the plug
-        if isinstance(connection, AttributeProxy):
-            plug = connection.api.plug
-        elif connection.count('.') == 1:
-            node, attr = connection.split('.')
-            selection = om2.MSelectionList()
-            selection.add(node)
-            dependNode = selection.getDependNode(0)
-            dependencyNode = om2.MFnDependencyNode(dependNode)
-            try:
-                plug = dependencyNode.findPlug(attr, False)
-            except RuntimeError as e:
-                if str(e) == '(kInvalidParameter): Object is incompatible with this method':
-                    raise exceptions.DestinationAttributeNotFoundError(node, attr)
-                raise
-        else:
-            raise NotImplementedError(type(connection))
-
-        # Break the connection
-        dgMod = om2.MDGModifier()
-        if reverse:
-            utils.logger.info('Breaking connection: %s // %s', connection, self)
-            dgMod.disconnect(plug, self.api.plug)
-        else:
-            utils.logger.info('Breaking connection: %s // %s', self, connection)
-            dgMod.disconnect(self.api.plug, plug)
-        try:
-            dgMod.doIt()
-        except RuntimeError as e:
-            if str(e) == '(kFailure): Unexpected Internal Failure':
-                return False
-            raise
-        return True
 
     def __floordiv__(self, connection):
         """Break an outgoing connection.
@@ -538,6 +459,46 @@ class AttributeProxy(types.StrMixin):
         """
         utils.logger.info('Setting %s keyable state: %s', self, value)
         utils.runAndLog(mc.setAttr, self, keyable=value)
+
+    def connect(self, target, reverse=False):
+        """Create a connection.
+        Set `reverse` to reverse the connection direction.
+
+        Raises:
+            AttributeNotFoundError
+
+        Returns:
+            True if successful otherwise False
+        """
+        if isinstance(target, AttributeProxy):
+            plug = target.api.plug
+        elif isinstance(target, om2.MPlug):
+            plug = target
+        else:
+            plug = AttributeProxy.ApiData.fromAttr(target).plug
+
+        from ...connection import Connection  # pylint: disable=import-outside-toplevel
+        return Connection(self.node, self.api.plug, plug).connect(reverse=reverse)
+
+    def disconnect(self, target, reverse=False):
+        """Remove a connection.
+        Set `reverse` to reverse the direction.
+
+        Raises:
+            DestinationAttributeNotFoundError
+
+        Returns:
+            True if successful otherwise False
+        """
+        if isinstance(target, AttributeProxy):
+            plug = target.api.plug
+        elif isinstance(target, om2.MPlug):
+            plug = target
+        else:
+            plug = AttributeProxy.ApiData.fromAttr(target).plug
+
+        from ...connection import Connection  # pylint: disable=import-outside-toplevel
+        return Connection(self.node, self.api.plug, plug).disconnect(reverse=reverse)
 
     @property
     def connections(self):

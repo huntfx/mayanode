@@ -22,14 +22,10 @@ class InvalidNodeError(NodeError):
 
 
 class AttributeNotFoundError(NodeError):
-    MESSAGE = 'No attribute found: {node}.{attr}'
+    MESSAGE = 'Attribute not found: {node}.{attr}'
 
     def __init__(self, node, attr):
         super(AttributeNotFoundError, self).__init__(node, attr=attr)
-
-
-class DestinationAttributeNotFoundError(AttributeNotFoundError):
-    MESSAGE = 'The destination attribute "{node}.{attr}" cannot be found.'
 
 
 class AlreadyIsChildError(NodeError):

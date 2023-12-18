@@ -1,3 +1,4 @@
+import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
 from .node import Node
@@ -37,16 +38,12 @@ class Connection(utils.StrMixin):
         `pCube2.tx` only.
         """
         if isinstance(other, Connection):
-            current = [self._srcPlug, other._dstPlug]
+            current = [self._srcPlug, self._dstPlug]
             if self._reverse != other._reverse:
                 current = current[::-1]
             return current == [other._srcPlug, other._dstPlug]
         if isinstance(other, AttributeProxy):
-            if self._reverse:
-                return self._srcPlug == other.api.plug
             return self._dstPlug == other.api.plug
-        if self._reverse:
-            return self._srcPlug.name() == other
         return self._dstPlug.name() == other
 
     @property
@@ -88,3 +85,61 @@ class Connection(utils.StrMixin):
     def name(self):
         """Get the destination attribute name."""
         return self.target.name
+
+    def connect(self, reverse=False):
+        """Create a connection.
+        Set `reverse` to connect the other direction.
+
+        TODO: Raise if connection exists
+        TODO: Test connection between wrong types
+
+        Returns:
+            True if successful otherwise False.
+        """
+        if not self.origin.api or not self.target.api:
+            if reverse:
+                utils.logger.info('Creating connection: %s >> %s', self.target, self.origin)
+                utils.runAndLog(mc.disconnectAttr, self.target, self.origin)
+            else:
+                utils.logger.info('Creating connection: %s >> %s', self.origin, self.target)
+                utils.runAndLog(mc.disconnectAttr, self.origin, self.target)
+            return True
+
+        dgModifier = om2.MDGModifier()
+        if reverse:
+            utils.logger.info('Creating connection: %s >> %s', self.target, self.origin)
+            dgModifier.connect(self.target.api.plug, self.origin.api.plug)
+        else:
+            utils.logger.info('Creating connection: %s >> %s', self.origin, self.target)
+            dgModifier.connect(self.origin.api.plug, self.target.api.plug)
+        dgModifier.doIt()
+        return True
+
+    def disconnect(self, reverse=False):
+        """Break a connection.
+        Set `reverse` to disconnect the other direction.
+
+        TODO: Raise if connection doesn't exist
+        TODO: Test connection between wrong types
+
+        Returns:
+            True if successful otherwise False.
+        """
+        if not self.origin.api or not self.target.api:
+            if reverse:
+                utils.logger.info('Breaking connection: %s // %s', self.target, self.origin)
+                utils.runAndLog(mc.disconnectAttr, self.target, self.origin)
+            else:
+                utils.logger.info('Breaking connection: %s // %s', self.origin, self.target)
+                utils.runAndLog(mc.disconnectAttr, self.origin, self.target)
+            return True
+
+        dgModifier = om2.MDGModifier()
+        if reverse:
+            utils.logger.info('Breaking connection: %s // %s', self.target, self.origin)
+            dgModifier.disconnect(self.target.api.plug, self.origin.api.plug)
+        else:
+            utils.logger.info('Breaking connection: %s // %s', self.origin, self.target)
+            dgModifier.disconnect(self.origin.api.plug, self.target.api.plug)
+        dgModifier.doIt()
+        return True

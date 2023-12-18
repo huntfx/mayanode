@@ -358,12 +358,25 @@ class TestAttr(unittest.TestCase):
         self.node.attrs['colorR'].keyable = True
 
     def testConnections(self):
+        self.assertIn('initialShadingGroup.surfaceShader', self.node.connections)
         self.assertIn('initialShadingGroup.surfaceShader', self.node.attrs['outColor'].connections)
         self.assertEqual(self.node.attrs['colorR'].connections, [])
 
         self.assertIn(Node('initialShadingGroup').attrs['surfaceShader'], self.node.attrs['outColor'].connections)
         self.assertNotIn(self.node.attrs['outColor'], self.node.attrs['outColor'].connections)
         self.assertIn(self.node.attrs['outColor'].connections[0], self.node.attrs['outColor'].connections)
+
+    def testConnect(self):
+        cube1 = Node(mc.polyCube(name='connectionTest1')[0])
+        cube2 = Node(mc.polyCube(name='connectionTest2')[0])
+        self.assertNotIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
+        cube1.attrs['tx'] >> cube2.attrs['tx']
+        self.assertIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
+        cube1.attrs['tx'] // cube2.attrs['tx']
+        self.assertNotIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
+        self.assertTrue(cube1.attrs['tx'].connect(cube2.attrs['tx']))
+        self.assertTrue(cube1.attrs['tx'].disconnect(cube2.attrs['tx']))
+        mc.delete(cube1, cube2)
 
     def testList(self):
         self.assertIn('outColor', list(self.node.attrs))
