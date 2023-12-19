@@ -324,15 +324,6 @@ class Node(utils.StrMixin):
         """
         return self.api.handle.isValid()
 
-    def _raiseIfNotExists(self):
-        """Raise an error if the node doesn't exist.
-
-        Raises:
-            NodeDeletedError
-        """
-        if not self.exists:
-            raise exceptions.NodeDeletedError(self.api.dependencyNode.name())
-
     @property
     def uuid(self):
         """Get the node UUID.
@@ -370,8 +361,8 @@ class Node(utils.StrMixin):
             RuntimeError: New name has no legal characters.
             NodeDeletedError
         """
-        self._raiseIfNotExists()
         utils.logger.info('Renaming %r to %r', self, name)
+        utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.rename, self, self.namespace + ':' + name)
 
     @property
@@ -381,7 +372,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         if self.api.dagPath is not None and self.api.dagPath.isValid():
             return self.api.dagPath.fullPathName()
         return self.name
@@ -396,13 +387,13 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         return self.api.dependencyNode.typeName
 
     @property
     def attrs(self):
         """Get the attr dict."""
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         return self._attrs
 
     def translate(self, x, y, z):
@@ -411,7 +402,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.move, x, y, z, self, relative=True)
 
     @property
@@ -424,7 +415,7 @@ class Node(utils.StrMixin):
         Returns:
             Named coordinate tuple of X, Y, Z.
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         return types.Coordinate(*utils.runAndLog(mc.xform, self, query=True, translation=True, worldSpace=True))
 
     @translation.setter
@@ -434,7 +425,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.xform, self, translation=value, worldSpace=True)
 
     def rotate(self, x, y, z):
@@ -443,7 +434,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.rotate, x, y, z, self, relative=True)
 
     @property
@@ -456,7 +447,7 @@ class Node(utils.StrMixin):
         Returns:
             Named coordinate tuple of X, Y, Z.
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         return types.Coordinate(*utils.runAndLog(mc.xform, self, query=True, rotation=True, worldSpace=True))
 
     @rotation.setter
@@ -466,7 +457,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.xform, self, rotation=value, worldSpace=True)
 
     def scale(self, x, y, z):
@@ -475,7 +466,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.scale, x, y, z, self, relative=True)
 
     @property
@@ -488,7 +479,7 @@ class Node(utils.StrMixin):
         Returns:
             Named coordinate tuple of X, Y, Z.
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         return types.Coordinate(*utils.runAndLog(mc.xform, self, query=True, scale=True, worldSpace=True))
 
     @scaling.setter
@@ -498,7 +489,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.xform, self, scale=value, worldSpace=True)
 
     @property
@@ -508,7 +499,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         return self.api.dependencyNode.namespace
 
     @namespace.setter
@@ -522,7 +513,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         namespace = namespace.strip(':') if namespace else ''
         if namespace and not utils.runAndLog(mc.namespace, exists=namespace):
             utils.runAndLog(mc.namespace, add=namespace)
@@ -562,7 +553,7 @@ class Node(utils.StrMixin):
             NodeNotFoundError
             AlreadyIsChildError: "{node}" is already a child of "{parent}"
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         try:
             if parent:
                 utils.runAndLog(mc.parent, self, parent)
@@ -666,20 +657,24 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         inst = utils.runAndLog(mc.instance, self, **kwargs)[0]
         return type(self)(inst)
 
     @property
     def instanced(self):
         """Return if the node is instanced."""
+        if not self.exists:
+            return False
         return self.api.dagPath is not None and self.api.dagPath.isInstanced()
 
     @property
     def instances(self):
         """Get all the node instances including this."""
+        if not self.exists:
+            return []
         if not self.instanced:
-            return [self] if self.exists else []
+            return [self]
 
         instanceNumber = self.api.recalculateDagPaths()
         return [self if instanceNumber == i else type(self)(self, _instanceNumber=i)
@@ -690,6 +685,8 @@ class Node(utils.StrMixin):
         """Get the shading engine assigned to the node.
         Note that this will be assigned to a shape.
         """
+        if not self.exists:
+            return None
         shapes = utils.runAndLog(mc.ls, self, dag=True, shapes=True)
         engines = utils.runAndLog(mc.listConnections, shapes, type='shadingEngine')
         return type(self)(engines[0]) if engines else None
@@ -704,7 +701,7 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        self._raiseIfNotExists()
+        utils.raiseIfNodeNotFound(self)
         utils.logger.info('Setting %s shader to %s', self, shadingEngine)
         utils.runAndLog(mc.sets, self, edit=True, forceElement=shadingEngine)
 

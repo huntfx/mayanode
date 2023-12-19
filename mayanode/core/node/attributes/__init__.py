@@ -200,7 +200,7 @@ class NodeAttributes(dict):
         Raises:
             NodeDeletedError
         """
-        self.node._raiseIfNotExists()  # pylint: disable=protected-access
+        utils.raiseIfNodeNotFound(self.node)
         if not reload and self._loaded:
             return
         for attr in utils.runAndLog(mc.listAttr, self.node):
@@ -420,7 +420,7 @@ class AttributeProxy(types.StrMixin):
             NodeDeletedError
         """
         utils.logger.info('Setting %s value: %r', self, value)
-        self.node._raiseIfNotExists()  # pylint: disable=protected-access
+        utils.raiseIfNodeNotFound(self.node)
         if self.api:
             while True:
                 try:
@@ -451,7 +451,7 @@ class AttributeProxy(types.StrMixin):
             NodeDeletedError
         """
         utils.logger.info('Setting %s locked state: %r', self, value)
-        self.node._raiseIfNotExists()  # pylint: disable=protected-access
+        utils.raiseIfNodeNotFound(self.node)
         utils.runAndLog(mc.setAttr, self, lock=value)
 
     @property
@@ -469,7 +469,7 @@ class AttributeProxy(types.StrMixin):
             NodeDeletedError
         """
         utils.logger.info('Setting %s keyable state: %s', self, value)
-        self.node._raiseIfNotExists()  # pylint: disable=protected-access
+        utils.raiseIfNodeNotFound(self.node)
         utils.runAndLog(mc.setAttr, self, keyable=value)
 
     def connect(self, target, reverse=False):
@@ -541,7 +541,7 @@ class AttributeProxy(types.StrMixin):
             RuntimeError: Cannot delete child 'pCube1.translateX' of compound attribute 'translate'.
         """
         utils.logger.info('Deleting attribute: %s', self)
-        self.node._raiseIfNotExists()  # pylint: disable=protected-access
+        utils.raiseIfNodeNotFound(self.node)
         utils.runAndLog(mc.deleteAttr, self)
 
     @property

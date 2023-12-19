@@ -1,5 +1,6 @@
 import logging
 
+from . import exceptions
 from .types import StrMixin
 
 
@@ -40,3 +41,9 @@ def runAndLog(fn, *args, **kwargs):
     fnCall = GenerateFnCall(fn, *args, **kwargs)
     logger.debug('%s', fnCall)
     return fn(*args, **kwargs)
+
+
+def raiseIfNodeNotFound(node):
+    """Raise an error if the node doesn't exist."""
+    if not node.exists:
+        raise exceptions.NodeDeletedError(node)
