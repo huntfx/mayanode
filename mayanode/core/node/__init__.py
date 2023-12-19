@@ -226,7 +226,9 @@ class _ApiData(object):
 class Node(utils.StrMixin):
     """Pointer to a Maya node.
 
-    OpenMaya code adapted from https://www.toadstorm.com/blog/?p=628.
+    OpenMaya code inspired by https://www.toadstorm.com/blog/?p=628.
+    Note that when calling `maya.cmds`, if `__str__` raises an error,
+    then it will raise `TypeError: Object  is invalid`.
     """
 
     __slots__ = ['api', '_attrs']
@@ -315,23 +317,42 @@ class Node(utils.StrMixin):
 
     @property
     def exists(self):
-        """Determine if the node exists."""
+        """Determine if the node exists.
+
+        Preemptive tests barely add any overhead - 1,000,000 calls takes
+        less than a second.
+        """
         return self.api.handle.isValid()
+
+    def _raiseIfNotExists(self):
+        """Raise an error if the node doesn't exist.
+
+        Raises:
+            NodeDeletedError
+        """
+        if not self.exists:
+            raise exceptions.NodeDeletedError(self.api.dependencyNode.name())
 
     @property
     def uuid(self):
-        """Get the node UUID."""
-        if self.api.object.isNull():
-            raise exceptions.InvalidNodeError(self)
+        """Get the node UUID.
+        This will always work even when the node is deleted.
+
+        Returns:
+            UUID as a string.
+        """
         return self.api.dependencyNode.uuid().asString()
 
     @property
     def name(self):
-        """Get the node name."""
+        """Get the node name.
+        This will always work even when the node is deleted.
+
+        Returns:
+            Node name as a string.
+        """
         if self.api.dagPath is not None and self.api.dagPath.isValid():
             return self.api.dagPath.partialPathName()
-        if self.api.object.isNull():
-            raise exceptions.InvalidNodeError(self)
         return self.api.dependencyNode.name()
 
     @name.setter
@@ -341,86 +362,167 @@ class Node(utils.StrMixin):
         Warnings:
             New name contains invalid characters. Illegal characters were converted to "_".
 
+        Alternatives:  # Both don't work well with undo
+            `om2.MDagModifier().renameNode(self.api.object, self.namespace + ':' + name).doIt()`
+            `self.api.dependencyNode.setName(self.namespace + ':' + name)`
+
         Raises:
             RuntimeError: New name has no legal characters.
-            RuntimeError: No object matches name
+            NodeDeletedError
         """
+        self._raiseIfNotExists()
         utils.logger.info('Renaming %r to %r', self, name)
-        self.api.dependencyNode.setName(self.namespace + ':' + name)
-        # utils.runAndLog(mc.rename, self, self.namespace + ':' + name)
+        utils.runAndLog(mc.rename, self, self.namespace + ':' + name)
 
     @property
     def longName(self):
-        """Get the node long name."""
+        """Get the node long name.
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         if self.api.dagPath is not None and self.api.dagPath.isValid():
             return self.api.dagPath.fullPathName()
         return self.name
 
     @property
     def type(self):
-        """Get the node type."""
-        if self.api.object.isNull():
-            raise exceptions.InvalidNodeError(self)
+        """Get the node type.
+
+        Alternatives:
+            `mc.nodeType(self)`
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         return self.api.dependencyNode.typeName
-        # return utils.runAndLog(mc.nodeType, self)
 
     @property
     def attrs(self):
         """Get the attr dict."""
+        self._raiseIfNotExists()
         return self._attrs
 
     def translate(self, x, y, z):
-        """Translate the node with relative coordinates."""
+        """Translate the node with relative coordinates.
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         utils.runAndLog(mc.move, x, y, z, self, relative=True)
 
     @property
     def translation(self):
-        """Get the translation of the node."""
+        """Get the translation of the node.
+
+        Raises:
+            NodeDeletedError
+
+        Returns:
+            Named coordinate tuple of X, Y, Z.
+        """
+        self._raiseIfNotExists()
         return types.Coordinate(*utils.runAndLog(mc.xform, self, query=True, translation=True, worldSpace=True))
 
     @translation.setter
     def translation(self, value):
-        """Set a new node translation."""
+        """Set a new node translation.
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         utils.runAndLog(mc.xform, self, translation=value, worldSpace=True)
 
     def rotate(self, x, y, z):
-        """Rotate the node with relative coordinates."""
+        """Rotate the node with relative coordinates.
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         utils.runAndLog(mc.rotate, x, y, z, self, relative=True)
 
     @property
     def rotation(self):
-        """Get the rotation of the node."""
+        """Get the rotation of the node.
+
+        Raises:
+            NodeDeletedError
+
+        Returns:
+            Named coordinate tuple of X, Y, Z.
+        """
+        self._raiseIfNotExists()
         return types.Coordinate(*utils.runAndLog(mc.xform, self, query=True, rotation=True, worldSpace=True))
 
     @rotation.setter
     def rotation(self, value):
-        """Set a new node rotation."""
+        """Set a new node rotation.
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         utils.runAndLog(mc.xform, self, rotation=value, worldSpace=True)
 
     def scale(self, x, y, z):
-        """Rotate the node with relative coordinates."""
+        """Rotate the node with relative coordinates.
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         utils.runAndLog(mc.scale, x, y, z, self, relative=True)
 
     @property
     def scaling(self):
-        """Get the scale of the node."""
+        """Get the scale of the node.
+
+        Raises:
+            NodeDeletedError
+
+        Returns:
+            Named coordinate tuple of X, Y, Z.
+        """
+        self._raiseIfNotExists()
         return types.Coordinate(*utils.runAndLog(mc.xform, self, query=True, scale=True, worldSpace=True))
 
     @scaling.setter
     def scaling(self, value):
-        """Set a new node scale."""
+        """Set a new node scale.
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         utils.runAndLog(mc.xform, self, scale=value, worldSpace=True)
 
     @property
     def namespace(self):
-        """Get the node namespace."""
+        """Get the node namespace.
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         return self.api.dependencyNode.namespace
 
     @namespace.setter
     def namespace(self, namespace):
         """Set a new namespace.
         It will be created if it doesn't exist.
+
+        Warnings:
+            New name contains invalid characters. Illegal characters were converted to "_".
+
+        Raises:
+            NodeDeletedError
         """
+        self._raiseIfNotExists()
         namespace = namespace.strip(':') if namespace else ''
         if namespace and not utils.runAndLog(mc.namespace, exists=namespace):
             utils.runAndLog(mc.namespace, add=namespace)
@@ -440,6 +542,8 @@ class Node(utils.StrMixin):
     @property
     def parent(self):
         """Get the node parent."""
+        if not self.exists:
+            return None
         dagPath = om2.MDagPath(self.api.dagPath).pop()
         if dagPath == _getWorldDagPath():
             return None
@@ -454,8 +558,11 @@ class Node(utils.StrMixin):
             Object, '{node}', skipped. It is already a child of the parent, '{parent}'.
 
         Raises:
+            NodeDeletedError
+            NodeNotFoundError
             AlreadyIsChildError: "{node}" is already a child of "{parent}"
         """
+        self._raiseIfNotExists()
         try:
             if parent:
                 utils.runAndLog(mc.parent, self, parent)
@@ -465,6 +572,10 @@ class Node(utils.StrMixin):
             if str(e) == 'Maya command error':
                 raise exceptions.AlreadyIsChildError(self, parent or 'world')
             raise
+        except ValueError:
+            if parent:
+                raise exceptions.NodeNotFoundError(parent)
+            raise
 
     @property
     def children(self):
@@ -472,7 +583,7 @@ class Node(utils.StrMixin):
 
         TODO: Test correct instance.
         """
-        if self.api.dagNode is None:
+        if not self.exists or self.api.dagNode is None:
             return []
         apiChildren = map(self.api.dagNode.child, range(self.api.dagNode.childCount()))
         return list(map(type(self), apiChildren))
@@ -480,6 +591,8 @@ class Node(utils.StrMixin):
     @property
     def descendents(self):
         """Get all node descendents."""
+        if not self.exists:
+            return []
         cls = type(self)
         dag = om2.MItDag()
         dag.reset(self.api.dagPath, om2.MItDag.kBreadthFirst)
@@ -489,6 +602,8 @@ class Node(utils.StrMixin):
     @property
     def ancestors(self):
         """Get all node ancestors."""
+        if not self.exists:
+            return []
         parents = self.parents
         ancestors = []
 
@@ -503,6 +618,8 @@ class Node(utils.StrMixin):
     @property
     def connections(self):
         """Get the node connections as plugs."""
+        if not self.exists:
+            return []
         plugs = self.api.dependencyNode.getConnections()
         if not plugs:
             return []
@@ -519,7 +636,7 @@ class Node(utils.StrMixin):
     @property
     def shape(self):
         """Get the shape node."""
-        if self.api.dagPath is None:
+        if not self.exists or self.api.dagPath is None:
             return None
 
         shapeDagPath = om2.MDagPath(self.api.dagPath)
@@ -530,8 +647,12 @@ class Node(utils.StrMixin):
 
     @property
     def transform(self):
-        """Get the transform node."""
-        if self.api.dagPath is None:
+        """Get the transform node.
+
+        Raises:
+            NodeDeletedError
+        """
+        if not self.exists or self.api.dagPath is None:
             return None
 
         transformObject = self.api.dagPath.transform()
@@ -540,7 +661,12 @@ class Node(utils.StrMixin):
         return Node(transformObject)
 
     def instance(self, **kwargs):
-        """Create an instance of the object."""
+        """Create an instance of the object.
+
+        Raises:
+            NodeDeletedError
+        """
+        self._raiseIfNotExists()
         inst = utils.runAndLog(mc.instance, self, **kwargs)[0]
         return type(self)(inst)
 
@@ -574,7 +700,11 @@ class Node(utils.StrMixin):
 
         Warnings:
             No objects specified that can have connections.
+
+        Raises:
+            NodeDeletedError
         """
+        self._raiseIfNotExists()
         utils.logger.info('Setting %s shader to %s', self, shadingEngine)
         utils.runAndLog(mc.sets, self, edit=True, forceElement=shadingEngine)
 
@@ -582,13 +712,13 @@ class Node(utils.StrMixin):
         """Delete the node.
 
         Raises:
-            DeleteNodeError: No object matches name: {node}
+            NodeDeletedError
         """
         utils.logger.info('Deleting node: %s', self)
         try:
             utils.runAndLog(mc.delete, self)
         except ValueError as e:
-            raise exceptions.DeleteNodeError(self, str(e))
+            raise exceptions.NodeDeletedError(str(e))
 
     @property
     def boundingBox(self):

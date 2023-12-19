@@ -176,7 +176,7 @@ class TestNode(unittest.TestCase):
         self.assertTrue(node.exists)
         node.delete()
         self.assertFalse(node.exists)
-        with self.assertRaises(exceptions.DeleteNodeError):
+        with self.assertRaises(exceptions.NodeDeletedError):
             node.delete()
 
     def testTranslate(self):
@@ -244,6 +244,42 @@ class TestNode(unittest.TestCase):
 
         mc.delete(node.name)
         mc.namespace(removeNamespace='new:namespace')
+
+    def testDeleted(self):
+        node = Node(mc.polyCube(name='deleteTest'))
+        mc.delete(node)
+
+        self.assertEqual(node.name, 'deleteTest')
+
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.name = 'renamed'
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.longName
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.type
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.rotation
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.rotation = (0, 0, 0)
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.namespace
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.namespace = 'test'
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.attrs.keys()
+
+        self.assertFalse(node.shape)
+        self.assertIsNone(node.parent)
+        self.assertFalse(node.parents)
+        self.assertFalse(node.children)
+
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.instance()
+        self.assertFalse(node.instanced)
+
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.shadingEngine = 'test'
+        self.assertIsNone(node.shadingEngine)
 
 
 class TestBoundingBox(unittest.TestCase):

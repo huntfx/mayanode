@@ -198,8 +198,9 @@ class NodeAttributes(dict):
         """Load in all attribute proxies if required.
 
         Raises:
-            ValueError: "No object matches name: {self.node}"
+            NodeDeletedError
         """
+        self.node._raiseIfNotExists()  # pylint: disable=protected-access
         if not reload and self._loaded:
             return
         for attr in utils.runAndLog(mc.listAttr, self.node):
@@ -413,8 +414,13 @@ class AttributeProxy(types.StrMixin):
 
     @value.setter
     def value(self, value):
-        """Set a new attribute value."""
+        """Set a new attribute value.
+
+        Raises:
+            NodeDeletedError
+        """
         utils.logger.info('Setting %s value: %r', self, value)
+        self.node._raiseIfNotExists()  # pylint: disable=protected-access
         if self.api:
             while True:
                 try:
@@ -439,8 +445,13 @@ class AttributeProxy(types.StrMixin):
 
     @locked.setter
     def locked(self, value):
-        """Set the node locked state."""
+        """Set the node locked state.
+
+        Raises:
+            NodeDeletedError
+        """
         utils.logger.info('Setting %s locked state: %r', self, value)
+        self.node._raiseIfNotExists()  # pylint: disable=protected-access
         utils.runAndLog(mc.setAttr, self, lock=value)
 
     @property
@@ -455,9 +466,10 @@ class AttributeProxy(types.StrMixin):
         """Set the node keyable state.
 
         Raises:
-            ValueError: "setAttr: No object matches name: {self.name}"
+            NodeDeletedError
         """
         utils.logger.info('Setting %s keyable state: %s', self, value)
+        self.node._raiseIfNotExists()  # pylint: disable=protected-access
         utils.runAndLog(mc.setAttr, self, keyable=value)
 
     def connect(self, target, reverse=False):
@@ -521,8 +533,15 @@ class AttributeProxy(types.StrMixin):
         return self.create(attrType, **kwargs)
 
     def delete(self):
-        """Delete the attribute."""
+        """Delete the attribute.
+
+        Raises:
+            NodeDeletedError
+            RuntimeError: Cannot delete static attribute 'pCube1.translate' from node 'pCube1'.
+            RuntimeError: Cannot delete child 'pCube1.translateX' of compound attribute 'translate'.
+        """
         utils.logger.info('Deleting attribute: %s', self)
+        self.node._raiseIfNotExists()  # pylint: disable=protected-access
         utils.runAndLog(mc.deleteAttr, self)
 
     @property

@@ -17,6 +17,10 @@ class NodeNotFoundError(NodeError):
     MESSAGE = 'No node matches name: {node}'
 
 
+class NodeDeletedError(NodeNotFoundError):
+    MESSAGE = 'Node no longer exists: {node}'
+
+
 class InvalidNodeError(NodeError):
     MESSAGE = '"{node}" is not valid'
 
@@ -37,10 +41,3 @@ class AlreadyIsChildError(NodeError):
 
 class NoBoundingBoxError(NodeError):
     MESSAGE = '"{node}" has no bounding box'
-
-
-class DeleteNodeError(NodeError):
-    MESSAGE = '{message}'
-
-    def __init__(self, node, message):
-        super(DeleteNodeError, self).__init__(node, message=message)
