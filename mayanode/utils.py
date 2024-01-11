@@ -32,7 +32,7 @@ class GenerateFnCall(object):
 
     def repr(self, item):
         if isinstance(item, StrMixin):
-            item = str(item)
+            item = item.name
         return repr(item)
 
 
