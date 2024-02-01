@@ -611,18 +611,9 @@ class Node(utils.StrMixin):
         """Get the node connections as plugs."""
         if not self.exists:
             return []
-        plugs = self.api.dependencyNode.getConnections()
-        if not plugs:
-            return []
 
-        from ..connection import Connection  # pylint: disable=import-outside-toplevel
-        connections = []
-        for plug in plugs:
-            for otherPlug in plug.connectedTo(False, True):
-                connections.append(Connection(self, plug, otherPlug, reverse=True))
-            for otherPlug in plug.connectedTo(True, False):
-                connections.append(Connection(self, plug, otherPlug))
-        return connections
+        from ..connection import NodeConnectionProxy  # pylint: disable=import-outside-toplevel
+        return NodeConnectionProxy(self)
 
     @property
     def shape(self):

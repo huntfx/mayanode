@@ -517,14 +517,9 @@ class AttributeProxy(types.StrMixin):
         """Get the attribute connections as plugs."""
         if not self.api:
             return []
-        from ...connection import Connection  # pylint: disable=import-outside-toplevel
 
-        connections = []
-        for plug in self.api.plug.connectedTo(False, True):
-            connections.append(Connection(self.node, self.api.plug, plug))
-        for plug in self.api.plug.connectedTo(True, False):
-            connections.append(Connection(self.node, self.api.plug, plug, reverse=True))
-        return connections
+        from ...connection import AttributeConnectionProxy  # pylint: disable=import-outside-toplevel
+        return AttributeConnectionProxy(self)
 
     def ensure(self, attrType, **kwargs):
         """Create the attribute if it doesn't exist."""
