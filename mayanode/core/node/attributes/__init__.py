@@ -286,6 +286,13 @@ class AttributeProxy(types.StrMixin):
             return self._plug
 
         @property
+        def plugs(self):
+            """Get all the `MPlug` objects in the case of arrays."""
+            if self.plug.isArray:
+                return [self.plug.elementByPhysicalIndex(i) for i in range(self.plug.numElements())]
+            return [self.plug]
+
+        @property
         def attribute(self):
             """Get the `MFnAttribute`.
 
