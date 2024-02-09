@@ -672,6 +672,13 @@ class Node(utils.StrMixin):
                 for i, dagPath in enumerate(self.api.dagPaths) if dagPath.isValid()]
 
     @property
+    def intermediate(self):
+        """Return if the node is intermediate."""
+        if not self.exists:
+            return False
+        return self.api.dagNode.isIntermediateObject
+
+    @property
     def shadingEngine(self):
         """Get the shading engine assigned to the node.
         Note that this will be assigned to a shape.
