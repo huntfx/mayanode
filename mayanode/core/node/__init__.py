@@ -49,13 +49,13 @@ class _ApiData(object):
     """Hold the OpenMaya API objects for a node."""
 
     __slots__ = ['_object', '_handle', '_instanceNumber',
-                 '_dagPaths', '_dependencyNode', '_dagNode']
+                 '_dagPaths', '_dependencyNode', '_dagNode', '_mesh']
 
     def __init__(self, mObject, instanceNumber=-1):
         self._object = mObject
         self._handle = None
         self._instanceNumber = instanceNumber
-        self._dependencyNode = self._dagNode = self._dagPaths = None
+        self._dependencyNode = self._dagNode = self._dagPaths = self._mesh = None
 
     def __eq__(self, other):
         if isinstance(other, _ApiData):
@@ -103,6 +103,7 @@ class _ApiData(object):
         new._dependencyNode = self._dependencyNode
         new._dagNode = self._dagNode
         new._dagPaths = self._dagPaths
+        new._mesh = self._mesh
         return new
 
     @property
@@ -221,6 +222,26 @@ class _ApiData(object):
         # overall
         self._dagPaths = self.dagNode.getAllPaths()
         return self._instanceNumber
+
+    @property
+    def mesh(self):
+        """Get the `MfnMesh`.
+
+        Notable methods:
+            `numVertices`
+            `numEdges`
+            `numPolygons`
+            `numFaceVertices`
+        """
+        if self._mesh is None:
+            if self.object.hasFn(om2.MFn.kMesh):
+                self._mesh = om2.MFnMesh(self.object)
+            else:
+                self._mesh = -1
+
+        if self._mesh == -1:
+            return None
+        return self._mesh
 
 
 class Node(utils.StrMixin):

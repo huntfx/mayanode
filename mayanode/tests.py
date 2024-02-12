@@ -1,6 +1,7 @@
 import unittest
 
 import maya.cmds as mc
+import maya.mel as mel
 
 from mayanode import Node, exceptions
 
@@ -280,6 +281,16 @@ class TestNode(unittest.TestCase):
         with self.assertRaises(exceptions.NodeDeletedError):
             node.shadingEngine = 'test'
         self.assertIsNone(node.shadingEngine)
+
+    def testNumVertices(self):
+        node = Node(mc.polyCube(name='verticesTest')[0])
+        self.assertIsNone(node.api.mesh)
+        self.assertIsNotNone(node.shape.api.mesh)
+        self.assertEqual(node.shape.api.mesh.numVertices, 8)
+        mc.select('verticesTest.vtx[0:7]')
+        mel.eval('polyDeleteVertex')
+        self.assertEqual(node.shape.api.mesh.numVertices, 0)
+        mc.delete(node)
 
 
 class TestBoundingBox(unittest.TestCase):
