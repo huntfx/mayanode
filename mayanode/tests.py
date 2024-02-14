@@ -282,6 +282,18 @@ class TestNode(unittest.TestCase):
             node.shadingEngine = 'test'
         self.assertIsNone(node.shadingEngine)
 
+    def testComparison(self):
+        transform, shape = mc.polyCube(name='comparisonTest')
+        long = mc.ls(transform, long=True)[0]
+        node = Node(transform)
+        self.assertEqual(node.name, transform)
+        self.assertNotEqual(node.name, long)
+        self.assertNotEqual(node.name, shape)
+        self.assertEqual(node, transform)
+        self.assertEqual(node, long)
+        self.assertNotEqual(node, shape)
+        mc.delete(transform)
+
     def testNumVertices(self):
         node = Node(mc.polyCube(name='verticesTest')[0])
         self.assertIsNone(node.api.mesh)

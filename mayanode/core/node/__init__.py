@@ -289,7 +289,7 @@ class Node(utils.StrMixin):
         """Determine if two nodes are equal."""
         if isinstance(other, Node):
             return self.api.handle == other.api.handle
-        return super(Node, self).__eq__(other)
+        return self.name == other or self.longName == other
 
     def __hash__(self):
         return hash(self.api)
