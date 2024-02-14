@@ -79,8 +79,12 @@ class BoundingBox(tuple):
 
     def drawCube(self, name='BoundingBox'):
         """Draw a cube representation of the bounding box."""
-        from .node import Node
         transform, shape = utils.runAndLog(mc.polyCube, width=self.width, height=self.height, depth=self.depth, name=name)
         cube = Node(transform)
         cube.translation = self.origin
         return cube
+
+
+# Handle circular dependencies
+# pylint: disable=wrong-import-position
+from .node import Node

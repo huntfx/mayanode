@@ -1,8 +1,6 @@
 import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
-from .attributes import NodeAttributes, AttributeProxy
-from ..bounding_box import BoundingBox
 from ... import exceptions, types, utils
 
 
@@ -632,8 +630,6 @@ class Node(utils.StrMixin):
         """Get the node connections as plugs."""
         if not self.exists:
             return []
-
-        from ..connection import NodeConnectionProxy  # pylint: disable=import-outside-toplevel
         return NodeConnectionProxy(self)
 
     @property
@@ -747,3 +743,10 @@ class Node(utils.StrMixin):
         if boundingBox == (1e+20, 1e+20, 1e+20, -1e+20, -1e+20, -1e+20):
             raise exceptions.NoBoundingBoxError(self)
         return boundingBox
+
+
+# Handle circular dependencies
+# pylint: disable=wrong-import-position
+from .attributes import NodeAttributes
+from ..bounding_box import BoundingBox
+from ..connection import NodeConnectionProxy

@@ -1,8 +1,6 @@
 import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
-from .node import Node
-from .node.attributes import AttributeProxy
 from .. import utils
 
 
@@ -259,3 +257,9 @@ class NodeConnectionProxy(ConnectionProxy):
     def plugs(self):
         """Get the node `MPlug` objects."""
         return self._node.api.dependencyNode.getConnections()
+
+
+# Handle circular dependencies
+# pylint: disable=wrong-import-position
+from .node import Node
+from .node.attributes import AttributeProxy

@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
-from .keyframes import AttributeKeyframes
 from .... import exceptions, types, utils
 
 
@@ -496,7 +495,6 @@ class AttributeProxy(types.StrMixin):
         else:
             plug = AttributeProxy.ApiData.fromAttr(target).plug
 
-        from ...connection import Connection  # pylint: disable=import-outside-toplevel
         return Connection(self.node, self.api.plug, plug).create(reverse=reverse)
 
     def disconnect(self, target, reverse=False):
@@ -516,7 +514,6 @@ class AttributeProxy(types.StrMixin):
         else:
             plug = AttributeProxy.ApiData.fromAttr(target).plug
 
-        from ...connection import Connection  # pylint: disable=import-outside-toplevel
         return Connection(self.node, self.api.plug, plug).delete(reverse=reverse)
 
     @property
@@ -524,8 +521,6 @@ class AttributeProxy(types.StrMixin):
         """Get the attribute connections as plugs."""
         if not self.api:
             return []
-
-        from ...connection import AttributeConnectionProxy  # pylint: disable=import-outside-toplevel
         return AttributeConnectionProxy(self)
 
     def ensure(self, attrType, **kwargs):
@@ -550,3 +545,9 @@ class AttributeProxy(types.StrMixin):
     def keyframes(self):
         """Get the keyframe dict."""
         return self._keyframes
+
+
+# Handle circular dependencies
+# pylint: disable=wrong-import-position
+from .keyframes import AttributeKeyframes
+from ...connection import AttributeConnectionProxy, Connection
