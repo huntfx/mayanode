@@ -695,7 +695,7 @@ class Node(utils.StrMixin):
     @property
     def intermediate(self):
         """Return if the node is intermediate."""
-        if not self.exists:
+        if not self.exists or self.api.dagNode is None:
             return False
         return self.api.dagNode.isIntermediateObject
 

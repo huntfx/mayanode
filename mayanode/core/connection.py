@@ -141,6 +141,9 @@ class ConnectionProxy(object):
         self._outputConnections = None
         self._connections = []
 
+    def __eq__(self, other):
+        return self._connections == other
+
     def __repr__(self):
         self._load()
         return self._connections.__repr__()

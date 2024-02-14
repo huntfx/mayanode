@@ -247,7 +247,7 @@ class TestNode(unittest.TestCase):
         mc.namespace(removeNamespace='new:namespace')
 
     def testDeleted(self):
-        node = Node(mc.polyCube(name='deleteTest'))
+        node = Node(mc.polyCube(name='deleteTest')[0])
         mc.delete(node)
 
         self.assertEqual(node.name, 'deleteTest')
