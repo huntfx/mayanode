@@ -128,19 +128,20 @@ class Connection(utils.StrMixin):
 
 
 class ConnectionProxy(object):
-    """Hold the connection data to lazily load inputs or outputs.
-    This is not live and once populated the data will remain.
+    """Hold the connection data to lazily load connections.
+    By default, both the source and destination connections will be
+    loaded, but either can be requested with the respective property.
+
+    The data contained by the class instance is not live, but in the
+    case a reload is required, there is a method to handle that.
     """
 
-    __slots__ = ['_connections', '_inputConnections', '_outputConnections']
+    __slots__ = ['_connections', '_sourceConnections', '_destinationConnections']
 
     def __init__(self):
-        self._inputConnections = None
-        self._outputConnections = None
+        self._sourceConnections = None
+        self._destinationConnections = None
         self._connections = []
-
-    def __eq__(self, other):
-        return self._connections == other
 
     def __repr__(self):
         self._load()
@@ -158,17 +159,20 @@ class ConnectionProxy(object):
         self._load()
         return self._connections.__len__()
 
-    @property
-    def inputs(self):
-        """Get the input connections."""
-        self._load(outputs=False, inputs=True)
-        return self._inputConnections
+    def __eq__(self, other):
+        return self._connections == other
 
     @property
-    def outputs(self):
-        """Get the output connections."""
-        self._load(outputs=True, inputs=False)
-        return self._outputConnections
+    def source(self):
+        """Get the source connections."""
+        self._load(source=True, destination=False)
+        return self._sourceConnections
+
+    @property
+    def destination(self):
+        """Get the destination connections."""
+        self._load(source=False, destination=True)
+        return self._destinationConnections
 
     @property
     def plugs(self):
@@ -177,40 +181,40 @@ class ConnectionProxy(object):
         """
         raise NotImplementedError
 
-    def _load(self, outputs=True, inputs=True):
+    def _load(self, source=True, destination=True):
         """Get the connection data from the plugs."""
         # Ensure the data is only loaded once
-        if outputs:
-            if self._outputConnections is None:
-                self._outputConnections = []
+        if destination:
+            if self._destinationConnections is None:
+                self._destinationConnections = []
             else:
-                outputs = False
-        if inputs:
-            if self._inputConnections is None:
-                self._inputConnections = []
+                destination = False
+        if source:
+            if self._sourceConnections is None:
+                self._sourceConnections = []
             else:
-                inputs = False
-        if not inputs and not outputs:
+                source = False
+        if not source and not destination:
             return
 
         # Get the connections for each plug
         for currentPlug in self.plugs:
-            if outputs:
+            if destination:
                 for connectedPlug in currentPlug.connectedTo(False, True):
-                    self._outputConnections.append(Connection(self.node, currentPlug, connectedPlug))
-            if inputs:
+                    self._destinationConnections.append(Connection(self.node, currentPlug, connectedPlug))
+            if source:
                 for connectedPlug in currentPlug.connectedTo(True, False):
-                    self._inputConnections.append(Connection(self.node, currentPlug, connectedPlug, reverse=True))
+                    self._sourceConnections.append(Connection(self.node, currentPlug, connectedPlug, reverse=True))
 
         # Add to main list
-        if outputs:
-            self._connections.extend(self._outputConnections)
-        if inputs:
-            self._connections.extend(self._inputConnections)
+        if destination:
+            self._connections.extend(self._destinationConnections)
+        if source:
+            self._connections.extend(self._sourceConnections)
 
     def reload(self):
         """Refresh all the loaded data."""
-        self._outputConnections = self._inputConnections = None
+        self._destinationConnections = self._sourceConnections = None
         self._connections = []
 
 
