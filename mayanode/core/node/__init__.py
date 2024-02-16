@@ -286,10 +286,38 @@ class Node(utils.StrMixin):
         return type(self)(str(self) + attr)
 
     def __eq__(self, other):
-        """Determine if two nodes are equal."""
+        """Determine if two nodes are equal.
+
+        Examples:
+            >>> nodes = Node('|cube'), Node('|sphere'), Node('|parent|cube')]
+
+            # Short name
+            >>> 'sphere' in nodes
+            True
+
+            # Non-unique short name (the short name is actually "|cube")
+            >>> 'cube' in nodes
+            True
+
+            # Long name
+            >>> '|parent|cube' in nodes:
+            True
+
+            # Partial paths
+            >>> 'parent|cube' in nodes:
+            True
+        """
         if isinstance(other, Node):
             return self.api.handle == other.api.handle
-        return self.name == other or self.longName == other
+
+        # Comparing against a unique name
+        if '|' in other:
+            if other[0] == '|':
+                return self.longName == other
+            return self.longName.endswith(other)
+
+        # Comparing against a potentially none unique name
+        return self.name.rsplit('|', 1)[-1] == other
 
     def __hash__(self):
         return hash(self.api)

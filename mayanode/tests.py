@@ -28,6 +28,32 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.name, 'transform_3')
         mc.delete(node.name)
 
+    def testEquality(self):
+        self.assertEqual(Node('lambert1'), Node('lambert1'))
+        self.assertEqual(Node('lambert1'), 'lambert1')
+
+        node = Node(mc.createNode('transform', name='equalityTest1'))
+
+        self.assertEqual(node, 'equalityTest1')
+        self.assertEqual(node, '|equalityTest1')
+
+        parent = mc.createNode('transform', name='equalityGroup1')
+        node.parent = parent
+
+        self.assertEqual(node, 'equalityTest1')
+        self.assertNotEqual(node, '|equalityTest1')
+
+        node2 = Node(mc.createNode('transform', name='equalityTest1'))
+        self.assertEqual(node, 'equalityTest1')
+        self.assertEqual(node2, 'equalityTest1')
+        self.assertNotEqual(node, '|equalityTest1')
+        self.assertEqual(node2, '|equalityTest1')
+
+        self.assertEqual(node, '|equalityGroup1|equalityTest1')
+        self.assertEqual(node, 'equalityGroup1|equalityTest1')
+
+        mc.delete(node, node2, parent)
+
     def testUniqueShortName(self):
         transform = mc.polyCube()[0]
         shape = mc.listRelatives(children=True)[0]
