@@ -44,6 +44,22 @@ class Connection(utils.StrMixin):
             return self._dstPlug == other.api.plug
         return self._dstPlug.name() == other
 
+    def __bool__(self):
+        return self.exists
+    __nonzero__ = __bool__
+
+    @property
+    def exists(self):
+        """Determine if the connection exists.
+
+        The equivalent command is `mc.isConnected`, which from a quick
+        benchmark appears to be around 20x slower than `connectedTo`.
+        Under some circumstances it seems `connectedTo` on one side
+        returns an empty list, so for safety both sides are checked.
+        """
+        return (self._dstPlug in self._srcPlug.connectedTo(True, True)
+                or self._srcPlug in self._dstPlug.connectedTo(True, True))
+
     @property
     def origin(self):
         """Load the attribute proxy for the origin attribute."""
@@ -86,40 +102,35 @@ class Connection(utils.StrMixin):
 
     def create(self):
         """Create a connection.
-        Set `reverse` to connect the other direction.
 
-        TODO: Raise if connection exists
         TODO: Test connection between wrong types
 
         Returns:
             True if successful otherwise False.
         """
-        direction = [self.source, self.destination]
-        utils.logger.info('Creating connection: %s >> %s', *direction)
+        utils.logger.info('Creating connection: %s >> %s', self.source, self.destination)
+        if not self.exists:
+            utils.runAndLog(mc.connectAttr, self.source, self.destination)
+            return True
 
-        if not self.origin.api or not self.target.api:
-            utils.runAndLog(mc.connectAttr, *direction)
-        else:
-            om2.MDGModifier().connect(direction[0].api.plug, direction[1].api.plug).doIt()
-        return True
+        utils.logger.debug('Connection already exists')
+        return False
 
     def delete(self):
         """Break a connection.
 
-        TODO: Raise if connection doesn't exist
         TODO: Test connection between wrong types
 
         Returns:
             True if successful otherwise False.
         """
-        direction = [self.source, self.destination]
-        utils.logger.info('Breaking connection: %s >> %s', *direction)
+        utils.logger.info('Breaking connection: %s // %s', self.source, self.destination)
+        if self.exists:
+            utils.runAndLog(mc.disconnectAttr, self.source, self.destination)
+            return True
 
-        if not self.origin.api or not self.target.api:
-            utils.runAndLog(mc.disconnectAttr, *direction)
-        else:
-            om2.MDGModifier().disconnect(direction[0].api.plug, direction[1].api.plug).doIt()
-        return True
+        utils.logger.debug('Connection does not exist')
+        return False
 
 
 class ConnectionProxy(object):
