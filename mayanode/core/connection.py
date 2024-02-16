@@ -84,7 +84,7 @@ class Connection(utils.StrMixin):
         """Get the destination attribute name."""
         return self.target.name
 
-    def create(self, reverse=False):
+    def create(self):
         """Create a connection.
         Set `reverse` to connect the other direction.
 
@@ -94,9 +94,7 @@ class Connection(utils.StrMixin):
         Returns:
             True if successful otherwise False.
         """
-        direction = [self.origin, self.target]
-        if reverse:
-            direction.reverse()
+        direction = [self.source, self.destination]
         utils.logger.info('Creating connection: %s >> %s', *direction)
 
         if not self.origin.api or not self.target.api:
@@ -105,9 +103,8 @@ class Connection(utils.StrMixin):
             om2.MDGModifier().connect(direction[0].api.plug, direction[1].api.plug).doIt()
         return True
 
-    def delete(self, reverse=False):
+    def delete(self):
         """Break a connection.
-        Set `reverse` to disconnect the other direction.
 
         TODO: Raise if connection doesn't exist
         TODO: Test connection between wrong types
@@ -115,9 +112,7 @@ class Connection(utils.StrMixin):
         Returns:
             True if successful otherwise False.
         """
-        direction = [self.origin, self.target]
-        if reverse:
-            direction.reverse()
+        direction = [self.source, self.destination]
         utils.logger.info('Breaking connection: %s >> %s', *direction)
 
         if not self.origin.api or not self.target.api:

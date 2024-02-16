@@ -495,7 +495,7 @@ class AttributeProxy(types.StrMixin):
         else:
             plug = AttributeProxy.ApiData.fromAttr(target).plug
 
-        return Connection(self.node, self.api.plug, plug).create(reverse=reverse)
+        return Connection(self.node, self.api.plug, plug, reverse=reverse).create()
 
     def disconnect(self, target, reverse=False):
         """Remove a connection.
@@ -514,7 +514,7 @@ class AttributeProxy(types.StrMixin):
         else:
             plug = AttributeProxy.ApiData.fromAttr(target).plug
 
-        return Connection(self.node, self.api.plug, plug).delete(reverse=reverse)
+        return Connection(self.node, self.api.plug, plug, reverse=reverse).delete()
 
     @property
     def connections(self):
