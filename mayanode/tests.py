@@ -491,6 +491,49 @@ class TestAttr(unittest.TestCase):
         self.assertTrue(len(attrs) > 1)
         self.assertTrue(dict.__len__(attrs) > 1)
 
+    def testInvalidConnections(self):
+        # FATAL ERROR WARNING: Fixed now, but previously this crashed maya
+        t1 = Node(mc.createNode('transform', name='connectionDeleteTest1'))
+        t2 = Node(mc.createNode('transform', name='connectionDeleteTest2'))
+        t2.attrs.create('test', 1)
+        attr = t2.attrs['test']
+
+        t1.attrs['tx'] >> t2.attrs['tx']
+        attr >> t1.attrs['tx']
+
+        connections = t1.connections
+        self.assertEqual(len(connections), 2)
+        mc.deleteAttr(t2.attrs['test'])
+
+        self.assertEqual(len(t2.attrs['test'].connections), 0)
+        self.assertEqual(len(connections), 2)
+
+        for connection in connections:
+            self.assertTrue(connection.name)
+
+        with self.assertRaises(exceptions.AttributeNotFoundError):
+            t2.attrs['test'] >> t1.attrs['tx']
+        with self.assertRaises(exceptions.AttributeNotFoundError):
+            attr >> t1.attrs['tx']
+
+        self.assertEqual(len(connections.create()), 0)
+        self.assertEqual(len(connections.delete()), 1)
+        self.assertEqual(len(connections.create()), 1)
+
+        mc.delete(t2)
+        for connection in connections:
+            self.assertTrue(connection.name)
+
+        with self.assertRaises(exceptions.NodeDeletedError):
+            t2.attrs['test'] >> t1.attrs['tx']
+        with self.assertRaises(exceptions.AttributeNotFoundError):
+            attr >> t1.attrs['tx']
+
+        self.assertEqual(len(connections.create()), 0)
+        self.assertEqual(len(connections.delete()), 0)
+
+        mc.delete(t1)
+
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):

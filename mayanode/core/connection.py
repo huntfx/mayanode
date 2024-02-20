@@ -1,7 +1,7 @@
 import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
-from .. import utils
+from .. import exceptions, utils
 
 
 class Connection(utils.StrMixin):
@@ -13,13 +13,19 @@ class Connection(utils.StrMixin):
     __slots__ = ['_reverse', '_srcNode', '_srcPlug', '_srcAttr', '_dstNode', '_dstPlug', '_dstAttr']
 
     def __init__(self, srcNode, srcPlug, dstPlug, reverse=False):
-        """Setup the connection attributes without loading anything.
+        """Setup the connection attributes.
 
         Parameters:
             srcNode: The `Node` instance where the connection originates.
             srcPlug: The `MPlug` for the source attribute.
             dstPlug: The `MPlug` for the destination attribute.
         """
+        if srcPlug.isNetworked:
+            srcPlug = om2.MPlug(srcPlug.node(), srcPlug.attribute())
+        if dstPlug.isNetworked:
+            dstPlug = om2.MPlug(dstPlug.node(), dstPlug.attribute())
+
+        self._reverse = reverse
         self._reverse = reverse
         self._srcNode = srcNode
         self._srcPlug = srcPlug
@@ -49,16 +55,21 @@ class Connection(utils.StrMixin):
     __nonzero__ = __bool__
 
     @property
+    def valid(self):
+        """Determine if the connection is valid."""
+        return self.source.exists and self.destination.exists
+
+    @property
     def exists(self):
         """Determine if the connection exists.
 
         The equivalent command is `mc.isConnected`, which from a quick
         benchmark appears to be around 20x slower than `connectedTo`.
-        Under some circumstances it seems `connectedTo` on one side
-        returns an empty list, so for safety both sides are checked.
+        Under some circumstances it seems `connectedTo` returns an
+        empty list on one side, so for safety both sides are checked.
         """
-        return (self._dstPlug in self._srcPlug.connectedTo(True, True)
-                or self._srcPlug in self._dstPlug.connectedTo(True, True))
+        return (self.target.api.plug in self.origin.api.plug.connectedTo(True, True)
+                or self.origin.api.plug in self.target.api.plug.connectedTo(True, True))
 
     @property
     def origin(self):
@@ -103,13 +114,19 @@ class Connection(utils.StrMixin):
     def create(self):
         """Create a connection.
 
-        TODO: Test connection between wrong types
+        Raises:
+            AttributeNotFoundError: If either attribute doesn't exist
+            RuntimeError: The attribute '{}' cannot be connected to '{}'.
 
         Returns:
             True if successful otherwise False.
         """
         utils.logger.info('Creating connection: %s >> %s', self.source, self.destination)
         if not self.exists:
+            if not self.source.exists:
+                raise exceptions.AttributeNotFoundError(self.source.node, self.source.attr)
+            if not self.destination.exists:
+                raise exceptions.AttributeNotFoundError(self.destination.node, self.destination.attr)
             utils.runAndLog(mc.connectAttr, self.source, self.destination)
             return True
 
@@ -119,13 +136,18 @@ class Connection(utils.StrMixin):
     def delete(self):
         """Break a connection.
 
-        TODO: Test connection between wrong types
+        Raises:
+            AttributeNotFoundError: If either attribute doesn't exist
 
         Returns:
             True if successful otherwise False.
         """
         utils.logger.info('Breaking connection: %s // %s', self.source, self.destination)
         if self.exists:
+            if not self.source.exists:
+                raise exceptions.AttributeNotFoundError(self.source.node, self.source.attr)
+            if not self.destination.exists:
+                raise exceptions.AttributeNotFoundError(self.destination.node, self.destination.attr)
             utils.runAndLog(mc.disconnectAttr, self.source, self.destination)
             return True
 
@@ -133,7 +155,33 @@ class Connection(utils.StrMixin):
         return False
 
 
-class ConnectionProxy(object):
+class ConnectionList(list):
+    """Hold multiple connections and provide a way to create/delete all."""
+
+    def create(self):
+        """Create all connections."""
+        result = []
+        for connection in self:
+            try:
+                if connection.create():
+                    result.append(connection)
+            except (exceptions.NodeDeletedError, exceptions.AttributeNotFoundError):
+                pass
+        return ConnectionList(result)
+
+    def delete(self):
+        """Delete all connections."""
+        result = []
+        for connection in self:
+            try:
+                if connection.delete():
+                    result.append(connection)
+            except (exceptions.NodeDeletedError, exceptions.AttributeNotFoundError):
+                pass
+        return ConnectionList(result)
+
+
+class ConnectionProxy(ConnectionList):
     """Hold the connection data to lazily load connections.
     By default, both the source and destination connections will be
     loaded, but either can be requested with the respective property.
@@ -166,19 +214,28 @@ class ConnectionProxy(object):
         return self._connections.__len__()
 
     def __eq__(self, other):
+        self._load()
         return self._connections == other
+
+    def __ne__(self, other):
+        self._load()
+        return self._connections != other
+
+    def __contains__(self, other):
+        self._load()
+        return other in self._connections
 
     @property
     def source(self):
         """Get the source connections."""
         self._load(source=True, destination=False)
-        return self._sourceConnections
+        return ConnectionList(self._sourceConnections)
 
     @property
     def destination(self):
         """Get the destination connections."""
         self._load(source=False, destination=True)
-        return self._destinationConnections
+        return ConnectionList(self._destinationConnections)
 
     @property
     def plugs(self):

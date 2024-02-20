@@ -10,10 +10,6 @@ if str is not bytes:
     unicode = str  # pylint:disable=invalid-name
 
 
-if str is not bytes:
-    unicode = str  # pylint:disable=invalid-name
-
-
 ATTR_TYPES = {
     'bool': bool,
     'byte': int,
@@ -109,6 +105,9 @@ def _getPlugValue(plug):
         return tuple(plug.child(i).asShort() for i in range(3))
     elif apiType == om2.MFn.kAttribute4Double:
         return tuple(plug.child(i).asDouble() for i in range(4))
+
+    elif apiType == om2.MFn.kMessageAttribute:
+        raise RuntimeError('Message attributes have no data values')  # Match the mc.getAttr error
 
     raise NotImplementedError(attribute.apiTypeStr)
 
@@ -241,6 +240,14 @@ class AttributeProxy(types.StrMixin):
         __slots__ = ['_plug', '_attribute']
 
         def __init__(self, plug):
+            """Store the plug.
+
+            If the plug is networked, then convert to non networked, as
+            otherwise all sorts of crashes and instability can happen
+            by holding the plug in memory.
+            """
+            if plug.isNetworked:
+                plug = om2.MPlug(plug.node(), plug.attribute())
             self._plug = plug
             self._attribute = None
 
@@ -265,10 +272,16 @@ class AttributeProxy(types.StrMixin):
 
             Raises:
                 AttributeNotFoundError
+                NodeNotFoundError
             """
             node, attr = attr.split('.')
             selection = om2.MSelectionList()
-            selection.add(node)
+            try:
+                selection.add(node)
+            except RuntimeError as e:
+                if str(e) == '(kInvalidParameter): Object does not exist':
+                    raise exceptions.NodeNotFoundError(node)
+                raise
             dependNode = selection.getDependNode(0)
             dependencyNode = om2.MFnDependencyNode(dependNode)
             try:
@@ -281,7 +294,12 @@ class AttributeProxy(types.StrMixin):
 
         @property
         def plug(self):
-            """Get the `MPlug`."""
+            """Get the `MPlug`.
+
+            Notable methods:
+                `name()`
+                `partialName(useFullAttributePath=True)`
+            """
             return self._plug
 
         @property
@@ -304,10 +322,19 @@ class AttributeProxy(types.StrMixin):
             return self._attribute
 
     def __init__(self, node, attr):
+        """Create the attribute proxy.
+
+        Parameters:
+            node (Node): Instance of the current node.
+            attr (str|MPlug): Attribute of the node.
+                If using a networked plug that is attached to an
+                attribute that no longer exists, then Maya will crash.
+
+        """
         self.node = node
         if isinstance(attr, om2.MPlug):
             self.api = AttributeProxy.ApiData(attr)
-            self.attr = self.api.attribute.name
+            self.attr = self.api.plug.partialName(useLongNames=True)
 
         else:
             self.attr = attr
@@ -367,9 +394,21 @@ class AttributeProxy(types.StrMixin):
 
     @property
     def exists(self):
-        """Determine if the attribute already exists."""
-        return self.node.api.dependencyNode.hasAttribute(self.attr)
-        # return utils.runAndLog(mc.attributeQuery, self.attr, node=self.node.name, exists=True)
+        """Determine if the attribute already exists.
+
+        The equivalent of `mc.attributeQuery(attr, node=node, exists=True)`.
+
+        This should be done before calling any plug methods as an
+        invalid plug can cause Maya crashes.
+
+        Note that deleting an attribute does not invalidate the plug,
+        but it does update the dependency node. Deleting a node does
+        the opposite with networked plugs, but any other plugs are left
+        as valid. A check on the parent node is needed for these.
+        """
+        return (not self.api.plug.isNull
+                and self.node.exists
+                and self.node.api.dependencyNode.hasAttribute(self.attr))
 
     @property
     def type(self):
@@ -381,7 +420,7 @@ class AttributeProxy(types.StrMixin):
             List of a single type if an array attribute.
             String if unsupported (eg. "enum").
         """
-        if self.api:
+        if not self.api.plug.isNull:
             attribute = self.api.plug.attribute()
             apiType = attribute.apiType()
 
@@ -404,14 +443,14 @@ class AttributeProxy(types.StrMixin):
     @property
     def name(self):
         """Get the full node and attribute name for Maya to use."""
-        if self.api:
+        if not self.api.plug.isNull:
             return self.api.plug.name()
         return '{}.{}'.format(self.node, self.attr)
 
     @property
     def value(self):
         """Get an attribute value."""
-        if self.api:
+        if not self.api.plug.isNull:
             try:
                 return _getPlugValue(self.api.plug)
             except NotImplementedError:
@@ -427,7 +466,7 @@ class AttributeProxy(types.StrMixin):
         """
         utils.logger.info('Setting %s value: %r', self, value)
         utils.raiseIfNodeNotFound(self.node)
-        if self.api:
+        if not self.api.plug.isNull:
             while True:
                 try:
                     _setPlugValue(self.api.plug, value)
@@ -445,7 +484,7 @@ class AttributeProxy(types.StrMixin):
     @property
     def locked(self):
         """Get the node locked state."""
-        if self.api:
+        if not self.api.plug.isNull:
             return self.api.plug.isLocked
         return utils.runAndLog(mc.getAttr, self, lock=True)
 
@@ -463,7 +502,7 @@ class AttributeProxy(types.StrMixin):
     @property
     def keyable(self):
         """Get the node keyable state."""
-        if self.api:
+        if not self.api.plug.isNull:
             return self.api.plug.isKeyable
         return utils.runAndLog(mc.getAttr, self, keyable=True)
 
@@ -483,11 +522,16 @@ class AttributeProxy(types.StrMixin):
         Set `reverse` to reverse the connection direction.
 
         Raises:
-            AttributeNotFoundError
+            AttributeNotFoundError: If the source or destination
+                attribute is not found.
+            NodeNotFoundError: If the destination node was not found.
 
         Returns:
             True if successful otherwise False
         """
+        if not self.exists:
+            raise exceptions.AttributeNotFoundError(self.node, self.attr)
+
         if isinstance(target, AttributeProxy):
             plug = target.api.plug
         elif isinstance(target, om2.MPlug):
@@ -502,11 +546,16 @@ class AttributeProxy(types.StrMixin):
         Set `reverse` to reverse the direction.
 
         Raises:
-            DestinationAttributeNotFoundError
+            AttributeNotFoundError: If the source or destination
+                attribute was not found.
+            NodeNotFoundError: If the destination node is not valid.
 
         Returns:
             True if successful otherwise False
         """
+        if not self.exists:
+            raise exceptions.AttributeNotFoundError(self.node, self.attr)
+
         if isinstance(target, AttributeProxy):
             plug = target.api.plug
         elif isinstance(target, om2.MPlug):
@@ -519,7 +568,7 @@ class AttributeProxy(types.StrMixin):
     @property
     def connections(self):
         """Get the attribute connections as plugs."""
-        if not self.api:
+        if self.api.plug.isNull:
             return []
         return AttributeConnectionProxy(self)
 
