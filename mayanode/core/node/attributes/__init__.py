@@ -463,10 +463,17 @@ class AttributeProxy(types.StrMixin):
 
         Raises:
             NodeDeletedError
+            AttributeLockedError
+            AttributeConnectedError
         """
         utils.logger.info('Setting %s value: %r', self, value)
         utils.raiseIfNodeNotFound(self.node)
         if not self.api.plug.isNull:
+            if self.api.plug.isLocked:
+                raise exceptions.AttributeLockedError(self.node, self.attr)
+            if self.api.plug.isConnected:
+                raise exceptions.AttributeConnectedError(self.node, self.attr)
+
             while True:
                 try:
                     _setPlugValue(self.api.plug, value)

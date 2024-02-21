@@ -25,11 +25,23 @@ class InvalidNodeError(NodeError):
     MESSAGE = '"{node}" is not valid'
 
 
-class AttributeNotFoundError(NodeError):
-    MESSAGE = 'Attribute not found: {node}.{attr}'
+class NodeAttributeError(NodeError):
+    MESSAGE = 'Error: {node}.{attr}'
 
     def __init__(self, node, attr):
-        super(AttributeNotFoundError, self).__init__(node, attr=attr)
+        super(NodeAttributeError, self).__init__(node, attr=attr)
+
+
+class AttributeNotFoundError(NodeAttributeError):
+    MESSAGE = 'The attribute "{node}.{attr}" was not found'
+
+
+class AttributeLockedError(NodeAttributeError):
+    MESSAGE = 'The attribute "{node}.{attr}" is locked and cannot be modified'
+
+
+class AttributeConnectedError(NodeAttributeError):
+    MESSAGE = 'The attribute "{node}.{attr}" is connected and cannot be modified'
 
 
 class AlreadyIsChildError(NodeError):

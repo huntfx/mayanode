@@ -431,7 +431,7 @@ class TestAttr(unittest.TestCase):
 
     def testLock(self):
         self.node.attrs['diffuse'].locked = True
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(exceptions.AttributeLockedError):
             self.node.attrs['diffuse'] = 0
         self.node.attrs['diffuse'].locked = False
 
