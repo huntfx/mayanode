@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import maya.cmds as mc
 
 from .. import utils
+from ..types import Coordinate
 
 
 class BoundingBox(tuple):
@@ -30,7 +31,7 @@ class BoundingBox(tuple):
     @property
     def origin(self):
         """Get the origin coordinate."""
-        return (self.x, self.y, self.z)
+        return Coordinate(self.x, self.y, self.z)
 
     @property
     def xMin(self):
