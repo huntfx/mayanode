@@ -131,7 +131,7 @@ def _setPlugValue(plug, value):
 
 
 class NodeAttributes(dict):
-    """Lazy dictionary storing a cache of all the AttributeProxy values.
+    """Lazy dictionary storing a cache of all the Attribute values.
     The full list of attributes is not populated until it is requested.
     There is no validation on checking if new attributes already exist.
     """
@@ -189,7 +189,7 @@ class NodeAttributes(dict):
         """Load in the attribute proxy if required."""
         if not reload and super(NodeAttributes, self).__contains__(attr):
             return
-        value = AttributeProxy(self.node, attr)
+        value = Attribute(self.node, attr)
         super(NodeAttributes, self).__setitem__(attr, value)
 
     def _ensureAttrs(self, reload=False):
@@ -225,7 +225,7 @@ class NodeAttributes(dict):
         return self.__getitem__(attr)
 
 
-class AttributeProxy(types.StrMixin):
+class Attribute(types.StrMixin):
     """Easy way of handling attribute values and connections.
 
     A value is read and set using `.value`.
@@ -333,12 +333,12 @@ class AttributeProxy(types.StrMixin):
         """
         self.node = node
         if isinstance(attr, om2.MPlug):
-            self.api = AttributeProxy.ApiData(attr)
+            self.api = Attribute.ApiData(attr)
             self.attr = self.api.plug.partialName(useLongNames=True)
 
         else:
             self.attr = attr
-            self.api = AttributeProxy.ApiData.fromNode(self.node, attr)
+            self.api = Attribute.ApiData.fromNode(self.node, attr)
 
         self._keyframes = AttributeKeyframes(self)
 
@@ -355,36 +355,36 @@ class AttributeProxy(types.StrMixin):
     def __add__(self, value):
         """Allow attribute names to be added to.
 
-        >>> AttributeProxy('node.val') + 'ue'
-        AttributeProxy('node.value')
+        >>> Attribute('node.val') + 'ue'
+        Attribute('node.value')
         """
         return type(self)(self.node, self.attr + value)
 
     def __rshift__(self, connection):
         """Create an outgoing connection.
 
-        >>> AttributeProxy('node.attr') >> 'othernode.attr'
+        >>> Attribute('node.attr') >> 'othernode.attr'
         """
         self.connect(connection)
 
     def __rrshift__(self, connection):
         """Create an incoming connection.
 
-        >>> 'othernode.attr' >> AttributeProxy('node.attr')
+        >>> 'othernode.attr' >> Attribute('node.attr')
         """
         self.connect(connection, reverse=True)
 
     def __floordiv__(self, connection):
         """Break an outgoing connection.
 
-        >>> AttributeProxy('node.attr') // 'othernode.attr'
+        >>> Attribute('node.attr') // 'othernode.attr'
         """
         self.disconnect(connection)
 
     def __rfloordiv__(self, connection):
         """Break an incoming connection.
 
-        >>> 'othernode.attr' // AttributeProxy('node.attr')
+        >>> 'othernode.attr' // Attribute('node.attr')
         """
         self.disconnect(connection, reverse=True)
 
@@ -539,12 +539,12 @@ class AttributeProxy(types.StrMixin):
         if not self.exists:
             raise exceptions.AttributeNotFoundError(self.node, self.attr)
 
-        if isinstance(target, AttributeProxy):
+        if isinstance(target, Attribute):
             plug = target.api.plug
         elif isinstance(target, om2.MPlug):
             plug = target
         else:
-            plug = AttributeProxy.ApiData.fromAttr(target).plug
+            plug = Attribute.ApiData.fromAttr(target).plug
 
         return Connection(self.node, self.api.plug, plug, reverse=reverse).connect()
 
@@ -563,12 +563,12 @@ class AttributeProxy(types.StrMixin):
         if not self.exists:
             raise exceptions.AttributeNotFoundError(self.node, self.attr)
 
-        if isinstance(target, AttributeProxy):
+        if isinstance(target, Attribute):
             plug = target.api.plug
         elif isinstance(target, om2.MPlug):
             plug = target
         else:
-            plug = AttributeProxy.ApiData.fromAttr(target).plug
+            plug = Attribute.ApiData.fromAttr(target).plug
 
         return Connection(self.node, self.api.plug, plug, reverse=reverse).disconnect()
 

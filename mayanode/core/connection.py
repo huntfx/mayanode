@@ -46,7 +46,7 @@ class Connection(utils.StrMixin):
             if self._reverse != other._reverse:
                 current = current[::-1]
             return current == [other._srcPlug, other._dstPlug]
-        if isinstance(other, AttributeProxy):
+        if isinstance(other, Attribute):
             return self._dstPlug == other.api.plug
         return self._dstPlug.name() == other
 
@@ -75,7 +75,7 @@ class Connection(utils.StrMixin):
     def origin(self):
         """Load the attribute proxy for the origin attribute."""
         if self._srcAttr is None:
-            self._srcAttr = AttributeProxy(self._srcNode, self._srcPlug)
+            self._srcAttr = Attribute(self._srcNode, self._srcPlug)
         return self._srcAttr
 
     @property
@@ -87,7 +87,7 @@ class Connection(utils.StrMixin):
     def target(self):
         """Load the attribute proxy for the target attribute."""
         if self._dstAttr is None:
-            self._dstAttr = AttributeProxy(self.node, self._dstPlug)
+            self._dstAttr = Attribute(self.node, self._dstPlug)
         return self._dstAttr
 
     @property
@@ -329,4 +329,4 @@ class NodeConnectionProxy(ConnectionProxy):
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .node import Node
-from .node.attributes import AttributeProxy
+from .node.attributes import Attribute

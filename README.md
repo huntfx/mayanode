@@ -64,7 +64,7 @@ True
 >>> perspShape.attrs['depthOfField'] = True
 >>> focusDist = perspShape.attrs['focusDistance']
 >>> focusDist
-AttributeProxy('perspShape.focusDistance')
+Attribute('perspShape.focusDistance')
 >>> focusDist.value = 3.52
 >>> int(focusDist)
 3
