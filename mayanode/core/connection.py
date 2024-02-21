@@ -111,7 +111,7 @@ class Connection(utils.StrMixin):
         """Get the destination attribute name."""
         return self.target.name
 
-    def create(self):
+    def connect(self):
         """Create a connection.
 
         Raises:
@@ -133,7 +133,7 @@ class Connection(utils.StrMixin):
         utils.logger.debug('Connection already exists')
         return False
 
-    def delete(self):
+    def disconnect(self):
         """Break a connection.
 
         Raises:
@@ -156,25 +156,25 @@ class Connection(utils.StrMixin):
 
 
 class ConnectionList(list):
-    """Hold multiple connections and provide a way to create/delete all."""
+    """Hold multiple connections and provide a way to connect/disconnect all."""
 
-    def create(self):
+    def connect(self):
         """Create all connections."""
         result = []
         for connection in self:
             try:
-                if connection.create():
+                if connection.connect():
                     result.append(connection)
             except (exceptions.NodeDeletedError, exceptions.AttributeNotFoundError):
                 pass
         return ConnectionList(result)
 
-    def delete(self):
+    def disconnect(self):
         """Delete all connections."""
         result = []
         for connection in self:
             try:
-                if connection.delete():
+                if connection.disconnect():
                     result.append(connection)
             except (exceptions.NodeDeletedError, exceptions.AttributeNotFoundError):
                 pass
@@ -226,14 +226,14 @@ class ConnectionProxy(ConnectionList):
         return other in self._connections
 
     @property
-    def source(self):
-        """Get the source connections."""
+    def inputs(self):
+        """Get the input/source connections."""
         self._load(source=True, destination=False)
         return ConnectionList(self._sourceConnections)
 
     @property
-    def destination(self):
-        """Get the destination connections."""
+    def outputs(self):
+        """Get the output/destination connections."""
         self._load(source=False, destination=True)
         return ConnectionList(self._destinationConnections)
 

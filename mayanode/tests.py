@@ -461,8 +461,8 @@ class TestAttr(unittest.TestCase):
         self.assertNotIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
         self.assertTrue(cube1.attrs['tx'].connect(cube2.attrs['tx']))
         connection = cube2.attrs['tx'].connections[0]
-        self.assertTrue(connection.delete())
-        self.assertTrue(connection.create())
+        self.assertTrue(connection.disconnect())
+        self.assertTrue(connection.connect())
         self.assertTrue(cube1.attrs['tx'].disconnect(cube2.attrs['tx']))
         mc.delete(cube1, cube2)
 
@@ -516,9 +516,9 @@ class TestAttr(unittest.TestCase):
         with self.assertRaises(exceptions.AttributeNotFoundError):
             attr >> t1.attrs['tx']
 
-        self.assertEqual(len(connections.create()), 0)
-        self.assertEqual(len(connections.delete()), 1)
-        self.assertEqual(len(connections.create()), 1)
+        self.assertEqual(len(connections.connect()), 0)
+        self.assertEqual(len(connections.disconnect()), 1)
+        self.assertEqual(len(connections.connect()), 1)
 
         mc.delete(t2)
         for connection in connections:
@@ -529,8 +529,8 @@ class TestAttr(unittest.TestCase):
         with self.assertRaises(exceptions.AttributeNotFoundError):
             attr >> t1.attrs['tx']
 
-        self.assertEqual(len(connections.create()), 0)
-        self.assertEqual(len(connections.delete()), 0)
+        self.assertEqual(len(connections.connect()), 0)
+        self.assertEqual(len(connections.disconnect()), 0)
 
         mc.delete(t1)
 
