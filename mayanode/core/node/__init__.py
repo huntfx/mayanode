@@ -4,10 +4,6 @@ import maya.cmds as mc
 from ... import exceptions, types, utils
 
 
-if str is not bytes:
-    unicode = str
-
-
 NODE_TYPES = {
     'shader': set(mc.listNodeTypes('shader')),
 }
@@ -744,8 +740,8 @@ class Node(utils.StrMixin):
         Raises:
             NodeDeletedError
         """
-        utils.raiseIfNodeNotFound(self)
         utils.logger.info('Setting %s shader to %s', self, shadingEngine)
+        utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.sets, self, edit=True, forceElement=shadingEngine)
 
     def delete(self):
