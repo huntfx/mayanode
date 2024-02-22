@@ -1,3 +1,5 @@
+import math
+
 import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
@@ -510,6 +512,9 @@ class Node(utils.StrMixin):
     def translation(self):
         """Get the translation of the node.
 
+        Equivalent:
+            `mc.xform(self, query=True, translation=True, worldSpace=True)`
+
         Raises:
             NodeDeletedError
 
@@ -517,7 +522,11 @@ class Node(utils.StrMixin):
             Named coordinate tuple of X, Y, Z.
         """
         utils.raiseIfNodeNotFound(self)
-        return types.Coordinate(*utils.runAndLog(mc.xform, self, query=True, translation=True, worldSpace=True))
+        if self.api.dagPath is None:
+            return None
+        matrix = om2.MTransformationMatrix(self.api.dagPath.inclusiveMatrix())
+        vector = matrix.translation(om2.MSpace.kWorld)
+        return types.Coordinate(vector.x, vector.y, vector.z)
 
     @translation.setter
     def translation(self, value):
@@ -542,6 +551,9 @@ class Node(utils.StrMixin):
     def rotation(self):
         """Get the rotation of the node.
 
+        Equivalent:
+            `mc.xform(self, query=True, rotation=True, worldSpace=True)`
+
         Raises:
             NodeDeletedError
 
@@ -549,7 +561,11 @@ class Node(utils.StrMixin):
             Named coordinate tuple of X, Y, Z.
         """
         utils.raiseIfNodeNotFound(self)
-        return types.Coordinate(*utils.runAndLog(mc.xform, self, query=True, rotation=True, worldSpace=True))
+        if self.api.dagPath is None:
+            return None
+        matrix = om2.MTransformationMatrix(self.api.dagPath.inclusiveMatrix())
+        euler = matrix.rotation()
+        return types.Coordinate(math.degrees(euler.x), math.degrees(euler.y), math.degrees(euler.z))
 
     @rotation.setter
     def rotation(self, value):
@@ -574,6 +590,9 @@ class Node(utils.StrMixin):
     def scaling(self):
         """Get the scale of the node.
 
+        Equivalent:
+            `mc.xform(self, query=True, scale=True, worldSpace=True)`
+
         Raises:
             NodeDeletedError
 
@@ -581,7 +600,11 @@ class Node(utils.StrMixin):
             Named coordinate tuple of X, Y, Z.
         """
         utils.raiseIfNodeNotFound(self)
-        return types.Coordinate(*utils.runAndLog(mc.xform, self, query=True, scale=True, worldSpace=True))
+        if self.api.dagPath is None:
+            return None
+        matrix = om2.MTransformationMatrix(self.api.dagPath.inclusiveMatrix())
+        scale = matrix.scale(om2.MSpace.kWorld)
+        return types.Coordinate(*scale)
 
     @scaling.setter
     def scaling(self, value):
@@ -623,6 +646,8 @@ class Node(utils.StrMixin):
     @property
     def parents(self):
         """Get the node parents."""
+        if self.api.dagNode is None:
+            return None
         result = []
         for parent in map(self.api.dagNode.parent, range(self.api.dagNode.parentCount())):
             if om2.MObjectHandle(parent) == _getWorldHandle():
