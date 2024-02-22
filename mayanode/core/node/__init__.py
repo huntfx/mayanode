@@ -222,7 +222,7 @@ class _ApiData(object):
         if self.dagPath is None:
             return None
 
-        transformDagPath = self.api.dagPath.transform()
+        transformDagPath = self.dagPath.transform()
         if self.handle == om2.MObjectHandle(transformDagPath):
             return None
         return transformDagPath
