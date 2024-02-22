@@ -128,6 +128,11 @@ class TestNode(unittest.TestCase):
         self.assertIsNone(Node('lambert1').transform)
         mc.delete(node)
 
+    def testInvalidShape(self):
+        grp = Node(mc.group(mc.polyCube(name='shapeTest'), name='shapeTestGrp'))
+        self.assertIsNone(grp.shape)
+        mc.delete(grp)
+
     def testInstances(self):
         node = Node(mc.polyCube(name='instTest1')[0])
         shape = node.shape

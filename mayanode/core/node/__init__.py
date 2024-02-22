@@ -229,7 +229,7 @@ class _ApiData(object):
 
     def getShapeDagPath(self):
         """Get the shape dag path from a transform node."""
-        if self.dagPath is None:
+        if self.dagPath is None or not self.dagPath.numberOfShapesDirectlyBelow():
             return None
 
         shapeDagPath = om2.MDagPath(self.dagPath)
