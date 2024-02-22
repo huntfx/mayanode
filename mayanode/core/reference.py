@@ -10,19 +10,12 @@ class Reference(Node):
     """
 
     @classmethod
-    def getAll(cls, parent=None):
+    def ls(cls, parent=None):
         if parent is None:
             refs = utils.runAndLog(mc.file, query=True, reference=True)
         else:
             refs = utils.runAndLog(mc.file, parent, query=True, reference=True)
-
-        for ref in refs:
-            refNode = utils.runAndLog(mc.referenceQuery, ref, referenceNode=True)
-            yield cls(refNode)
-
-    @classmethod
-    def listAll(cls, parent=None):
-        return list(cls.getAll(parent=parent))
+        return [cls(utils.runAndLog(mc.referenceQuery, ref, referenceNode=True)) for ref in refs]
 
     @property
     def refNode(self):

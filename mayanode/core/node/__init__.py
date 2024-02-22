@@ -379,6 +379,12 @@ class Node(utils.StrMixin):
         return hash(self.api)
 
     @classmethod
+    def ls(self, *args, **kwargs):
+        """Shortcut to search the scene."""
+        result = mc.ls(*args, **kwargs)
+        return [Node(node) for node in result]
+
+    @classmethod
     def create(cls, nodeType, **kwargs):
         """Create a new node.
 
