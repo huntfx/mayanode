@@ -53,3 +53,29 @@ class AlreadyIsChildError(NodeError):
 
 class NoBoundingBoxError(NodeError):
     MESSAGE = '"{node}" has no bounding box'
+
+
+class UVSetError(NodeError):
+    MESSAGE = 'Error: {node}.uvSet[{uvSet}]'
+
+    def __init__(self, node, uvSet):
+        super(UVSetError, self).__init__(node, uvSet=uvSet)
+
+
+class UVSetDeleteDefaultError(UVSetError):
+    MESSAGE = 'The default UV set "{node}.{uvSet}" cannot be deleted.'
+
+
+class UVSetNotFoundError(UVSetError):
+    MESSAGE = 'The UV set "{node}.{uvSet}" was not found'
+
+
+class ColorSetError(NodeError):
+    MESSAGE = 'Error: {node}.colorSet[{colorSet}]'
+
+    def __init__(self, node, colorSet):
+        super(ColorSetError, self).__init__(node, colorSet=colorSet)
+
+
+class ColorSetNotFoundError(ColorSetError):
+    MESSAGE = 'The color set "{node}.{colorSet}" was not found'

@@ -10,6 +10,7 @@
 - **Attribute Management**: Interact with node attributes, including getting and setting values, keyframes, and connections.
 - **Relationship Exploration**: Navigate through the scene hierarchy by accessing parents, children, ancestors, and descendants of nodes.
 - **Reference Handling**: Get and set data related to references. Not fleshed out yet.
+- **UV/Color Set Handling**: Get and set data related to UV and color sets. Not fleshed out yet.
 
 
 ## Installation

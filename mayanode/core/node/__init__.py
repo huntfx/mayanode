@@ -217,15 +217,37 @@ class _ApiData(object):
         self._dagPaths = self.dagNode.getAllPaths()
         return self._instanceNumber
 
+    def getTransformDagPath(self):
+        """Get the transform dag path from a shape node."""
+        if self.dagPath is None:
+            return None
+
+        transformDagPath = self.api.dagPath.transform()
+        if self.handle == om2.MObjectHandle(transformDagPath):
+            return None
+        return transformDagPath
+
+    def getShapeDagPath(self):
+        """Get the shape dag path from a transform node."""
+        if self.dagPath is None:
+            return None
+
+        shapeDagPath = om2.MDagPath(self.dagPath)
+        shapeDagPath.extendToShape()
+        if shapeDagPath == self.dagPath:
+            return None
+        return shapeDagPath
+
     @property
     def mesh(self):
-        """Get the `MfnMesh`.
+        """Get the `MFnMesh`.
 
         Notable methods:
             `numVertices`
             `numEdges`
             `numPolygons`
             `numFaceVertices`
+            `currentUVSetName()`
         """
         if self._mesh is None:
             if self.object.hasFn(om2.MFn.kMesh):
@@ -236,6 +258,25 @@ class _ApiData(object):
         if self._mesh == -1:
             return None
         return self._mesh
+
+    def getShapeMesh(self):
+        """Get the `MFnMesh` for a transform or shape.
+
+        Only shapes have support for it, so if a transform is given
+        then first get the shape and then get the mesh.
+        This is not as efficient when running on a transform.
+        """
+        if self.mesh is not None:
+            return self.mesh
+
+        shapeDagPath = self.getShapeDagPath()
+        if shapeDagPath is None:
+            return None
+
+        shapeObject = shapeDagPath.node()
+        if shapeObject.hasFn(om2.MFn.kMesh):
+            return om2.MFnMesh(shapeObject)
+        return None
 
 
 class Node(utils.StrMixin):
@@ -659,29 +700,24 @@ class Node(utils.StrMixin):
     @property
     def shape(self):
         """Get the shape node."""
-        if not self.exists or self.api.dagPath is None:
+        if not self.exists:
             return None
 
-        shapeDagPath = om2.MDagPath(self.api.dagPath)
-        shapeDagPath.extendToShape()
-        if self.api.dagPath == shapeDagPath:
+        shapeDagPath = self.api.getShapeDag()
+        if shapeDagPath is None:
             return None
         return Node(shapeDagPath)
 
     @property
     def transform(self):
-        """Get the transform node.
-
-        Raises:
-            NodeDeletedError
-        """
-        if not self.exists or self.api.dagPath is None:
+        """Get the transform node."""
+        if not self.exists:
             return None
 
-        transformObject = self.api.dagPath.transform()
-        if self.api.handle == om2.MObjectHandle(transformObject):
+        getTransformDagPath = self.api.getTransformDagPath()
+        if getTransformDagPath is None:
             return None
-        return Node(transformObject)
+        return Node(getTransformDagPath)
 
     def instance(self, **kwargs):
         """Create an instance of the object.
@@ -757,6 +793,81 @@ class Node(utils.StrMixin):
             raise exceptions.NodeDeletedError(str(e))
 
     @property
+    def uvSet(self):
+        """Get the current UV set.
+
+        Equivalent:
+            `mc.polyUVSet(self, query=True, currentUVSet=True)[0]`
+        """
+        mesh = self.api.getShapeMesh()
+        if mesh is None:
+            return None
+        return UVSet(self, mesh.currentUVSetName())
+
+    @uvSet.setter
+    def uvSet(self, uvSet):
+        """Set the current UV set.
+
+        Raises:
+            UVSetNotFoundError
+        """
+        if uvSet not in self.uvSets:
+            raise exceptions.UVSetNotFoundError(self, uvSet)
+        utils.logger.info('Setting %s UV set to %s', self, uvSet)
+        return utils.runAndLog(mc.polyUVSet, self, currentUVSet=True, uvSet=uvSet)
+
+    @property
+    def uvSets(self):
+        """Get a list of UV sets for the node.
+
+        Equivalent:
+            `mc.polyUVSet(self, query=True, allUVSets=True)`
+        """
+        mesh = self.api.getShapeMesh()
+        if mesh is None:
+            return None
+        return [UVSet(self, uvSet) for uvSet in mesh.getUVSetNames()]
+
+    @property
+    def colorSet(self):
+        """Get the current color set.
+
+        Equivalent:
+            `mc.polyColorSet(self, query=True, currentColorSet=True)[0]`
+        """
+        mesh = self.api.getShapeMesh()
+        if mesh is None:
+            return None
+        return ColorSet(self, mesh.currentColorSetName())
+
+    @colorSet.setter
+    def colorSet(self, colorSet):
+        """Set a new color set.
+
+        Raises:
+            ColorSetNotFoundError
+        """
+        utils.logger.info('Setting %s color set to %s', self, colorSet)
+        try:
+            return utils.runAndLog(mc.polyColorSet, self, currentColorSet=True, colorSet=colorSet)
+        except RuntimeError:
+            if colorSet not in self.colorSets:
+                raise exceptions.ColorSetNotFoundError(self, colorSet)
+            raise
+
+    @property
+    def colorSets(self):
+        """Get a list of color sets for the node.
+
+        Equivalent:
+            `mc.polyColorSet(self, query=True, allColorSets=True)`
+        """
+        mesh = self.api.getShapeMesh()
+        if mesh is None:
+            return None
+        return [ColorSet(self, colorSet) for colorSet in mesh.getColorSetNames()]
+
+    @property
     def boundingBox(self):
         """Get the bounding box of the node.
 
@@ -773,4 +884,6 @@ class Node(utils.StrMixin):
 # pylint: disable=wrong-import-position
 from .attributes import NodeAttributes
 from ..bounding_box import BoundingBox
+from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
+from ..uv_set import UVSet

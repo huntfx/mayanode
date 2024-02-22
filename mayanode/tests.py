@@ -572,5 +572,79 @@ class TestKeyframes(unittest.TestCase):
         self.assertIsNone(self.keyframes[10].value)
 
 
+class TestUVSets(unittest.TestCase):
+    def setUp(self):
+        self.node = Node(mc.polyCube(name='uvSetTest')[0])
+        mc.polyUVSet(self.node, create=True, uvSet='map2')
+        mc.polyUVSet(self.node, currentUVSet=True, uvSet='map1')
+
+    def tearDown(self):
+        mc.delete(self.node)
+
+    def testExists(self):
+        self.assertEqual(self.node.uvSet, 'map1')
+        self.assertEqual(self.node.uvSets, ['map1', 'map2'])
+
+    def testRename(self):
+        self.node.uvSet.name = 'renamed'
+        self.assertEqual(self.node.uvSet, 'renamed')
+        self.assertEqual(self.node.uvSets, ['renamed', 'map2'])
+
+    def testSet(self):
+        self.node.uvSet = 'map2'
+        self.assertEqual(self.node.uvSet, 'map2')
+        self.assertEqual(self.node.uvSets, ['map1', 'map2'])
+
+    def testCreate(self):
+        with self.assertRaises(exceptions.UVSetNotFoundError):
+            self.node.uvSet = 'map3'
+        self.assertEqual(self.node.uvSet, 'map1')
+        self.assertEqual(self.node.uvSets, ['map1', 'map2'])
+
+    def testDelete(self):
+        with self.assertRaises(exceptions.UVSetDeleteDefaultError):
+            self.node.uvSet.delete()
+        self.node.uvSet = 'map2'
+        self.node.uvSet.delete()
+        self.assertEqual(self.node.uvSet, 'map1')
+        self.assertEqual(self.node.uvSets, ['map1'])
+
+
+class TestColorSets(unittest.TestCase):
+    def setUp(self):
+        self.node = Node(mc.polyCube(name='colorSetTest')[0])
+        mc.polyColorSet(self.node, create=True, colorSet='colorSet1')
+        mc.polyColorSet(self.node, create=True, colorSet='colorSet2')
+        mc.polyColorSet(self.node, currentColorSet=True, colorSet='colorSet1')
+
+    def tearDown(self):
+        mc.delete(self.node)
+
+    def testExists(self):
+        self.assertEqual(self.node.colorSet, 'colorSet1')
+        self.assertEqual(self.node.colorSets, ['colorSet1', 'colorSet2'])
+
+    def testRename(self):
+        self.node.colorSet.name = 'renamed'
+        self.assertEqual(self.node.colorSet, 'renamed')
+        self.assertEqual(self.node.colorSets, ['renamed', 'colorSet2'])
+
+    def testSet(self):
+        self.node.colorSet = 'colorSet2'
+        self.assertEqual(self.node.colorSet, 'colorSet2')
+        self.assertEqual(self.node.colorSets, ['colorSet1', 'colorSet2'])
+
+    def testCreate(self):
+        with self.assertRaises(exceptions.ColorSetNotFoundError):
+            self.node.colorSet = 'colorSet3'
+        self.assertEqual(self.node.colorSet, 'colorSet1')
+        self.assertEqual(self.node.colorSets, ['colorSet1', 'colorSet2'])
+
+    def testDelete(self):
+        self.node.colorSet.delete()
+        self.assertEqual(self.node.colorSet, 'colorSet2')
+        self.assertEqual(self.node.colorSets, ['colorSet2'])
+
+
 if __name__ == '__main__':
     unittest.main()
