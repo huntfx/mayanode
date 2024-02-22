@@ -44,6 +44,7 @@ class UVSet(utils.StrMixin):
             UVSetNotFoundError(UVSetError): If deleting one that doesn't exist.
             UVSetDeleteDefaultError(UVSetError): If deleting the default UV set.
         """
+        utils.logger.info('Deleting UV set: %s.%s', self.node, self.name)
         try:
             utils.runAndLog(mc.polyUVSet, self.node, delete=True, uvSet=self.name)
         except RuntimeError as e:

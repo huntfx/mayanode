@@ -43,6 +43,7 @@ class ColorSet(utils.StrMixin):
         Raises:
             ColorSetNotFoundError(ColorSetError): If deleting one that doesn't exist.
         """
+        utils.logger.info('Deleting color set: %s.%s', self.node, self.name)
         try:
             utils.runAndLog(mc.polyColorSet, self.node, delete=True, colorSet=self.name)
         except RuntimeError as e:
