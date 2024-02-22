@@ -42,14 +42,14 @@ def _getWorldDagPath():
 class _ApiData(object):
     """Hold the OpenMaya API objects for a node."""
 
-    __slots__ = ['_object', '_handle', '_instanceNumber',
+    __slots__ = ['_object', '_handle', '_instanceNumber', '_transform',
                  '_dagPaths', '_dependencyNode', '_dagNode', '_mesh']
 
     def __init__(self, mObject, instanceNumber=-1):
         self._object = mObject
         self._handle = None
         self._instanceNumber = instanceNumber
-        self._dependencyNode = self._dagNode = self._dagPaths = self._mesh = None
+        self._dependencyNode = self._dagNode = self._dagPaths = self._transform = self._mesh = None
 
     def __eq__(self, other):
         if isinstance(other, _ApiData):
@@ -277,6 +277,23 @@ class _ApiData(object):
         if shapeObject.hasFn(om2.MFn.kMesh):
             return om2.MFnMesh(shapeObject)
         return None
+
+    @property
+    def transform(self):
+        """Get the `MFnTransform`
+
+        Notable methods:
+            `transformation()`
+        """
+        if self._transform is None:
+            if self.object.hasFn(om2.MFn.kTransform):
+                self._transform = om2.MFnTransform(self.object)
+            else:
+                self._transform = -1
+
+        if self._transform == -1:
+            return None
+        return self._transform
 
 
 class Node(utils.StrMixin):
@@ -703,7 +720,7 @@ class Node(utils.StrMixin):
         if not self.exists:
             return None
 
-        shapeDagPath = self.api.getShapeDag()
+        shapeDagPath = self.api.getShapeDagPath()
         if shapeDagPath is None:
             return None
         return Node(shapeDagPath)
