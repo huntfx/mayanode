@@ -714,7 +714,7 @@ class Node(utils.StrMixin):
     @property
     def descendents(self):
         """Get all node descendents."""
-        if not self.exists:
+        if not self.exists or self.api.dagPath is None:
             return []
         cls = type(self)
         dag = om2.MItDag()
