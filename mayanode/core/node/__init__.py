@@ -724,14 +724,35 @@ class Node(utils.StrMixin):
 
     @property
     def descendents(self):
-        """Get all node descendents."""
+        """Get all node descendents.
+        Instances are deduplicated so this only returns unique nodes.
+
+        Equivalent:
+            `mc.listRelatives(self, allDescendents=True)`
+        """
         if not self.exists or self.api.dagPath is None:
             return []
+
         cls = type(self)
         dag = om2.MItDag()
         dag.reset(self.api.dagPath, om2.MItDag.kBreadthFirst)
         dag.next()
-        return [cls(dag.currentItem()) for _ in dag]
+
+        seen = set()
+        result = []
+        for _ in dag:
+            item = dag.currentItem()
+
+            if dag.isInstanced():
+                handle = om2.MObjectHandle(item)
+                if handle.hashCode() in seen:
+                    continue
+                seen.add(handle.hashCode())
+                result.append(cls(handle))
+
+            else:
+                result.append(cls(item))
+        return result
 
     @property
     def ancestors(self):
