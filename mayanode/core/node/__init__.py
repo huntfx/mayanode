@@ -365,6 +365,7 @@ class Node(utils.StrMixin):
         """
         if isinstance(other, Node):
             return self.api.handle == other.api.handle
+        other = str(other)
 
         # Comparing against a unique name
         if '|' in other:
