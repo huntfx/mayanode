@@ -90,6 +90,14 @@ class _ApiData(object):
         new._dagPaths = [None for _ in range(instanceNumber)] + [dagPath]
         return new
 
+    @classmethod
+    def fromHandle(cls, handle):
+        # pylint: disable=protected-access
+        """Get API data from an `MObjectHandle`."""
+        new = cls(handle.object())
+        new._handle = handle
+        return new
+
     def copy(self, instanceNumber=-1):
         # pylint: disable=protected-access
         """Create a new copy of the object."""
@@ -323,6 +331,8 @@ class Node(utils.StrMixin):
             self.api = _ApiData(name, instanceNumber=_instanceNumber)
         elif isinstance(name, om2.MDagPath):
             self.api = _ApiData.fromDagPath(name)
+        elif isinstance(name, om2.MObjectHandle):
+            self.api = _ApiData.fromHandle(name)
         else:
             self.api = _ApiData.fromName(name)
 
@@ -330,7 +340,7 @@ class Node(utils.StrMixin):
 
     def __new__(cls, name, *args, **kwargs):
         """Create a new class instance, or attribute proxy if an attribute was given."""
-        if not isinstance(name, (Node, om2.MObject, om2.MDagPath)) and name and '.' in name:
+        if not isinstance(name, (Node, om2.MObject, om2.MDagPath, om2.MObjectHandle)) and name and '.' in name:
             node, attr = name.split('.', 1)
             return cls(node, *args, **kwargs).attrs[attr]
         return super(Node, cls).__new__(cls, name, *args, **kwargs)
