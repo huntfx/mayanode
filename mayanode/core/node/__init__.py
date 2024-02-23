@@ -763,10 +763,10 @@ class Node(utils.StrMixin):
         if not self.exists:
             return None
 
-        getTransformDagPath = self.api.getTransformDagPath()
-        if getTransformDagPath is None:
+        transformDagPath = self.api.getTransformDagPath()
+        if transformDagPath is None:
             return None
-        return Node(getTransformDagPath)
+        return Node(transformDagPath)
 
     def instance(self, **kwargs):
         """Create an instance of the object.
@@ -848,10 +848,9 @@ class Node(utils.StrMixin):
         Equivalent:
             `mc.polyUVSet(self, query=True, currentUVSet=True)[0]`
         """
-        mesh = self.api.getShapeMesh()
-        if mesh is None:
+        if not self.exists or self.api.mesh is None:
             return None
-        return UVSet(self, mesh.currentUVSetName())
+        return UVSet(self, self.api.mesh.currentUVSetName())
 
     @uvSet.setter
     def uvSet(self, uvSet):
@@ -859,7 +858,9 @@ class Node(utils.StrMixin):
 
         Raises:
             UVSetNotFoundError
+            NodeNotFoundError
         """
+        utils.raiseIfNodeNotFound(self)
         if uvSet not in self.uvSets:
             raise exceptions.UVSetNotFoundError(self, uvSet)
         utils.logger.info('Setting %s UV set to %s', self, uvSet)
@@ -872,10 +873,9 @@ class Node(utils.StrMixin):
         Equivalent:
             `mc.polyUVSet(self, query=True, allUVSets=True)`
         """
-        mesh = self.api.getShapeMesh()
-        if mesh is None:
+        if not self.exists or self.api.mesh is None:
             return None
-        return [UVSet(self, uvSet) for uvSet in mesh.getUVSetNames()]
+        return [UVSet(self, uvSet) for uvSet in self.api.mesh.getUVSetNames()]
 
     @property
     def colorSet(self):
@@ -884,10 +884,9 @@ class Node(utils.StrMixin):
         Equivalent:
             `mc.polyColorSet(self, query=True, currentColorSet=True)[0]`
         """
-        mesh = self.api.getShapeMesh()
-        if mesh is None:
+        if not self.exists or self.api.mesh is None:
             return None
-        return ColorSet(self, mesh.currentColorSetName())
+        return ColorSet(self, self.api.mesh.currentColorSetName())
 
     @colorSet.setter
     def colorSet(self, colorSet):
@@ -895,8 +894,10 @@ class Node(utils.StrMixin):
 
         Raises:
             ColorSetNotFoundError
+            NodeNotFoundError
         """
         utils.logger.info('Setting %s color set to %s', self, colorSet)
+        utils.raiseIfNodeNotFound(self)
         try:
             return utils.runAndLog(mc.polyColorSet, self, currentColorSet=True, colorSet=colorSet)
         except RuntimeError:
@@ -911,10 +912,9 @@ class Node(utils.StrMixin):
         Equivalent:
             `mc.polyColorSet(self, query=True, allColorSets=True)`
         """
-        mesh = self.api.getShapeMesh()
-        if mesh is None:
+        if not self.exists or self.api.mesh is None:
             return None
-        return [ColorSet(self, colorSet) for colorSet in mesh.getColorSetNames()]
+        return [ColorSet(self, colorSet) for colorSet in self.api.mesh.getColorSetNames()]
 
     @property
     def boundingBox(self):
