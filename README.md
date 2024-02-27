@@ -1,16 +1,17 @@
 # mayanode
 
-**mayanode** is an intuitive object-oriented approach for handling the scene in Maya. It offers a subset of Maya commands, focusing on node manipulation, attributes and connections.
+**mayanode** is a lightweight object-oriented approach for handling the scene in Maya. It offers a subset of Maya commands, focusing on individual node operations.
 
 ## Features
 
 - **Intuitive**: This was built for ease of use, so abstracts a lot of the underlying functionality and simply works "as expected".
 - **Efficiency**: The speed is comparable to `maya.cmds`[^1], and is far faster than `PyMel`.
-- **Node Handling**: Easily create, access, and manipulate nodes within the Maya scene.
+
+- **Node Handling**: Create, query, and manipulate nodes within the Maya scene.
 - **Attribute Management**: Interact with node attributes, including getting and setting values, keyframes, and connections.
 - **Relationship Exploration**: Navigate through the scene hierarchy by accessing parents, children, ancestors, and descendants of nodes.
 - **Reference Handling**: Get and set data related to references. Not fleshed out yet.
-- **UV/Color Set Handling**: Get and set data related to UV and color sets. Not fleshed out yet.
+- **UV/Color Set Handling**: Get and set data related to UV and color sets.
 
 
 ## Installation
@@ -134,4 +135,4 @@ Coordinate(x=-0.105, y=10.159, z=9.895)
 ```
 
 
-[^1]: On a per-node basis, this is often a lot faster than `maya.cmds` due to the use of the OpenMaya API. However, when performing mass operations on a large scene, the overhead of creating the objects could potentially outweigh the speed benefits.
+[^1]: On a per-node basis, when querying the scene, this can be a lot faster than `maya.cmds` as the OpenMaya API is used (changing the scene does not use the API as it breaks undo operations). However, when performing mass operations on a large scene, the overhead of creating the objects could potentially outweigh the speed benefits.
