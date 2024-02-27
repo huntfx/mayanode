@@ -246,9 +246,7 @@ class Attribute(types.StrMixin):
             otherwise all sorts of crashes and instability can happen
             by holding the plug in memory.
             """
-            if plug.isNetworked:
-                plug = om2.MPlug(plug.node(), plug.attribute())
-            self._plug = plug
+            self._plug = utils.unnetworkPlug(plug)
             self._attribute = None
 
         @classmethod
@@ -406,9 +404,16 @@ class Attribute(types.StrMixin):
         the opposite with networked plugs, but any other plugs are left
         as valid. A check on the parent node is needed for these.
         """
-        return (not self.api.plug.isNull
-                and self.node.exists
-                and self.node.api.dependencyNode.hasAttribute(self.attr))
+        if self.api.plug.isNull:
+            return False
+        if not self.node.exists:
+            return False
+
+        # TODO: Test what happens when parent attribute is deleted
+        if self.api.plug.isElement:
+            return True
+
+        return self.node.api.dependencyNode.hasAttribute(self.attr)
 
     @property
     def type(self):

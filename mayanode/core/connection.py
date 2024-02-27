@@ -20,16 +20,11 @@ class Connection(utils.StrMixin):
             srcPlug: The `MPlug` for the source attribute.
             dstPlug: The `MPlug` for the destination attribute.
         """
-        if srcPlug.isNetworked:
-            srcPlug = om2.MPlug(srcPlug.node(), srcPlug.attribute())
-        if dstPlug.isNetworked:
-            dstPlug = om2.MPlug(dstPlug.node(), dstPlug.attribute())
-
         self._reverse = reverse
         self._reverse = reverse
         self._srcNode = srcNode
-        self._srcPlug = srcPlug
-        self._dstPlug = dstPlug
+        self._srcPlug = utils.unnetworkPlug(srcPlug)
+        self._dstPlug = utils.unnetworkPlug(dstPlug)
         self._srcAttr = self._dstNode = self._dstAttr = None
 
     def __repr__(self):

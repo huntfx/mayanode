@@ -1,5 +1,7 @@
 import logging
 
+import maya.api.OpenMaya as om2
+
 from . import exceptions
 from .types import StrMixin
 
@@ -47,3 +49,24 @@ def raiseIfNodeNotFound(node):
     """Raise an error if the node doesn't exist."""
     if not node.exists:
         raise exceptions.NodeDeletedError(node)
+
+
+def unnetworkPlug(plug):
+    """Ensure an `MPlug` is not networked.
+
+    In the majority of cases, this is just constucting a new plug using
+    the data in the old one, but in the case of element plugs then they
+    also require passing across the logical index.
+
+    An example of this is when a reference is unloaded, all connections
+    get pathed to `placeHolderList`. Connections are to elements in the
+    array such as `placeHolderList[1]`, and have a logical index.
+    TODO: Test
+    """
+    if not plug.isNetworked:
+        return plug
+
+    new = om2.MPlug(plug.node(), plug.attribute())
+    if plug.isElement:
+        return new.elementByLogicalIndex(plug.logicalIndex())
+    return new
