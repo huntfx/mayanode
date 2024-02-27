@@ -224,7 +224,8 @@ class _ApiData(object):
         # Since `MFnDagNode` is already used to get parents, it's
         # probably more efficient to use it here, despite being slower
         # overall
-        self._dagPaths = self.dagNode.getAllPaths()
+        if self.dagNode is not None:
+            self._dagPaths = self.dagNode.getAllPaths()
         return self._instanceNumber
 
     def getTransformDagPath(self):
@@ -827,6 +828,11 @@ class Node(utils.StrMixin):
         instanceNumber = self.api.recalculateDagPaths()
         return [self if instanceNumber == i else type(self)(self, _instanceNumber=i)
                 for i, dagPath in enumerate(self.api.dagPaths) if dagPath.isValid()]
+
+    @property
+    def instanceNumber(self):
+        """Get the index of the current index."""
+        return self.api.recalculateDagPaths()
 
     @property
     def intermediate(self):
