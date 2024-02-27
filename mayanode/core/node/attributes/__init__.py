@@ -363,28 +363,28 @@ class Attribute(types.StrMixin):
 
         >>> Attribute('node.attr') >> 'othernode.attr'
         """
-        self.connect(connection)
+        return self.connect(connection)
 
     def __rrshift__(self, connection):
         """Create an incoming connection.
 
         >>> 'othernode.attr' >> Attribute('node.attr')
         """
-        self.connect(connection, reverse=True)
+        return self.connect(connection, reverse=True)
 
     def __floordiv__(self, connection):
         """Break an outgoing connection.
 
         >>> Attribute('node.attr') // 'othernode.attr'
         """
-        self.disconnect(connection)
+        return self.disconnect(connection)
 
     def __rfloordiv__(self, connection):
         """Break an incoming connection.
 
         >>> 'othernode.attr' // Attribute('node.attr')
         """
-        self.disconnect(connection, reverse=True)
+        return self.disconnect(connection, reverse=True)
 
     def split(self, *args, **kwargs):
         """Add the ability to split for backwards compatibility."""
