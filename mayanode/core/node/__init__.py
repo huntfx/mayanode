@@ -665,13 +665,13 @@ class Node(utils.StrMixin):
     def parents(self):
         """Get the node parents."""
         if self.api.dagNode is None:
-            return None
+            return []
+
         result = []
         for parent in map(self.api.dagNode.parent, range(self.api.dagNode.parentCount())):
             if om2.MObjectHandle(parent) == _getWorldHandle():
                 continue
-            node = type(self)(parent)
-            result.append(node)
+            result.append(type(self)(parent))
         return result
 
     @property
