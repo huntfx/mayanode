@@ -249,6 +249,12 @@ class _ApiData(object):
             return None
         return shapeDagPath
 
+    def hasGeometry(self):
+        """Determine if the object contains geometry.
+        If not, then `MFnMesh` commands will fail.
+        """
+        return om2.MItGeometry(self.object).index() != -1
+
     @property
     def mesh(self):
         """Get the `MFnMesh`.
@@ -261,7 +267,7 @@ class _ApiData(object):
             `currentUVSetName()`
         """
         if self._mesh is None:
-            if self.object.hasFn(om2.MFn.kMesh):
+            if self.object.hasFn(om2.MFn.kMesh) and self.hasGeometry():
                 self._mesh = om2.MFnMesh(self.object)
             else:
                 self._mesh = -1
@@ -911,7 +917,7 @@ class Node(utils.StrMixin):
             `mc.polyUVSet(self, query=True, allUVSets=True)`
         """
         if not self.exists or self.api.mesh is None:
-            return None
+            return []
         return [UVSet(self, uvSet) for uvSet in self.api.mesh.getUVSetNames()]
 
     @property
@@ -950,7 +956,7 @@ class Node(utils.StrMixin):
             `mc.polyColorSet(self, query=True, allColorSets=True)`
         """
         if not self.exists or self.api.mesh is None:
-            return None
+            return []
         return [ColorSet(self, colorSet) for colorSet in self.api.mesh.getColorSetNames()]
 
     @property
