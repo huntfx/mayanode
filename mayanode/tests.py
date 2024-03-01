@@ -344,6 +344,14 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.shape.api.mesh.numVertices, 0)
         mc.delete(node)
 
+    def testNoMeshGeo(self):
+        mesh = Node(mc.createNode('mesh', name='noGeometryTest'))
+        self.assertEqual(mesh.type, 'mesh')
+        self.assertIsNone(mesh.api.mesh)
+        self.assertEqual(mesh.faces, [])
+        self.assertEqual(str(mesh.faces), 'noGeometryTest.f[0:0]')
+        mc.delete(mesh.parent)
+
 
 class TestBoundingBox(unittest.TestCase):
 

@@ -16,7 +16,12 @@ class FaceList(types.LazyList, types.StrMixin):
     def __init__(self, node):
         """Initialise the data from a node."""
         self._node = node
-        super(FaceList, self).__init__(None for _ in range(node.api.mesh.numPolygons))
+        mesh = node.api.mesh
+        if mesh is not None:
+            numPolygons = mesh.numPolygons
+        else:
+            numPolygons = 0
+        super(FaceList, self).__init__(None for _ in range(numPolygons))
 
     @property
     def name(self):
