@@ -964,6 +964,11 @@ class Node(utils.StrMixin):
         return [ColorSet(self, colorSet) for colorSet in self.api.mesh.getColorSetNames()]
 
     @property
+    def faces(self):
+        """Get a list of faces."""
+        return FaceList(self)
+
+    @property
     def boundingBox(self):
         """Get the bounding box of the node.
 
@@ -979,6 +984,7 @@ class Node(utils.StrMixin):
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .attributes import NodeAttributes
+from .face import FaceList
 from ..bounding_box import BoundingBox
 from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
