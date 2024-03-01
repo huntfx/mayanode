@@ -763,14 +763,18 @@ class Node(utils.StrMixin):
 
     @property
     def ancestors(self):
-        """Get all node ancestors."""
+        """Get all node ancestors.
+
+        For non-instanced nodes, the ancestors are ordered starting with
+        the current node parent. In the case of instanced nodes, this
+        order is not guaranteed. Do not rely on `top == ancestors[-1]`
+        for example, and instead use `top in ancestors`.
+        """
         if not self.exists:
             return []
-        parents = self.parents
-        ancestors = []
 
-        for parent in parents:
-            ancestors.append(parent)
+        ancestors = list(self.parents)
+        for parent in tuple(ancestors):
             ancestors.extend(parent.ancestors)
 
         seen = set()
