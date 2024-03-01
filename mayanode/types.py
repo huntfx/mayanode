@@ -82,6 +82,10 @@ class LazyList(MutableSequence):
         return self._data.__repr__()
 
     def __bool__(self):
+        if self._data:
+            return True
+        if not self._isCorrectLength:
+            self._loadData()
         return bool(self._data)
     __nonzero__ = __bool__
 
@@ -90,12 +94,21 @@ class LazyList(MutableSequence):
         return self._data.__iter__()
 
     def __getitem__(self, index):
-        if isinstance(index, slice):
-            for i in range(index.start, index.stop, index.step):
-                if self._data[i] is None:
-                    self._loadData(i)
-        elif self._data[index] is None:
-            self._loadData(index)
+        """Get an individual item.
+
+        If the list is of the correct length, then only load the item
+        at the requested index. Otherwise, all items will have to be
+        loaded.
+        """
+        if self._isCorrectLength:
+            if isinstance(index, slice):
+                for i in range(index.start, index.stop, index.step):
+                    if self._data[i] is None:
+                        self._loadData(i)
+            elif self._data[index] is None:
+                self._loadData(index)
+        else:
+            self._loadData()
         return self._data.__getitem__(index)
 
     def __setitem__(self, index, value):
@@ -111,6 +124,10 @@ class LazyList(MutableSequence):
     def insert(self, index, value):
         """Insert an object before an index."""
         raise AttributeError('insert not supported')
+
+    def extend(self, values):
+        """Insert an object before an index."""
+        raise AttributeError('extend not supported')
 
     def __len__(self):
         if not self._isCorrectLength:

@@ -1,7 +1,7 @@
 import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
-from .. import exceptions, utils
+from .. import exceptions, types, utils
 
 
 class Connection(utils.StrMixin):
@@ -150,7 +150,7 @@ class Connection(utils.StrMixin):
         return False
 
 
-class ConnectionList(list):
+class ConnectionList(types.LazyList):
     """Hold multiple connections and provide a way to connect/disconnect all."""
 
     def connect(self):
@@ -190,46 +190,18 @@ class ConnectionProxy(ConnectionList):
     def __init__(self):
         self._sourceConnections = None
         self._destinationConnections = None
-        self._connections = []
-
-    def __repr__(self):
-        self._load()
-        return self._connections.__repr__()
-
-    def __iter__(self):
-        self._load()
-        return self._connections.__iter__()
-
-    def __getitem__(self, idx):
-        self._load()
-        return self._connections.__getitem__(idx)
-
-    def __len__(self):
-        self._load()
-        return self._connections.__len__()
-
-    def __eq__(self, other):
-        self._load()
-        return self._connections == other
-
-    def __ne__(self, other):
-        self._load()
-        return self._connections != other
-
-    def __contains__(self, other):
-        self._load()
-        return other in self._connections
+        super(ConnectionProxy, self).__init__()
 
     @property
     def inputs(self):
         """Get the input/source connections."""
-        self._load(source=True, destination=False)
+        self._loadData(source=True, destination=False)
         return ConnectionList(self._sourceConnections)
 
     @property
     def outputs(self):
         """Get the output/destination connections."""
-        self._load(source=False, destination=True)
+        self._loadData(source=False, destination=True)
         return ConnectionList(self._destinationConnections)
 
     @property
@@ -239,7 +211,7 @@ class ConnectionProxy(ConnectionList):
         """
         raise NotImplementedError
 
-    def _load(self, source=True, destination=True):
+    def _loadData(self, index=None, source=True, destination=True):
         """Get the connection data from the plugs."""
         # Ensure the data is only loaded once
         if destination:
@@ -266,14 +238,14 @@ class ConnectionProxy(ConnectionList):
 
         # Add to main list
         if destination:
-            self._connections.extend(self._destinationConnections)
+            self._data.extend(self._destinationConnections)
         if source:
-            self._connections.extend(self._sourceConnections)
+            self._data.extend(self._sourceConnections)
 
     def reload(self):
         """Refresh all the loaded data."""
         self._destinationConnections = self._sourceConnections = None
-        self._connections = []
+        super(ConnectionProxy, self).reload()
 
 
 class AttributeConnectionProxy(ConnectionProxy):
