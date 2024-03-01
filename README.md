@@ -10,8 +10,9 @@
 - **Node Handling**: Create, query, and manipulate nodes within the Maya scene.
 - **Attribute Management**: Interact with node attributes, including getting and setting values, keyframes, and connections.
 - **Relationship Exploration**: Navigate through the scene hierarchy by accessing parents, children, ancestors, and descendants of nodes.
-- **Reference Handling**: Get and set data related to references. Not fleshed out yet.
-- **UV/Color Set Handling**: Get and set data related to UV and color sets.
+- **References**: Get and set data related to references. Not fleshed out yet.
+- **UV/Color Sets**: Get and set data related to UV and color sets. Not fleshed out yet.
+- **Namespace**: Get and set data and relationships related to namespaces. Not fleshed out yet.
 
 
 ## Installation
@@ -135,4 +136,4 @@ Coordinate(x=-0.105, y=10.159, z=9.895)
 ```
 
 
-[^1]: On a per-node basis, when querying the scene, this can be a lot faster than `maya.cmds` as the OpenMaya API is used (changing the scene does not use the API as it breaks undo operations). However, when performing mass operations on a large scene, the overhead of creating the objects could potentially outweigh the speed benefits.
+[^1]: On a per-node basis, when querying the scene, this can be a lot faster than `maya.cmds` as the OpenMaya API is used. Making changes is roughly equivalent as it does not use the API. Performing mass operations on entire scenes may potentially be slower due to the overhead of creating thousands of Python objects.

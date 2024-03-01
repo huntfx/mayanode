@@ -1,3 +1,5 @@
+import os
+
 import maya.cmds as mc
 
 from .node import Node
@@ -23,19 +25,23 @@ class Reference(Node):
 
     @property
     def namespace(self):
-        return utils.runAndLog(mc.referenceQuery, self, namespace=True).strip(':')
+        return Namespace(utils.runAndLog(mc.referenceQuery, self, namespace=True).strip(':'))
 
     @namespace.setter
     def namespace(self, namespace):
-        utils.runAndLog(mc.file, self.path, edit=True, namespace=namespace)
+        utils.runAndLog(mc.file, self.filepath, edit=True, namespace=namespace)
 
     @property
-    def path(self):
-        return utils.runAndLog(mc.referenceQuery, self, filename=True)
+    def filepath(self):
+        return utils.runAndLog(mc.referenceQuery, self, filename=True, withoutCopyNumber=True)
 
-    @path.setter
-    def path(self, path):
-        utils.runAndLog(mc.file, path, loadReference=self)
+    @filepath.setter
+    def filepath(self, filepath):
+        utils.runAndLog(mc.file, filepath, loadReference=self)
+
+    @property
+    def filename(self):
+        return utils.runAndLog(mc.referenceQuery, self, filename=True, shortName=True, withoutCopyNumber=True)
 
     @property
     def nodes(self):
@@ -57,3 +63,8 @@ class Reference(Node):
 
     def unload(self):
         utils.runAndLog(mc.file, unloadReference=self)
+
+
+# Handle circular dependencies
+# pylint: disable=wrong-import-position
+from .namespace import Namespace

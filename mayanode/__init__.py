@@ -90,4 +90,5 @@ __all__ = [
 from . import exceptions
 from .core.node import Node
 from .core.bounding_box import BoundingBox
+from .core.namespace import Namespace
 from .core.reference import Reference

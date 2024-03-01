@@ -648,7 +648,7 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        return self.api.dependencyNode.namespace
+        return Namespace.fromNode(self)
 
     @namespace.setter
     def namespace(self, namespace):
@@ -662,10 +662,14 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        namespace = namespace.strip(':') if namespace else ''
-        if namespace and not utils.runAndLog(mc.namespace, exists=namespace):
-            utils.runAndLog(mc.namespace, add=namespace)
-        utils.runAndLog(mc.rename, self.name, namespace + ':' + self.name.rsplit(':', 1)[-1])
+        if namespace is None:
+            utils.runAndLog(mc.rename, self.name, ':' + self.name.rsplit(':', 1)[-1])
+
+        else:
+            namespace = om2.MNamespace.validateName(namespace)
+            if namespace and not om2.MNamespace.namespaceExists(namespace):
+                utils.runAndLog(mc.namespace, add=namespace)
+            utils.runAndLog(mc.rename, self.name, namespace + ':' + self.name.rsplit(':', 1)[-1])
 
     @property
     def parents(self):
@@ -988,4 +992,5 @@ from .face import FaceList
 from ..bounding_box import BoundingBox
 from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
+from ..namespace import Namespace
 from ..uv_set import UVSet
