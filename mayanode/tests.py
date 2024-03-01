@@ -588,12 +588,12 @@ class TestKeyframes(unittest.TestCase):
 
 class TestUVSets(unittest.TestCase):
     def setUp(self):
-        self.node = Node(mc.polyCube(name='uvSetTest')[0])
+        self.node = Node(mc.polyCube(name='uvSetTest')[0]).shape
         mc.polyUVSet(self.node, create=True, uvSet='map2')
         mc.polyUVSet(self.node, currentUVSet=True, uvSet='map1')
 
     def tearDown(self):
-        mc.delete(self.node)
+        mc.delete(self.node.parent)
 
     def testExists(self):
         self.assertEqual(self.node.uvSet, 'map1')
@@ -626,13 +626,13 @@ class TestUVSets(unittest.TestCase):
 
 class TestColorSets(unittest.TestCase):
     def setUp(self):
-        self.node = Node(mc.polyCube(name='colorSetTest')[0])
+        self.node = Node(mc.polyCube(name='colorSetTest')[0]).shape
         mc.polyColorSet(self.node, create=True, colorSet='colorSet1')
         mc.polyColorSet(self.node, create=True, colorSet='colorSet2')
         mc.polyColorSet(self.node, currentColorSet=True, colorSet='colorSet1')
 
     def tearDown(self):
-        mc.delete(self.node)
+        mc.delete(self.node.parent)
 
     def testExists(self):
         self.assertEqual(self.node.colorSet, 'colorSet1')
