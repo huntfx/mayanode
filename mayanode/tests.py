@@ -190,6 +190,36 @@ class TestNode(unittest.TestCase):
         self.assertFalse(shape.instances)
         mc.delete(node, inst)
 
+    def testVisibility(self):
+        self.assertFalse(Node('lambert1').visible)
+
+        transform = Node(mc.polyCube(name='visibilityTest')[0])
+        shape = transform.shape
+        inst = transform.instance(name='visibilityInstanceTest')
+        instShape = inst.shape
+
+        self.assertTrue(transform.visible)
+        self.assertTrue(shape.visible)
+        self.assertTrue(inst.visible)
+        self.assertTrue(instShape.visible)
+
+        shape.attrs['visibility'] = False
+
+        self.assertTrue(transform.visible)
+        self.assertFalse(shape.visible)
+        self.assertTrue(inst.visible)
+        self.assertFalse(instShape.visible)
+
+        shape.attrs['visibility'] = True
+        transform.attrs['visibility'] = False
+
+        self.assertFalse(transform.visible)
+        self.assertFalse(shape.visible)
+        self.assertTrue(inst.visible)
+        self.assertTrue(instShape.visible)
+
+        mc.delete(transform, inst)
+
     def testShadingEngine(self):
         node = Node(mc.polyCube(name='shadingEngineTest')[0])
         self.assertEqual(node.shadingEngine, 'initialShadingGroup')

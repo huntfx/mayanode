@@ -881,6 +881,35 @@ class Node(utils.StrMixin):
         utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.sets, self, edit=True, forceElement=shadingEngine)
 
+    @property
+    def visible(self):
+        """Determine if the node is visible.
+
+        First test the "visibility" attribute. If it is still set, then
+        test it of the current parent. Other parents are not checked as
+        they are only related to other instances of the node.
+        If it does not exist, then fallback to the parent. If the parent
+        also does not exist then its safe to say this is not visible.
+
+        Note that if all children are hidden and the node is empty, then
+        it will still be "visible" since the node itself is not hidden.
+        """
+        if not self.exists:
+            return False
+
+        # Attempt to check the attribute if it exists
+        hasAttr = self.api.dependencyNode.hasAttribute('visibility')
+        if hasAttr and not self.attrs['visibility'].value:
+            return False
+
+        # Check if a parent exists
+        parent = self.parent
+        if parent is None:
+            return hasAttr
+
+        # Recursively check if any parents are visible
+        return parent.visible
+
     def delete(self):
         """Delete the node.
 
