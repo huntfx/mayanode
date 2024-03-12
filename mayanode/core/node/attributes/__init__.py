@@ -122,12 +122,13 @@ def _setPlugValue(plug, value):
         plug.setFloat(value)
     elif isinstance(value, int):
         plug.setInt(value)
-    elif isinstance(value, int):
+    elif isinstance(value, bool):
         plug.setBool(value)
     elif isinstance(value, (list, tuple)):
         for i, val in enumerate(value):
             _setPlugValue(plug.child(i), val)
-    raise NotImplementedError(type(value))
+    else:
+        raise NotImplementedError(type(value))
 
 
 class NodeAttributes(dict):
