@@ -690,10 +690,14 @@ class Node(utils.StrMixin):
         """Get the node parent."""
         if not self.exists:
             return None
-        dagPath = om2.MDagPath(self.api.dagPath).pop()
-        if dagPath == _getWorldDagPath():
+        dagPath = self.api.dagPath
+        if dagPath is None:
             return None
-        return type(self)(dagPath)
+
+        parentDagPath = om2.MDagPath(dagPath).pop()
+        if parentDagPath == _getWorldDagPath():
+            return None
+        return type(self)(parentDagPath)
 
     @parent.setter
     def parent(self, parent):
@@ -709,6 +713,8 @@ class Node(utils.StrMixin):
             AlreadyIsChildError: "{node}" is already a child of "{parent}"
         """
         utils.raiseIfNodeNotFound(self)
+        if self.api.dagNode is None:
+            raise exceptions.NotADagNodeError(self)
         try:
             if parent:
                 utils.runAndLog(mc.parent, self, parent)

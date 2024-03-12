@@ -92,7 +92,22 @@ class TestNode(unittest.TestCase):
 
         mc.delete('transform1', shader.name, sg.name)
 
-    def testParent(self):
+    def testParentGet(self):
+        node, pCube = Node.ls(mc.polyCube(name='testParent'))
+
+        self.assertIsNone(node.parent)
+        self.assertEqual(node, node.shape.parent)
+        node.parent = 'persp'
+        self.assertEqual(node, node.shape.parent)
+        self.assertEqual(node.parent, 'persp')
+
+        self.assertIsNone(pCube.parent)
+        with self.assertRaises(exceptions.NotADagNodeError):
+            pCube.parent = 'persp'
+
+        mc.delete(node)
+
+    def testParentSet(self):
         child = Node(mc.createNode('transform'))
         parent = Node(mc.createNode('transform'))
         self.assertIsNone(child.parent)

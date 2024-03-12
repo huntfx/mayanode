@@ -25,6 +25,10 @@ class InvalidNodeError(NodeError):
     MESSAGE = '"{node}" is not valid'
 
 
+class NotADagNodeError(NodeError):
+    MESSAGE = '"{node}" is not a DAG node'
+
+
 class NodeAttributeError(NodeError):
     MESSAGE = 'Error: {node}.{attr}'
 
