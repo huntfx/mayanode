@@ -17,10 +17,16 @@ class Namespace(utils.StrMixin):
         if isinstance(other, Namespace):
             return self.name == other.name
         if not other:
-            return False
+            return self.name == ':'
         if other[0] == ':':
             return self.name == other
         return self.name[1:] == other
+
+    def __add__(self, other):
+        return self.name + other
+
+    def __radd__(self, other):
+        return other + self.name
 
     @classmethod
     def ls(cls):

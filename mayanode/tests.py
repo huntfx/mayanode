@@ -310,6 +310,7 @@ class TestNode(unittest.TestCase):
 
         mc.delete(node.name)
         mc.namespace(removeNamespace='new:namespace')
+        mc.namespace(removeNamespace='new')
 
     def testNamespaceRename(self):
         node = Node(mc.polyCube(name='namespaceTest1')[0])
@@ -321,6 +322,7 @@ class TestNode(unittest.TestCase):
 
         mc.delete(node.name)
         mc.namespace(removeNamespace='new:namespace')
+        mc.namespace(removeNamespace='new')
 
     def testDeleted(self):
         node = Node(mc.polyCube(name='deleteTest')[0])

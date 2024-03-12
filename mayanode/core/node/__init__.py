@@ -654,21 +654,23 @@ class Node(utils.StrMixin):
     @namespace.setter
     def namespace(self, namespace):
         """Set a new namespace.
-        It will be created if it doesn't exist.
-
-        Warnings:
-            New name contains invalid characters. Illegal characters were converted to "_".
+        It will be created if it doesn't exist. Any illegal characters
+        will be automatically converted to underscores.
 
         Raises:
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        if namespace is None:
-            utils.runAndLog(mc.rename, self.name, ':' + self.name.rsplit(':', 1)[-1])
+        if not namespace or namespace == ':':
+            newName = self.name.rsplit(':', 1)[-1]
+            utils.logger.info('Setting "%s" namespace to ":"', newName)
+            utils.runAndLog(mc.rename, self.name, ':' + newName)
 
         else:
-            namespace = om2.MNamespace.validateName(namespace)
-            if namespace and not om2.MNamespace.namespaceExists(namespace):
+            utils.logger.info('Setting "%s" namespace to "%s"', self, namespace)
+            namespace = ':'.join(map(om2.MNamespace.validateName, namespace.split(':')))
+            if not om2.MNamespace.namespaceExists(namespace):
+                utils.logger.info('Creating namespace: %s', namespace)
                 utils.runAndLog(mc.namespace, add=namespace)
             utils.runAndLog(mc.rename, self.name, namespace + ':' + self.name.rsplit(':', 1)[-1])
 
