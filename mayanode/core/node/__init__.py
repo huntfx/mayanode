@@ -59,7 +59,8 @@ class _ApiData(object):
         return False
 
     def __hash__(self):
-        return self.handle.hashCode()
+        dagPath = self.dagPath
+        return self.handle.hashCode() + dagPath.instanceNumber() if dagPath is not None else 0
 
     @classmethod
     def fromName(cls, name):

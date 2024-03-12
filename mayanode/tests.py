@@ -153,7 +153,7 @@ class TestNode(unittest.TestCase):
         inst = node.instance()
         self.assertEqual(node.shape, inst.shape)
         self.assertIsNot(node.shape, inst.shape)
-        self.assertEqual(len({node.shape, inst.shape}), 1)
+        self.assertEqual(len({node.shape, inst.shape}), 2)
         mc.delete(node, inst)
 
     def testInstanceList(self):
