@@ -776,23 +776,21 @@ class Node(utils.StrMixin):
 
     @property
     def ancestors(self):
-        """Get all node ancestors.
+        """Get all node ancestors, starting with the parent.
 
-        For non-instanced nodes, the ancestors are ordered starting with
-        the current node parent. In the case of instanced nodes, this
-        order is not guaranteed. Do not rely on `top == ancestors[-1]`
-        for example, and instead use `top in ancestors`.
+        This does not get ancestors of other instances.
+
+        TODO: Lazy load list for `[0]` and `[-1]`.
         """
         if not self.exists:
             return []
 
-        ancestors = list(self.parents)
-        for parent in tuple(ancestors):
-            ancestors.extend(parent.ancestors)
-
-        seen = set()
-        return [ancestor for ancestor in ancestors
-                if not (ancestor in seen or seen.add(ancestor))]
+        ancestors = []
+        parent = self.parent
+        while parent is not None:
+            ancestors.append(parent)
+            parent = parent.parent
+        return ancestors
 
     @property
     def connections(self):

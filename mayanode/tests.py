@@ -131,6 +131,34 @@ class TestNode(unittest.TestCase):
         self.assertEqual(Node('persp').children, ['perspShape'])
         self.assertEqual(Node('lambert1').children, [])
 
+    def testAncestors(self):
+        child = Node(mc.createNode('transform', name='ancestorChild'))
+        parent = Node(mc.createNode('transform', name='ancestorParent'))
+        root = Node(mc.createNode('transform', name='ancestorRoot'))
+        child.parent = parent
+        parent.parent = root
+
+        self.assertEqual(child.ancestors[0], parent)
+        self.assertEqual(child.ancestors[-1], root)
+        self.assertEqual(child.ancestors, [parent, root])
+        self.assertFalse(root.ancestors)
+
+        mc.delete(root)
+
+    def testDescendents(self):
+        child1 = Node(mc.createNode('transform', name='descendentChild1'))
+        child2 = Node(mc.createNode('transform', name='descendentChild2'))
+        parent = Node(mc.createNode('transform', name='descendentParent'))
+        root = Node(mc.createNode('transform', name='descendentRoot'))
+
+        child1.parent = child2.parent = parent
+        parent.parent = root
+
+        self.assertEqual(root.descendents, [parent, child1, child2])
+        self.assertEqual(parent.descendents, [child1, child2])
+
+        mc.delete(root)
+
     def testTransformShape(self):
         node = Node(mc.polyCube(name='shapeTest')[0])
         self.assertIsNone(node.transform)
