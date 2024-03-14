@@ -57,7 +57,29 @@ class Ancestors(types.LazyList):
         self._loadedAllAncestors = False
         super(Ancestors, self).__init__()
 
+    @property
+    def node(self):
+        return self._node
+
     def _loadData(self, index=None):
+        """Load the ancestor data.
+
+        If a negative index is requested, then all the DAG paths will
+        be loaded, but only the index will get an attached class
+        instance. If no index is requested, then all DAG paths will be
+        loaded, and all will get a class instance. If a positive index
+        is requested, then it will find the latest known DAG path and
+        navigate through it to find the specified index, and creates a
+        node for that.
+
+        Ordered from fastest to slowest:
+            `ancestors[0]`
+            `ancestors[n]`
+            `ancestors[-i]`
+            `list(ancestors)`
+            `[ancestors[i] for i in range(n)]`
+            `[ancestors[i] for i in reversed(range(n))]`
+        """
         if self._node.api.dagPath is None:
             return
 
@@ -65,43 +87,60 @@ class Ancestors(types.LazyList):
             # Load in all the missing data
             # If a negative index then not all data needs loading
             if index is None or index < 0:
-                if not self._loadedAllAncestors:
-                    # Skip ahead to the next required data
-                    dagPath = om2.MDagPath(self._node.api.dagPath).pop()
-                    for i, ancestor in enumerate(self._ancestors):
-                        if ancestor is None:
-                            dagPath = om2.MDagPath(dagPath).pop()
-                            self._ancestors[i] = dagPath
-                            self._data[i] = None
-                        else:
-                            dagPath = dagPath.pop()
-
-                    # Add the remaining data
-                    world = _getWorldDagPath()
-                    while dagPath != world:
-                        self._ancestors.append(dagPath)
-                        self._data.append(None)
+                # Skip ahead to the next required data
+                dagPath = om2.MDagPath(self._node.api.dagPath).pop()
+                for i, ancestor in enumerate(self._ancestors):
+                    if ancestor is None:
                         dagPath = om2.MDagPath(dagPath).pop()
+                        self._ancestors[i] = dagPath
+                        self._data[i] = None
+                    else:
+                        dagPath = dagPath.pop()
 
-                    self._loadedAllAncestors = True
+                # Add the remaining data
+                world = _getWorldDagPath()
+                while dagPath != world:
+                    self._ancestors.append(dagPath)
+                    self._data.append(None)
+                    dagPath = om2.MDagPath(dagPath).pop()
 
+                self._loadedAllAncestors = True
+
+            # Load a single positive index
             elif index >= 0:
-                dagPathCount = len(self._ancestors)
+                numAncestors = len(self._ancestors)
 
                 # If the index is out of bounds, check if more can be loaded
-                if dagPathCount <= index:
-                    if self._loadedAllAncestors:
-                        raise IndexError(index)
+                if numAncestors <= index or self._ancestors[index] is None:
 
-                    # Skip ahead if not loaded
-                    dagPath = om2.MDagPath(self._node.api.dagPath)
-                    for i in range(index):
+                    # Find the closest child DAG path
+                    latestDagPath = None
+                    latestDagIndex = 0
+                    for i in range(min(index, numAncestors)):
+                        if self._ancestors[i] is not None:
+                            latestDagPath = self._ancestors[i]
+                            latestDagIndex = i + 1
+                    if latestDagPath is None:
+                        dagPath = om2.MDagPath(self.node.api.dagPath)
+                    else:
+                        dagPath = om2.MDagPath(latestDagPath)
+
+                    # Iterate through the DAG path to the result
+                    world = _getWorldDagPath()
+                    for i in range(latestDagIndex, index + 1):
                         dagPath = dagPath.pop()
-                        if i >= dagPathCount:
+
+                        # Stop if the world is reached
+                        if dagPath == world:
+                            break
+
+                        # Add further records if above the count
+                        if i >= numAncestors:
                             self._ancestors.append(None)
                             self._data.append(None)
-                    self._ancestors.append(dagPath.pop())
-                    self._data.append(None)
+
+                    else:
+                        self._ancestors[index] = dagPath
 
         if index is None:
             indexes = [i for i, item in enumerate(self._data) if item is None]
@@ -109,7 +148,10 @@ class Ancestors(types.LazyList):
             indexes = [index]
 
         for index in indexes:
-            self._data[index] = Node(self._ancestors[index])
+            try:
+                self._data[index] = Node(self._ancestors[index])
+            except IndexError:
+                pass
 
 
 class _ApiData(object):
