@@ -57,13 +57,14 @@ class Ancestors(types.LazyList):
         self._loadedAllAncestors = False
         super(Ancestors, self).__init__()
 
-    def _loadData(self, index=None, onlyDagPaths=False):
+    def _loadData(self, index=None):
         if self._node.api.dagPath is None:
             return
 
         if not self._loadedAllAncestors:
             # Load in all the missing data
-            if index is None:
+            # If a negative index then not all data needs loading
+            if index is None or index < 0:
                 if not self._loadedAllAncestors:
                     # Skip ahead to the next required data
                     dagPath = om2.MDagPath(self._node.api.dagPath).pop()
@@ -84,35 +85,23 @@ class Ancestors(types.LazyList):
 
                     self._loadedAllAncestors = True
 
-            else:
-                indexes = [index]
+            elif index >= 0:
+                dagPathCount = len(self._ancestors)
 
-                # Negative index: load since length is not known
-                if index < 0:
-                    if not self._loadedAllAncestors:
-                        self._loadData(onlyDagPaths=True)
+                # If the index is out of bounds, check if more can be loaded
+                if dagPathCount <= index:
+                    if self._loadedAllAncestors:
+                        raise IndexError(index)
 
-                # Positive index
-                else:
-                    dagPathCount = len(self._ancestors)
-
-                    # If the index is out of bounds, check if more can be loaded
-                    if dagPathCount <= index:
-                        if self._loadedAllAncestors:
-                            raise IndexError(index)
-
-                        # Skip ahead if not loaded
-                        dagPath = om2.MDagPath(self._node.api.dagPath)
-                        for i in range(index):
-                            dagPath = dagPath.pop()
-                            if i >= dagPathCount:
-                                self._ancestors.append(None)
-                                self._data.append(None)
-                        self._ancestors.append(dagPath.pop())
-                        self._data.append(None)
-
-        if onlyDagPaths:
-            return
+                    # Skip ahead if not loaded
+                    dagPath = om2.MDagPath(self._node.api.dagPath)
+                    for i in range(index):
+                        dagPath = dagPath.pop()
+                        if i >= dagPathCount:
+                            self._ancestors.append(None)
+                            self._data.append(None)
+                    self._ancestors.append(dagPath.pop())
+                    self._data.append(None)
 
         if index is None:
             indexes = [i for i, item in enumerate(self._data) if item is None]
