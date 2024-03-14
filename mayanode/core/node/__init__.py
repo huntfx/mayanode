@@ -41,6 +41,88 @@ def _getWorldDagPath():
     return _WORLD_DAG_PATH
 
 
+class Ancestors(types.LazyList):
+    """Only load the ancestor nodes when needed.
+
+    This is very fast when requesting the first or last ancestor or a
+    node. When iterating over every ancestor, the overhead cost of
+    wrapping the list in this class is minimal.
+    """
+
+    __slots__ = ['_node', '_ancestors', '_loadedAllAncestors']
+
+    def __init__(self, node):
+        self._node = node
+        self._ancestors = []
+        self._loadedAllAncestors = False
+        super(Ancestors, self).__init__()
+
+    def _loadData(self, index=None, onlyDagPaths=False):
+        if self._node.api.dagPath is None:
+            return
+
+        if not self._loadedAllAncestors:
+            # Load in all the missing data
+            if index is None:
+                if not self._loadedAllAncestors:
+                    # Skip ahead to the next required data
+                    dagPath = om2.MDagPath(self._node.api.dagPath).pop()
+                    for i, ancestor in enumerate(self._ancestors):
+                        if ancestor is None:
+                            dagPath = om2.MDagPath(dagPath).pop()
+                            self._ancestors[i] = dagPath
+                            self._data[i] = None
+                        else:
+                            dagPath = dagPath.pop()
+
+                    # Add the remaining data
+                    world = _getWorldDagPath()
+                    while dagPath != world:
+                        self._ancestors.append(dagPath)
+                        self._data.append(None)
+                        dagPath = om2.MDagPath(dagPath).pop()
+
+                    self._loadedAllAncestors = True
+
+            else:
+                indexes = [index]
+
+                # Negative index: load since length is not known
+                if index < 0:
+                    if not self._loadedAllAncestors:
+                        self._loadData(onlyDagPaths=True)
+
+                # Positive index
+                else:
+                    dagPathCount = len(self._ancestors)
+
+                    # If the index is out of bounds, check if more can be loaded
+                    if dagPathCount <= index:
+                        if self._loadedAllAncestors:
+                            raise IndexError(index)
+
+                        # Skip ahead if not loaded
+                        dagPath = om2.MDagPath(self._node.api.dagPath)
+                        for i in range(index):
+                            dagPath = dagPath.pop()
+                            if i >= dagPathCount:
+                                self._ancestors.append(None)
+                                self._data.append(None)
+                        self._ancestors.append(dagPath.pop())
+                        self._data.append(None)
+
+        if onlyDagPaths:
+            return
+
+        if index is None:
+            indexes = [i for i, item in enumerate(self._data) if item is None]
+        else:
+            indexes = [index]
+
+        for index in indexes:
+            self._data[index] = Node(self._ancestors[index])
+
+
 class _ApiData(object):
     """Hold the OpenMaya API objects for a node."""
 
@@ -777,20 +859,16 @@ class Node(utils.StrMixin):
     @property
     def ancestors(self):
         """Get all node ancestors, starting with the parent.
-
         This does not get ancestors of other instances.
 
-        TODO: Lazy load list for `[0]` and `[-1]`.
+        Equivalent:
+            >>> def ancestors(node):
+            ...     parent = node.parent
+            ...     while parent is not None:
+            ...         yield parent
+            ...         parent = parent.parent
         """
-        if not self.exists:
-            return []
-
-        ancestors = []
-        parent = self.parent
-        while parent is not None:
-            ancestors.append(parent)
-            parent = parent.parent
-        return ancestors
+        return Ancestors(self)
 
     @property
     def connections(self):

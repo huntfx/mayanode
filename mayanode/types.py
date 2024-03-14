@@ -100,15 +100,14 @@ class LazyList(MutableSequence):
         at the requested index. Otherwise, all items will have to be
         loaded.
         """
-        if self._isCorrectLength:
-            if isinstance(index, slice):
-                for i in range(index.start, index.stop, index.step):
-                    if self._data[i] is None:
-                        self._loadData(i)
-            elif self._data[index] is None:
-                self._loadData(index)
-        else:
-            self._loadData()
+        if isinstance(index, slice):
+            for i in range(index.start, index.stop, index.step):
+                if self._data[i] is None:
+                    self._loadData(i)
+
+        elif not self._isCorrectLength or (self._isCorrectLength and self._data[index] is None):
+            self._loadData(index)
+
         return self._data.__getitem__(index)
 
     def __setitem__(self, index, value):
