@@ -61,6 +61,24 @@ class Ancestors(types.LazyList):
     def node(self):
         return self._node
 
+    def __len__(self):
+        """Get the number of ancestors."""
+        # If already loaded then the length is correct
+        if self._loadedAllAncestors or self._ancestors:
+            return len(self._ancestors)
+
+        # Get the DAG path length
+        dagPath = self.node.api.dagPath
+        if dagPath is None:
+            self._loadedAllAncestors = True
+            return 0
+        ancestorLength = dagPath.length() - 1
+
+        # Populate the data lists
+        self._ancestors.extend(None for _ in range(ancestorLength - len(self._ancestors)))
+        self._data.extend(None for _ in range(ancestorLength - len(self._data)))
+        return ancestorLength
+
     def _loadData(self, index=None):
         """Load the ancestor data.
 
@@ -68,90 +86,73 @@ class Ancestors(types.LazyList):
         be loaded, but only the index will get an attached class
         instance. If no index is requested, then all DAG paths will be
         loaded, and all will get a class instance. If a positive index
-        is requested, then it will find the latest known DAG path and
-        navigate through it to find the specified index, and creates a
-        node for that.
+        is requested, then it will find the latest known DAG path, jump
+        ahead to the specified index, and create a node for that.
 
-        Ordered from fastest to slowest:
-            `ancestors[0]`
-            `ancestors[n]`
-            `ancestors[-i]`
-            `list(ancestors)`
-            `[ancestors[i] for i in range(n)]`
-            `[ancestors[i] for i in reversed(range(n))]`
+        Simple benchmark from fastest to slowest:
+            `ancestors[0]`  # 18
+            `ancestors[n]`  # 24
+            `ancestors[-i]`  # 32
+            `list(ancestors)`  # 59
+            `[ancestors[i] for i in range(n)]`  # 67
+            `[ancestors[i] for i in reversed(range(n))]`  # 74
         """
-        if self._node.api.dagPath is None:
+        if self.node.api.dagPath is None:
             return
 
         if not self._loadedAllAncestors:
+            ancestorLength = self.__len__()
+
             # Load in all the missing data
             # If a negative index then not all data needs loading
             if index is None or index < 0:
-                # Skip ahead to the next required data
-                dagPath = om2.MDagPath(self._node.api.dagPath).pop()
+
+                previousDagPath = self.node.api.dagPath
                 for i, ancestor in enumerate(self._ancestors):
                     if ancestor is None:
-                        dagPath = om2.MDagPath(dagPath).pop()
-                        self._ancestors[i] = dagPath
-                        self._data[i] = None
+                        self._ancestors[i] = previousDagPath = om2.MDagPath(previousDagPath).pop()
                     else:
-                        dagPath = dagPath.pop()
-
-                # Add the remaining data
-                world = _getWorldDagPath()
-                while dagPath != world:
-                    self._ancestors.append(dagPath)
-                    self._data.append(None)
-                    dagPath = om2.MDagPath(dagPath).pop()
+                        previousDagPath = ancestor
 
                 self._loadedAllAncestors = True
 
             # Load a single positive index
-            elif index >= 0:
-                numAncestors = len(self._ancestors)
+            elif 0 <= index < ancestorLength and self._ancestors[index] is None:
 
-                # If the index is out of bounds, check if more can be loaded
-                if numAncestors <= index or self._ancestors[index] is None:
-
-                    # Find the closest child DAG path
-                    latestDagPath = None
-                    latestDagIndex = 0
-                    for i in range(min(index, numAncestors)):
+                # Find the closest child DAG path
+                dagPath = None
+                if index:
+                    i = index - 1
+                    while i >= 0:
                         if self._ancestors[i] is not None:
-                            latestDagPath = self._ancestors[i]
-                            latestDagIndex = i + 1
-                    if latestDagPath is None:
-                        dagPath = om2.MDagPath(self.node.api.dagPath)
-                    else:
-                        dagPath = om2.MDagPath(latestDagPath)
-
-                    # Iterate through the DAG path to the result
-                    world = _getWorldDagPath()
-                    for i in range(latestDagIndex, index + 1):
-                        dagPath = dagPath.pop()
-
-                        # Stop if the world is reached
-                        if dagPath == world:
+                            dagPath = om2.MDagPath(self._ancestors[i])
+                            dagOffset = i
                             break
+                        i -= 1
 
-                        # Add further records if above the count
-                        if i >= numAncestors:
-                            self._ancestors.append(None)
-                            self._data.append(None)
+                # Use the nodes DAG path
+                if dagPath is None:
+                    dagPath = om2.MDagPath(self.node.api.dagPath)
+                    dagOffset = -1
 
-                    else:
-                        self._ancestors[index] = dagPath
+                # Jump down the required number of levels
+                self._ancestors[index] = dagPath.pop(index - dagOffset)
 
+        # Get the requested indexes
+        indexes = []
         if index is None:
-            indexes = [i for i, item in enumerate(self._data) if item is None]
+            indexes.extend(i for i, item in enumerate(self._data) if item is None)
         else:
-            indexes = [index]
-
-        for index in indexes:
+            # Ignore any index error here as it's only loading the data
             try:
-                self._data[index] = Node(self._ancestors[index])
+                if self._data[index] is None:
+                    indexes = [index]
             except IndexError:
                 pass
+
+        # Map nodes to indexes
+        for index in indexes:
+            self._data[index] = Node(self._ancestors[index])
 
 
 class _ApiData(object):

@@ -145,6 +145,27 @@ class TestNode(unittest.TestCase):
 
         mc.delete(root)
 
+    def testAncestorsIndividual(self):
+        child = Node(mc.createNode('transform', name='ancestorChild'))
+        parent = Node(mc.createNode('transform', name='ancestorParent'))
+        group = Node(mc.createNode('transform', name='ancestorGroup'))
+        root = Node(mc.createNode('transform', name='ancestorRoot'))
+        child.parent = parent
+        parent.parent = group
+        group.parent = root
+
+        ancestors = child.ancestors
+        self.assertEqual(ancestors[0], parent)
+        self.assertEqual(ancestors[1], group)
+        self.assertEqual(ancestors, [parent, group, root])
+
+        ancestors = child.ancestors
+        self.assertEqual(ancestors[1], group)
+        self.assertEqual(ancestors[-1], root)
+        self.assertEqual(ancestors, [parent, group, root])
+
+        mc.delete(root)
+
     def testDescendents(self):
         child1 = Node(mc.createNode('transform', name='descendentChild1'))
         child2 = Node(mc.createNode('transform', name='descendentChild2'))
