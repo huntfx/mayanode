@@ -1119,6 +1119,11 @@ class Node(utils.StrMixin):
         return FaceList(self)
 
     @property
+    def scene(self):
+        """Get the current scene."""
+        return Scene
+
+    @property
     def boundingBox(self):
         """Get the bounding box of the node.
 
@@ -1139,4 +1144,5 @@ from ..bounding_box import BoundingBox
 from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
 from ..namespace import Namespace
+from ..scene import Scene
 from ..uv_set import UVSet

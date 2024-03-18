@@ -13,6 +13,7 @@
 - **References**: Get and set data related to references. Not fleshed out yet.
 - **UV/Color Sets**: Get and set data related to UV and color sets. Not fleshed out yet.
 - **Namespace**: Get and set data and relationships related to namespaces. Not fleshed out yet.
+- **Scene Data**: Convenient access to data related to the scene, such as the scene path, name, if modified, loaded plugins, etc. Not fleshed out yet.
 
 
 ## Installation

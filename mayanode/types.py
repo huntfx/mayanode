@@ -2,9 +2,9 @@ from __future__ import absolute_import
 
 from collections import namedtuple
 try:
-    from collections.abc import MutableSequence
+    from collections.abc import MutableMapping, MutableSequence
 except ImportError:
-    from collections import MutableSequence
+    from collections import MutableMapping, MutableSequence
 
 
 
@@ -155,4 +155,65 @@ class LazyList(MutableSequence):
 
         Parameters:
             idx (int, optional): Index of data.
+        """
+
+
+class LazyDict(MutableMapping):
+    """Dict-like object that is loaded only when needed."""
+
+    __slots__ = ['_data']
+
+    def __init__(self):
+        self._data = {}
+
+    def __repr__(self):
+        self._loadData()
+        return self._data.__repr__()
+
+    def __getitem__(self, item):
+        self._loadData(item)
+        return self._data.__getitem__(item)
+
+    def __setitem__(self, item, value):
+        raise AttributeError('set not supported')
+
+    def __delitem__(self, item):
+        raise AttributeError('delete not supported')
+
+    def update(self, item):
+        raise AttributeError('update not supported')
+
+    def clear(self):
+        raise AttributeError('clear not supported')
+
+    def __iter__(self):
+        self._loadData()
+        return self._data.__iter__()
+
+    def __len__(self):
+        self._loadData()
+        return self._data.__len__()
+
+    def __contains__(self, value):
+        self._loadData(value)
+        return self._data.__contains__(value)
+
+    def keys(self):
+        self._loadData()
+        return self._data.keys()
+
+    def values(self):
+        self._loadData()
+        return self._data.values()
+
+    def items(self):
+        self._loadData()
+        return self._data.items()
+
+    def _loadData(self, key=None):
+        """Load all data or for a specific key.
+        Requires override.
+
+        Parameters:
+            key (any, optional): Dictionary key.
         """

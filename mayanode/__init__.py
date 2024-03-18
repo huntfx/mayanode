@@ -84,11 +84,16 @@ __all__ = [
     'exceptions',
     'Node',
     'BoundingBox',
+    'Namespace',
+    'Plugin',
     'Reference',
+    'Scene',
 ]
 
 from . import exceptions
 from .core.node import Node
 from .core.bounding_box import BoundingBox
 from .core.namespace import Namespace
+from .core.plugin import Plugin
 from .core.reference import Reference
+from .core.scene import Scene
