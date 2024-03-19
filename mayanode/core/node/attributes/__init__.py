@@ -328,7 +328,6 @@ class Attribute(types.StrMixin):
             attr (str|MPlug): Attribute of the node.
                 If using a networked plug that is attached to an
                 attribute that no longer exists, then Maya will crash.
-
         """
         self.node = node
         if isinstance(attr, om2.MPlug):
@@ -340,6 +339,13 @@ class Attribute(types.StrMixin):
             self.api = Attribute.ApiData.fromNode(self.node, attr)
 
         self._keyframes = AttributeKeyframes(self)
+
+    @classmethod
+    def ls(self, attr):
+        """Search the scene for an attribute."""
+        result = utils.runAndLog(mc.ls, '*.' + attr)
+        split = (item.split('.', 1) for item in result)
+        return [Attribute(Node(node), attr) for node, attr in split]
 
     def __bool__(self):
         return self.exists
@@ -613,3 +619,4 @@ class Attribute(types.StrMixin):
 # pylint: disable=wrong-import-position
 from .keyframes import AttributeKeyframes
 from ...connection import AttributeConnectionProxy, Connection
+from ...node import Node

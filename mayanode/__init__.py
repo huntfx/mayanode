@@ -82,6 +82,7 @@ Examples:
 
 __all__ = [
     'exceptions',
+    'Attribute',
     'Node',
     'BoundingBox',
     'Namespace',
@@ -92,6 +93,7 @@ __all__ = [
 
 from . import exceptions
 from .core.node import Node
+from .core.node.attributes import Attribute
 from .core.bounding_box import BoundingBox
 from .core.namespace import Namespace
 from .core.plugin import Plugin

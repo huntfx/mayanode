@@ -521,7 +521,8 @@ class Node(utils.StrMixin):
     @classmethod
     def ls(self, *args, **kwargs):
         """Shortcut to search the scene."""
-        result = mc.ls(*args, **kwargs)
+        kwargs['objectsOnly'] = True
+        result = utils.runAndLog(mc.ls, *args, **kwargs)
         return [Node(node) for node in result]
 
     @classmethod
