@@ -162,7 +162,7 @@ class _ApiData(object):
                  '_dagPaths', '_dependencyNode', '_dagNode', '_mesh']
 
     def __init__(self, mObject, instanceNumber=-1):
-        if mObject.isNull:
+        if mObject.isNull():
             raise exceptions.NullMObjectError
 
         self._object = mObject
@@ -171,7 +171,8 @@ class _ApiData(object):
         self._dependencyNode = self._dagNode = self._dagPaths = self._transform = self._mesh = None
 
     def __bool__(self):
-        return not self.object.isNull
+        """Determine if the node is valid."""
+        return not self.object.isNull()
     __nonzero__ = __bool__
 
     def __eq__(self, other):
