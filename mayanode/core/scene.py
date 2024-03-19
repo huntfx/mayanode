@@ -47,12 +47,20 @@ class _Scene(object):
         """Get if the scene has been modified."""
         return utils.runAndLog(mc.file, query=True, anyModified=True)
 
-    def open(self, path, force=True, selectivePreload=None):
+    def new(self, force=False):
+        """Create a new scene.
+
+        Parameters:
+            force (bool): Force create even if the current scene is modified.
+        """
+        utils.runAndLog(mc.file, new=True, force=force)
+
+    def open(self, path, force=False, selectivePreload=None):
         """Open a scene.
 
         Parameters:
             path (str): Path to the scene.
-            force (bool): Force load even if the scene is modified.
+            force (bool): Force load even if the current scene is modified.
             selectedPreload (bool, optional): Enable selective preloading.
                 If None, then the current settings will be used.
 
