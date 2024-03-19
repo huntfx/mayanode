@@ -23,6 +23,10 @@ class Namespace(utils.StrMixin):
             return self.name == other
         return self.name[1:] == other
 
+    def __bool__(self):
+        return self.name not in (':', '')
+    __nonzero__ = __bool__
+
     def __add__(self, other):
         return self.name + other
 

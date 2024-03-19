@@ -158,17 +158,19 @@ class Ancestors(types.LazyList):
 class _ApiData(object):
     """Hold the OpenMaya API objects for a node."""
 
-    __slots__ = ['_object', '_handle', '_instanceNumber', '_transform',
-                 '_dagPaths', '_dependencyNode', '_dagNode', '_mesh']
+    __slots__ = ['_object', '_handle', '_instanceNumber',
+                 '_dagPaths', '_dependencyNode', '_dagNode',
+                 '_transform', '_mesh', '_reference']
 
     def __init__(self, mObject, instanceNumber=-1):
         if mObject.isNull():
             raise exceptions.NullMObjectError
 
         self._object = mObject
-        self._handle = None
         self._instanceNumber = instanceNumber
-        self._dependencyNode = self._dagNode = self._dagPaths = self._transform = self._mesh = None
+        self._handle = None
+        self._dagNode = self._dagPaths = self._dependencyNode = None
+        self._transform = self._mesh = self._reference = None
 
     def __bool__(self):
         """Determine if the node is valid."""
@@ -434,6 +436,25 @@ class _ApiData(object):
         if self._transform == -1:
             return None
         return self._transform
+
+    @property
+    def reference(self):
+        """Get the `MFnReference`.
+
+        Notable methods:
+            nodes()
+            associatedNamespace(shortName: bool)
+            filename(resolvedName: bool, includePath: bool, includeCopyNumber: bool)
+        """
+        if self._reference is None:
+            if self.object.hasFn(om2.MFn.kReference):
+                self._reference = om2.MFnReference(self.object)
+            else:
+                self._reference = -1
+
+        if self._reference == -1:
+            return None
+        return self._reference
 
 
 class Node(utils.StrMixin):
@@ -1136,6 +1157,25 @@ class Node(utils.StrMixin):
         return Scene
 
     @property
+    def referenced(self):
+        """Get if the node is referenced.
+
+        Equivalent:
+            `mc.referenceQuery(self, isNodeReferenced=True)`
+        """
+        if not self.exists:
+            return False
+        depNode = self.api.dependencyNode
+        if depNode is None:
+            return False
+        return depNode.isFromReferencedFile
+
+    @property
+    def reference(self):
+        """Get the associated reference if the node is referenced."""
+        return Reference.fromNode(self)
+
+    @property
     def boundingBox(self):
         """Get the bounding box of the node.
 
@@ -1152,6 +1192,7 @@ class Node(utils.StrMixin):
 # pylint: disable=wrong-import-position
 from .attributes import NodeAttributes
 from .face import FaceList
+from ..reference import Reference
 from ..bounding_box import BoundingBox
 from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
