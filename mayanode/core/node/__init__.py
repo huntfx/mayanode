@@ -162,10 +162,17 @@ class _ApiData(object):
                  '_dagPaths', '_dependencyNode', '_dagNode', '_mesh']
 
     def __init__(self, mObject, instanceNumber=-1):
+        if mObject.isNull:
+            raise exceptions.NullMObjectError
+
         self._object = mObject
         self._handle = None
         self._instanceNumber = instanceNumber
         self._dependencyNode = self._dagNode = self._dagPaths = self._transform = self._mesh = None
+
+    def __bool__(self):
+        return not self.object.isNull
+    __nonzero__ = __bool__
 
     def __eq__(self, other):
         if isinstance(other, _ApiData):
@@ -574,7 +581,10 @@ class Node(utils.StrMixin):
         Returns:
             UUID as a string.
         """
-        return self.api.dependencyNode.uuid().asString()
+        api = self.api
+        if not api:
+            return ''
+        return api.dependencyNode.uuid().asString()
 
     @property
     def name(self):
@@ -584,9 +594,12 @@ class Node(utils.StrMixin):
         Returns:
             Node name as a string.
         """
-        if self.api.dagPath is not None and self.api.dagPath.isValid():
-            return self.api.dagPath.partialPathName()
-        return self.api.dependencyNode.name()
+        api = self.api
+        if not api:
+            return ''
+        if api.dagPath is not None and api.dagPath.isValid():
+            return api.dagPath.partialPathName()
+        return api.dependencyNode.name()
 
     @name.setter
     def name(self, name):

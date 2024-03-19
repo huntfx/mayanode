@@ -48,6 +48,8 @@ def runAndLog(fn, *args, **kwargs):
 def raiseIfNodeNotFound(node):
     """Raise an error if the node doesn't exist."""
     if not node.exists:
+        if not node.api.object.isNull:
+            return exceptions.NullMObjectError
         raise exceptions.NodeDeletedError(node)
 
 

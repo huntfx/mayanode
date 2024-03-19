@@ -6,6 +6,10 @@ class BaseError(RuntimeError):
         super(BaseError, self).__init__(self.MESSAGE.format(**self.kwargs))
 
 
+class NullMObjectError(BaseError, TypeError):
+    MESSAGE = 'MObject is null'
+
+
 class NodeError(BaseError):
     MESSAGE = 'Error: {node}'
 
