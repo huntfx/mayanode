@@ -1,4 +1,5 @@
 import maya.api.OpenMaya as om2
+import maya.cmds as mc
 
 from .. import utils
 
@@ -10,8 +11,10 @@ class Namespace(utils.StrMixin):
 
     __slots__ = ['_namespace']
 
-    def __init__(self, namespace):
-        self._namespace = ':' + namespace.lstrip(':')
+    def __init__(self, namespace, create=False):
+        self._namespace = ':' + ':'.join(map(om2.MNamespace.validateName, namespace.lstrip(':').split(':')))
+        if create and not self.exists:
+            self.create()
 
     def __eq__(self, other):
         if isinstance(other, Namespace):
@@ -43,6 +46,29 @@ class Namespace(utils.StrMixin):
         if isinstance(node, Node):
             return cls(node.api.dependencyNode.namespace)
         return cls(om2.MNamespace.getNamespaceFromName(str(node)))
+
+    @property
+    def exists(self):
+        """Determine if the namespace exists."""
+        return om2.MNamespace.namespaceExists(self.name)
+
+    def create(self):
+        """Create the namespace.
+
+        Raises:
+            RuntimeError: A namespace of the given name '<ns>' already exists.
+        """
+        utils.logger.info('Creating namespace: %s', self)
+        utils.runAndLog(mc.namespace, add=self)
+
+    def delete(self):
+        """Delete the namespace.
+
+        Raises:
+            RuntimeError: No namespace matches name: 'test'.
+        """
+        utils.logger.info('Deleting namespace: %s', self)
+        utils.runAndLog(mc.namespace, removeNamespace=self)
 
     @property
     def name(self):

@@ -797,10 +797,7 @@ class Node(utils.StrMixin):
 
         else:
             utils.logger.info('Setting "%s" namespace to "%s"', self, namespace)
-            namespace = ':'.join(map(om2.MNamespace.validateName, namespace.split(':')))
-            if not om2.MNamespace.namespaceExists(namespace):
-                utils.logger.info('Creating namespace: %s', namespace)
-                utils.runAndLog(mc.namespace, add=namespace)
+            namespace = Namespace(namespace, create=True)
             utils.runAndLog(mc.rename, self.name, namespace + ':' + self.name.rsplit(':', 1)[-1])
 
     @property
