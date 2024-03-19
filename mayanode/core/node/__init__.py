@@ -801,6 +801,7 @@ class Node(utils.StrMixin):
 
         Raises:
             NodeDeletedError
+            RuntimeError: Cannot rename a read only node.
         """
         utils.raiseIfNodeNotFound(self)
         return Namespace.fromNode(self)
@@ -822,7 +823,9 @@ class Node(utils.StrMixin):
 
         else:
             utils.logger.info('Setting "%s" namespace to "%s"', self, namespace)
-            namespace = Namespace(namespace, create=True)
+            namespace = Namespace(namespace)
+            if not namespace.exists:
+                namespace.create()
             utils.runAndLog(mc.rename, self.name, namespace + ':' + self.name.rsplit(':', 1)[-1])
 
     @property
