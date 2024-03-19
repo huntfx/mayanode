@@ -61,6 +61,10 @@ class Ancestors(types.LazyList):
     def node(self):
         return self._node
 
+    def __bool__(self):
+        return bool(self.__len__())
+    __nonzero__ = __bool__
+
     def __len__(self):
         """Get the number of ancestors."""
         # If already loaded then the length is correct
