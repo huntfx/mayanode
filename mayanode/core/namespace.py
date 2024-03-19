@@ -11,10 +11,8 @@ class Namespace(utils.StrMixin):
 
     __slots__ = ['_namespace']
 
-    def __init__(self, namespace, create=False):
+    def __init__(self, namespace):
         self._namespace = ':' + ':'.join(map(om2.MNamespace.validateName, namespace.lstrip(':').split(':')))
-        if create and not self.exists:
-            self.create()
 
     def __eq__(self, other):
         if isinstance(other, Namespace):

@@ -27,18 +27,19 @@ class Reference(Node):
     def namespace(self):
         """Get the namespace of the reference.
 
-        Under some rare circumstances a reference can have a namespace
-        that doesn't exist. In this case, the namespace will be created
-        automatically, as it only causes problems otherwise.
+        It is possible to delete a namespace while a reference is
+        unloaded. Upon reloading the reference, the namespace will be
+        created only if the reference contains any nodes. If not then
+        the namespace query will fail, and the slower fallback will be
+        used to read it from the `file` command.
         """
         try:
             return Namespace(utils.runAndLog(mc.referenceQuery, self, namespace=True))
 
-        # If it fails, then the namespace likely doesn't exist in the scene
-        # Automatically fix
+        # If it fails, then the namespace doesn't exist in the scene
         except RuntimeError as e:
-            if 'Cannot find the associated namespace.' in str(e):
-                return Namespace(utils.runAndLog(mc.file, self.filepath, query=True, namespace=True), create=True)
+            if str(e) == 'Cannot find the associated namespace.\n':
+                return Namespace(utils.runAndLog(mc.file, self.filepath, query=True, namespace=True))
             raise
 
     @namespace.setter
