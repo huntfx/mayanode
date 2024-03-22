@@ -370,6 +370,11 @@ class Attribute(types.StrMixin):
         return self.exists
     __nonzero__ = __bool__
 
+    def __eq__(self, value):
+        if value == self.attr:
+            return True
+        return super(Attribute, self).__eq__(value)
+
     def __float__(self):
         return float(self.value)
 
@@ -431,13 +436,16 @@ class Attribute(types.StrMixin):
         the opposite with networked plugs, but any other plugs are left
         as valid. A check on the parent node is needed for these.
         """
-        if self.api.plug.isNull:
+        plug = self.api.plug
+        if plug.isNull:
             return False
         if not self.node.exists:
             return False
 
         # TODO: Test what happens when parent attribute is deleted
-        if self.api.plug.isElement:
+        if plug.isElement:
+            return True
+        if plug.isChild:
             return True
 
         return self.node.api.dependencyNode.hasAttribute(self.attr)
