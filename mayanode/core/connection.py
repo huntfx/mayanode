@@ -211,6 +211,25 @@ class ConnectionProxy(ConnectionList):
         """
         raise NotImplementedError
 
+    def _loadRecursive(self, plug, source=True, destination=True):
+        """Recursively load connections from the plug and any children.
+
+        TODO:
+            Tests
+        """
+        for connectedPlug in plug.connectedTo(source, destination):
+            yield Connection(self.node, plug, connectedPlug)
+
+        plugs = []
+        if plug.isArray:
+            plugs.extend(map(plug.elementByPhysicalIndex, range(plug.numElements())))
+        elif plug.isCompound:
+            plugs.extend(map(plug.child, range(plug.numChildren())))
+
+        for childPlug in plugs:
+            for connection in self._loadRecursive(childPlug, source=source, destination=destination):
+                yield connection
+
     def _loadData(self, index=None, source=True, destination=True):
         """Get the connection data from the plugs."""
         # Ensure the data is only loaded once
@@ -230,11 +249,9 @@ class ConnectionProxy(ConnectionList):
         # Get the connections for each plug
         for currentPlug in self.plugs:
             if destination:
-                for connectedPlug in currentPlug.connectedTo(False, True):
-                    self._destinationConnections.append(Connection(self.node, currentPlug, connectedPlug))
+                self._destinationConnections.extend(self._loadRecursive(currentPlug, False, True))
             if source:
-                for connectedPlug in currentPlug.connectedTo(True, False):
-                    self._sourceConnections.append(Connection(self.node, currentPlug, connectedPlug, reverse=True))
+                self._sourceConnections.extend(self._loadRecursive(currentPlug, True, False))
 
         # Add to main list
         if destination:
