@@ -62,7 +62,10 @@ class Ancestors(types.LazyList):
         return self._node
 
     def __bool__(self):
-        return bool(self.__len__())
+        dagPath = self.node.api.dagPath
+        if dagPath is None:
+            return False
+        return dagPath.length() > 1
     __nonzero__ = __bool__
 
     def __len__(self):
