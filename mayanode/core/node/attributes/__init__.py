@@ -190,13 +190,28 @@ class NodeAttributes(dict):
 
     def _ensureAttr(self, attr, reload=False):
         """Load in the attribute proxy if required."""
-        if not reload and super(NodeAttributes, self).__contains__(attr):
-            return
+        if isinstance(attr, om2.MPlug):
+            attrName = attr.partialName(useLongNames=True)
+        else:
+            attrName = attr
+
+        # Skip any attribute with multiple path parts at this stage
+        # eg. pCubeShape1.uvSet[-1].uvSetName / lambert1.lightDataArray.lightDirection
+        if '.' in attrName:
+            return False
+
+        if not reload and super(NodeAttributes, self).__contains__(attrName):
+            return False
+
         value = Attribute(self.node, attr)
-        super(NodeAttributes, self).__setitem__(attr, value)
+        super(NodeAttributes, self).__setitem__(attrName, value)
+        return True
 
     def _ensureAttrs(self, reload=False):
         """Load in all attribute proxies if required.
+
+        Equivalent:
+            `mc.listAttr(self)`
 
         Raises:
             NodeDeletedError
@@ -204,11 +219,12 @@ class NodeAttributes(dict):
         utils.raiseIfNodeNotFound(self.node)
         if not reload and self._loaded:
             return
-        for attr in utils.runAndLog(mc.listAttr, self.node):
-            # Skip compound attributes, not yet supported (eg. lambert1.lightDataArray.lightDirection)
-            if '.' in attr:
-                continue
-            self._ensureAttr(attr)
+
+        depNode = self.node.api.dependencyNode
+        attrs = map(depNode.attribute, range(depNode.attributeCount()))
+        for attr in attrs:
+            self._ensureAttr(depNode.findPlug(attr, False))
+
         self._loaded = True
 
     def create(self, attr, attrType=None, **kwargs):
@@ -235,7 +251,7 @@ class Attribute(types.StrMixin):
     A connection is made by using the >> operator between two attributes.
     """
 
-    __slots__ = ['node', 'attr', 'api', '_keyframes']
+    __slots__ = ['node', 'attr', 'api', '_keyframes', '_compoundChildren']
 
     class ApiData(object):
         """Hold the OpenMaya API objects."""
@@ -341,6 +357,7 @@ class Attribute(types.StrMixin):
             self.api = Attribute.ApiData.fromNode(self.node, attr)
 
         self._keyframes = AttributeKeyframes(self)
+        self._compoundChildren = None
 
     @classmethod
     def ls(self, attr):
@@ -403,7 +420,8 @@ class Attribute(types.StrMixin):
     def exists(self):
         """Determine if the attribute already exists.
 
-        The equivalent of `mc.attributeQuery(attr, node=node, exists=True)`.
+        Equivelant:
+            `mc.attributeQuery(attr, node=node, exists=True)`.
 
         This should be done before calling any plug methods as an
         invalid plug can cause Maya crashes.
@@ -608,6 +626,94 @@ class Attribute(types.StrMixin):
     def keyframes(self):
         """Get the keyframe dict."""
         return self._keyframes
+
+    def __iter__(self):
+        """Iterate over array children."""
+        plug = self.api.plug
+
+        # If array, create a live up to date copy of the children
+        if plug.isArray:
+            plugs = map(plug.elementByPhysicalIndex, range(plug.numElements()))
+            return iter(Attribute(self.node, plug) for plug in plugs)
+
+        # If compound, then regenerate any children previously stored
+        if plug.isCompound:
+            self._reloadCompoundChildren()
+            return iter(self._compoundChildren.values())
+
+        return []
+
+    def __getitem__(self, value):
+        """Get a child attribute.
+
+        Raises:
+            TypeError: plug is not an array or compound
+            IndexError: array index out of range
+            KeyError: compound attribute does not exist
+
+        TODO:
+            Tests
+        """
+        plug = self.api.plug
+        if plug.isArray:
+            if not 0 <= value < plug.numElements():
+                raise IndexError('array index "{}" out of range'.format(value))
+            return Attribute(self.node, plug.elementByPhysicalIndex(value))
+
+        elif plug.isCompound:
+            # Load the child plugs if not already loaded
+            if self._compoundChildren is None or value not in self._compoundChildren:
+                self._reloadCompoundChildren()
+
+            try:
+                return self._compoundChildren[value]
+            except KeyError:
+                raise KeyError('compound attribute "{}" does not exist'.format(value))
+
+        raise TypeError('plug is not an array or compound')
+
+    def keys(self):
+        """Get all child element indexes or names."""
+        plug = self.api.plug
+        if plug.isArray:
+            return list(range(plug.numElements()))
+        if plug.isCompound:
+            self._reloadCompoundChildren()
+            return self._compoundChildren.keys()
+        return []
+
+    def items(self):
+        """Get the name and attribute of all children."""
+        plug = self.api.plug
+        if plug.isArray:
+            for i in range(plug.numElements()):
+                yield i, Attribute(self.node, plug.elementByPhysicalIndex(i))
+
+        elif plug.isCompound:
+            self._reloadCompoundChildren()
+            for k, v in self._compoundChildren.items():
+                yield k, v
+
+    def __len__(self):
+        """Get the number of child attributes."""
+        plug = self.api.plug
+        if plug.isArray:
+            return plug.numElements()
+        if plug.isCompound:
+            return plug.numChildren()
+        return 0
+
+    def _reloadCompoundChildren(self):
+        """Load all the children of a compound plug.
+
+        Raises:
+            TypeError: plug is not a compound
+        """
+        if not self.api.plug.isCompound:
+            raise TypeError('plug is not a compound')
+        childPlugs = map(self.api.plug.child, range(self.api.plug.numChildren()))
+        childAttrs = (Attribute(self.node, plug) for plug in childPlugs)
+        self._compoundChildren = {attr.name.rsplit('.', 1)[-1]: attr for attr in childAttrs}
 
 
 # Handle circular dependencies
