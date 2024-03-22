@@ -86,6 +86,11 @@ class Connection(utils.StrMixin):
         return self._dstAttr
 
     @property
+    def attr(self):
+        """Alias to get the target attribute."""
+        return self.target
+
+    @property
     def destination(self):
         """Get the attribute proxy for the connection destination."""
         return self.origin if self._reverse else self.target
@@ -176,6 +181,29 @@ class ConnectionList(types.LazyList):
         return ConnectionList(result)
 
 
+    @property
+    def nodes(self):
+        """Get a deduplicated list of all connected nodes.
+
+        Equivalent:
+            `mc.listConnections(self.target)`
+        """
+        nodes = (connection.node for connection in self._data)
+        seen = set()
+        return [node for node in nodes if node not in seen and not seen.add(node)]
+
+    @property
+    def attrs(self):
+        """Get a deduplicated list of all connected attributes.
+
+        Equivalent:
+            `mc.listConnections(self.target, plugs=True)`
+        """
+        attrs = (connection.target for connection in self._data)
+        seen = set()
+        return [attr for attr in attrs if attr not in seen and not seen.add(attr)]
+
+
 class ConnectionProxy(ConnectionList):
     """Hold the connection data to lazily load connections.
     By default, both the source and destination connections will be
@@ -203,6 +231,18 @@ class ConnectionProxy(ConnectionList):
         """Get the output/destination connections."""
         self._loadData(source=False, destination=True)
         return ConnectionList(self._destinationConnections)
+
+    @property
+    def nodes(self):
+        """Get all connected nodes."""
+        self._loadData(source=True, destination=True)
+        return super(ConnectionProxy, self).nodes
+
+    @property
+    def attrs(self):
+        """Get all connected attributes."""
+        self._loadData(source=True, destination=True)
+        return super(ConnectionProxy, self).attrs
 
     @property
     def plugs(self):
