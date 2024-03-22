@@ -307,7 +307,7 @@ class NodeConnectionProxy(ConnectionProxy):
     @property
     def plugs(self):
         """Get the node `MPlug` objects."""
-        return self._node.api.dependencyNode.getConnections()
+        return [utils.unnetworkPlug(plug) for plug in self._node.api.dependencyNode.getConnections()]
 
 
 # Handle circular dependencies

@@ -68,7 +68,22 @@ def unnetworkPlug(plug):
     if not plug.isNetworked:
         return plug
 
+    # Networked child plugs will lose their parent index
+    # eg. `uvSet[1].uvSetName` becomes `uvSet[-1].uvSetName`
+    # Maybe there's a better way, but it works by getting the parent,
+    # which is not networked, then checking each child for a match with
+    # the current plug
+    # TODO: What happens if there's 2 compound ancestors?
+    if plug.isChild:
+        parent = plug.parent()
+        return next(p for p in map(parent.child, range(parent.numChildren())) if p == plug)
+
+    # Create an non networked copy of the plug
     new = om2.MPlug(plug.node(), plug.attribute())
+
+    # If an element plug, then the index needs to be re-applied
+    # eg. `uvSet[1]` becomes `uvSet[-1]` without this
     if plug.isElement:
         return new.elementByLogicalIndex(plug.logicalIndex())
+
     return new
