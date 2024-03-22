@@ -115,6 +115,8 @@ def _getPlugValue(plug):
 def _setPlugValue(plug, value):
     """Recursively set the plug value.
     This assumes the correct data types are given.
+
+    Warning: Does not work with undo.
     """
     if isinstance(value, (str, unicode, types.StrMixin)):
         plug.setString(value)
@@ -485,13 +487,6 @@ class Attribute(types.StrMixin):
                 raise exceptions.AttributeLockedError(self.node, self.attr)
             if self.api.plug.isConnected:
                 raise exceptions.AttributeConnectedError(self.node, self.attr)
-
-            while True:
-                try:
-                    _setPlugValue(self.api.plug, value)
-                except NotImplementedError:
-                    break
-                return
 
         if isinstance(value, (str, unicode, types.StrMixin)):
             utils.runAndLog(mc.setAttr, self, value, type='string')
