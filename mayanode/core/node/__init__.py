@@ -1095,15 +1095,25 @@ class Node(utils.StrMixin):
     @uvSet.setter
     def uvSet(self, uvSet):
         """Set the current UV set.
+        This will be skipped if the requested UV set is the current one.
 
         Raises:
             UVSetNotFoundError
             NodeNotFoundError
         """
         utils.raiseIfNodeNotFound(self)
-        if uvSet not in self.uvSets:
+
+        mesh = self.api.mesh
+        if mesh is None:
             raise exceptions.UVSetNotFoundError(self, uvSet)
-        utils.logger.info('Setting %s UV set to %s', self, uvSet)
+
+        currentUVSet = mesh.currentUVSetName()
+        if uvSet == currentUVSet:
+            return
+
+        utils.logger.info('Setting %s UV set to "%s" (was "%s")', self, uvSet, currentUVSet)
+        if uvSet not in mesh.getUVSetNames():
+            raise exceptions.UVSetNotFoundError(self, uvSet)
         return utils.runAndLog(mc.polyUVSet, self, currentUVSet=True, uvSet=uvSet)
 
     @property
