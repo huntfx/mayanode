@@ -1,3 +1,5 @@
+import os
+
 import maya.api.OpenMaya as om2
 import maya.cmds as mc
 
@@ -11,12 +13,16 @@ class Reference(Node):
     """
 
     @classmethod
-    def ls(cls, parent=None, namespace=None):
-        if parent is None:
-            refs = utils.runAndLog(mc.file, query=True, reference=True)
-        else:
-            refs = utils.runAndLog(mc.file, parent, query=True, reference=True)
-        return [cls(utils.runAndLog(mc.referenceQuery, ref, referenceNode=True)) for ref in refs]
+    def ls(cls, loaded=None):
+        """Get all references."""
+        # Map to the class
+        refNodes = [cls(refNode) for refNode in utils.runAndLog(mc.ls, references=True)]
+
+        # Filter by loaded refs
+        if loaded is not None:
+            refNodes = [ref for ref in refNodes if ref.loaded == loaded]
+
+        return refNodes
 
     @classmethod
     def fromNode(cls, node):
@@ -76,7 +82,8 @@ class Reference(Node):
         TODO:
             `ref.filepath.unresolved`
         """
-        return self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=False)
+        filepath = self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=False)
+        return os.path.normpath(filepath)
 
     @filepath.setter
     def filepath(self, filepath):
