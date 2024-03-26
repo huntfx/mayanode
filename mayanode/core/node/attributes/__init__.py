@@ -244,6 +244,37 @@ class NodeAttributes(dict):
         return self.__getitem__(attr)
 
 
+def _getPlugFromDepNode(depNode, attr):
+    """Follow a valid attribute path to the correct plug.
+    Returns None in the case of failure.
+    """
+    children = []
+    for child in attr.split('.'):
+        if child[-1] == ']':
+            children.extend(child[:-1].split('['))
+        else:
+            children.append(child)
+
+    try:
+        plug = depNode.findPlug(children[0], False)
+    except RuntimeError as e:
+        if str(e) == '(kInvalidParameter): Object is incompatible with this method':
+            return None
+        raise
+
+    for child in children[1:]:
+        if plug.isArray:
+            plug = plug.elementByLogicalIndex(int(child))
+        elif plug.isCompound:
+            for plug in map(plug.child, range(plug.numChildren())):
+                if plug.name().endswith('.' + child):
+                    break
+            else:
+                return None
+
+    return plug
+
+
 class Attribute(types.StrMixin):
     """Easy way of handling attribute values and connections.
 
@@ -275,12 +306,9 @@ class Attribute(types.StrMixin):
             Raises:
                 AttributeNotFoundError
             """
-            try:
-                plug = node.api.dependencyNode.findPlug(attr, False)
-            except RuntimeError as e:
-                if str(e) == '(kInvalidParameter): Object is incompatible with this method':
-                    raise exceptions.AttributeNotFoundError(node, attr)
-                raise
+            plug = _getPlugFromDepNode(node.api.dependencyNode, attr)
+            if plug is None:
+                raise exceptions.AttributeNotFoundError(node, attr)
             return cls(plug)
 
         @classmethod
@@ -291,7 +319,8 @@ class Attribute(types.StrMixin):
                 AttributeNotFoundError
                 NodeNotFoundError
             """
-            node, attr = attr.split('.')
+            node, attr = attr.split('.', 1)
+
             selection = om2.MSelectionList()
             try:
                 selection.add(node)
@@ -301,12 +330,10 @@ class Attribute(types.StrMixin):
                 raise
             dependNode = selection.getDependNode(0)
             dependencyNode = om2.MFnDependencyNode(dependNode)
-            try:
-                plug = dependencyNode.findPlug(attr, False)
-            except RuntimeError as e:
-                if str(e) == '(kInvalidParameter): Object is incompatible with this method':
-                    raise exceptions.AttributeNotFoundError(node, attr)
-                raise
+
+            plug = _getPlugFromDepNode(dependencyNode, attr)
+            if plug is None:
+                raise exceptions.AttributeNotFoundError(node, attr)
             return cls(plug)
 
         @property
@@ -656,6 +683,7 @@ class Attribute(types.StrMixin):
 
         Raises:
             TypeError: plug is not an array or compound
+            TypeError: array indexes must be integers
             IndexError: array index out of range
             KeyError: compound attribute does not exist
 
@@ -664,6 +692,8 @@ class Attribute(types.StrMixin):
         """
         plug = self.api.plug
         if plug.isArray:
+            if not isinstance(value, int):
+                raise TypeError('array indexes much be integers, not {}'.format(type(value)))
             if not 0 <= value < plug.numElements():
                 raise IndexError('array index "{}" out of range'.format(value))
             return Attribute(self.node, plug.elementByPhysicalIndex(value))
