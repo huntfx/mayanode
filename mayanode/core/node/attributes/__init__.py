@@ -662,24 +662,34 @@ class Attribute(types.StrMixin):
         """Get the keyframe dict."""
         return self._keyframes
 
-    def __iter__(self):
-        """Iterate over array children."""
+    @property
+    def children(self):
+        """Get all attribute children.
+        Note that this is not a dict as order is important.
+
+        TODO:
+            Make into a dict-like list
+        """
         plug = self.api.plug
 
         # If array, create a live up to date copy of the children
         if plug.isArray:
             plugs = map(plug.elementByPhysicalIndex, range(plug.numElements()))
-            return iter(Attribute(self.node, plug) for plug in plugs)
+            return [Attribute(self.node, plug) for plug in plugs]
 
         # If compound, then regenerate any children previously stored
         if plug.isCompound:
             self._reloadCompoundChildren()
-            return iter(self._compoundChildren.values())
+            return list(self._compoundChildren.values())
 
         return []
 
-    def __getitem__(self, value):
+    def child(self, value):
         """Get a child attribute.
+
+        Note that this can't get `__getitem__`, as it'll either cause a
+        crash (eg. with `Attribute(node, 'color').type`) or simply cause
+        `maya.cmds` to throw out errors.
 
         Raises:
             TypeError: plug is not an array or compound
@@ -709,28 +719,6 @@ class Attribute(types.StrMixin):
                 raise KeyError('compound attribute "{}" does not exist'.format(value))
 
         raise TypeError('plug is not an array or compound')
-
-    def keys(self):
-        """Get all child element indexes or names."""
-        plug = self.api.plug
-        if plug.isArray:
-            return list(range(plug.numElements()))
-        if plug.isCompound:
-            self._reloadCompoundChildren()
-            return self._compoundChildren.keys()
-        return []
-
-    def items(self):
-        """Get the name and attribute of all children."""
-        plug = self.api.plug
-        if plug.isArray:
-            for i in range(plug.numElements()):
-                yield i, Attribute(self.node, plug.elementByPhysicalIndex(i))
-
-        elif plug.isCompound:
-            self._reloadCompoundChildren()
-            for k, v in self._compoundChildren.items():
-                yield k, v
 
     def __len__(self):
         """Get the number of child attributes."""
