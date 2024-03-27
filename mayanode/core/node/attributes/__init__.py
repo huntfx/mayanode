@@ -753,6 +753,16 @@ class Attribute(types.StrMixin):
         childAttrs = (Attribute(self.node, plug) for plug in childPlugs)
         self._compoundChildren = {attr.name.rsplit('.', 1)[-1]: attr for attr in childAttrs}
 
+    @property
+    def uvLinks(self):
+        """Get the nodes linked to this UV set attribute.
+
+        TODO:
+            Tests
+        """
+        links = utils.runAndLog(mc.uvLink, query=True, uvSet=self.name)
+        return [Node(link) for link in links]
+
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position

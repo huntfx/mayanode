@@ -1038,6 +1038,12 @@ class Node(utils.StrMixin):
         return self.api.dagNode.isIntermediateObject
 
     @property
+    def default(self):
+        """Return if the node is default."""
+        utils.raiseIfNodeNotFound(self)
+        return self.api.dependencyNode.isDefaultNode
+
+    @property
     def shadingGroups(self):
         """Get all the shading groups assigned to this node.
 
@@ -1163,6 +1169,105 @@ class Node(utils.StrMixin):
         return [UVSet(self, uvSet) for uvSet in self.api.mesh.getUVSetNames()]
 
     @property
+    def uvLinks(self):
+        """Get any UV links pointing to the current node.
+
+        TODO:
+            Tests
+            Return as `UvLink` object
+        """
+        if not self.exists:
+            return []
+
+        # Check if the object is able to receive UV links
+        if not utils.runAndLog(mc.uvLink, isValid=True, texture=self):
+            return []
+
+        # Get the UV links
+        # The returned list is like `['ns:node.uvSet[i].uvSetName']`
+        # `MFnMesh.getAssociatedUVSetTextures()` is able to get all the
+        # textures per UV set, but I found no way to do the reverse to
+        # get the UV sets per texture. The current method of splitting
+        # the string is messy and should be upgraded if possible.
+        uvLinks = utils.runAndLog(mc.uvLink, query=True, texture=self)
+        attributes = []
+        for uvLink in uvLinks:
+            node, attrs = uvLink.split('.', 1)
+            for i, attr in enumerate(attrs.split('.')):
+                for j, subattr in enumerate(attr.rstrip(']').split('[')):
+                    if not i:
+                        if not j:
+                            attribute = Attribute(Node(node), subattr)
+                        else:
+                            attribute = attribute[int(subattr)]
+                    else:
+                        attribute = attribute[subattr]
+            attributes.append(attribute)
+        return attributes
+
+    def _findUvChooser(self):
+        """Walk backwards along the uvCoord attributes until a uvChooser is found."""
+        node = self.api.object
+        while node.apiType() != om2.MFn.kUvChooser:
+            depNode = om2.MFnDependencyNode(node)
+            plug = depNode.findPlug('uvCoord', False)
+            if plug.isNull:
+                return None
+
+            connections = plug.connectedTo(True, False)
+            if not connections:
+                return None
+
+            node = connections[0].node()
+        return node
+
+    @property
+    def _uvLinks(self):
+        """WIP Implementation using OpenMaya."""
+        # Check if the object is able to receive UV links
+        # TODO: Is this the same as `mc.uvLink(isValid=True, texture=self)`?
+        if not self.api.dependencyNode.hasAttribute('uvCoord') or self.api.dependencyNode.typeName == 'uvChooser':
+            return []
+
+        uvChooser = self._findUvChooser()
+        if uvChooser is None:
+            return []
+
+        depNode = om2.MFnDependencyNode(uvChooser)
+        plug = depNode.findPlug('uvSets', False)
+        if plug.isNull or not plug.isArray:
+            return []
+
+        # Get actual UV sets
+        uvLinkPlugs = []
+        for uvSetPlug in map(plug.elementByPhysicalIndex, range(plug.numElements())):
+            if uvSetPlug.isNull or not uvSetPlug.isConnected:
+                continue
+            uvLinkPlugs.extend(uvSetPlug.connectedTo(True, False))
+
+        # Get remaining default UV sets
+        # TODO: Is this correct? If so rewrite to bypass the class overhead
+        foundNodes = {om2.MObjectHandle(plug.node()).hashCode() for plug in uvLinkPlugs}
+        for dagSetMember in self.shadingEngine.attrs['dagSetMembers']:
+            for connectedNode in dagSetMember.connections.inputs.nodes:
+                # Skip default nodes
+                # For example "shaderBallGeomShape1" shows up here
+                if connectedNode.default:
+                    continue
+                if connectedNode.api.handle.hashCode() in foundNodes:
+                    continue
+
+                # Find the correct UV set index
+                currentUvSet = connectedNode.uvSet
+                for attr in connectedNode.attrs['uvSet']:
+                    setNameAttr = attr['uvSetName']
+                    if setNameAttr.value == currentUvSet:
+                        uvLinkPlugs.append(setNameAttr.api.plug)
+                        break
+
+        return [Attribute(self, plug) for plug in uvLinkPlugs]
+
+    @property
     def colorSet(self):
         """Get the current color set.
 
@@ -1245,7 +1350,7 @@ class Node(utils.StrMixin):
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
-from .attributes import NodeAttributes
+from .attributes import Attribute, NodeAttributes
 from .face import FaceList
 from ..reference import Reference
 from ..bounding_box import BoundingBox

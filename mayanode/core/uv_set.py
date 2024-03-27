@@ -1,6 +1,6 @@
 import maya.cmds as mc
 
-from .. import exceptions, utils
+from .. import exceptions, types, utils
 
 
 class UVSet(utils.StrMixin):
@@ -37,6 +37,44 @@ class UVSet(utils.StrMixin):
         """Get the node."""
         return self._node
 
+    @property
+    def attr(self):
+        """Get the UV set attribute.
+
+        Raises:
+            UVSetNotFoundError
+
+        Returns:
+            Attribute('node.uvSet[i].uvSetName')
+
+        TODO:
+            Tests
+        """
+        physicalIndex = self.physicalIndex
+        for i, uvSet in enumerate(self.node.attrs['uvSet']):
+            if i == physicalIndex:
+                return uvSet['uvSetName']
+        raise exceptions.UVSetNotFoundError(self.node, self)
+
+    @property
+    def physicalIndex(self):
+        """Get the physical index of the UV set.
+
+        TODO:
+            Tests
+        """
+        mfnMesh = self.node.api.mesh
+        return mfnMesh.getUVSetNames().index(mfnMesh.currentUVSetName())
+
+    @property
+    def logicalIndex(self):
+        """Get the logical index of the UV set.
+
+        TODO:
+            Tests
+        """
+        return self.attr.api.plug.parent().logicalIndex()
+
     def delete(self):
         """Delete a color set.
 
@@ -53,3 +91,26 @@ class UVSet(utils.StrMixin):
             if 'Specified color set does not exist on the polygonal object.' in str(e):
                 raise exceptions.UVSetNotFoundError(self.node, self.name)
             raise
+
+    @property
+    def textures(self):
+        """Get a list of texture nodes which are using the UV set.
+        If the texture has a 2D texture placement, then the texture and
+        not the placement will be returned.
+
+        Equivalent:
+            `mc.uvLink(query=True, uvSet=self.attr)`
+
+        TODO:
+            `textures.append(texture)` (with `mc.uvLink`)
+            `textures.remove(texture)` (with `mc.uvLink`)
+            `textures = [texture]` (with `mc.uvLink`)
+        """
+        textures = self.node.api.mesh.getAssociatedUVSetTextures(self.name)
+        return [Node(texture) for texture in textures]
+
+
+# Handle circular dependencies
+# pylint: disable=wrong-import-position
+from .node import Node
+from .node.attributes import Attribute
