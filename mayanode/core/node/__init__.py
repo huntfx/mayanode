@@ -41,6 +41,28 @@ def _getWorldDagPath():
     return _WORLD_DAG_PATH
 
 
+def _getShadingGroups(mobj):
+    """Get all the shading group nodes for a given node.
+
+    Equivalent:
+        `mc.listConnections(self, type='shadingEngine')
+    """
+    if not om2.MObjectHandle(mobj).isValid():
+        return
+
+    iterator = om2.MItDependencyGraph(
+        mobj,
+        om2.MFn.kShadingEngine,
+        om2.MItDependencyGraph.kDownstream,
+        om2.MItDependencyGraph.kDepthFirst,
+        om2.MItDependencyGraph.kPlugLevel,
+    )
+    for _ in iterator:
+        node = iterator.currentNode()
+        if not node.isNull():
+            yield node
+
+
 class Ancestors(types.LazyList):
     """Only load the ancestor nodes when needed.
 
@@ -1016,25 +1038,38 @@ class Node(utils.StrMixin):
         return self.api.dagNode.isIntermediateObject
 
     @property
-    def shadingEngine(self):
-        """Get the shading engine assigned to the node.
-        Note that this will be assigned to a shape.
+    def shadingGroups(self):
+        """Get all the shading groups assigned to this node.
+
+        TODO:
+            Test with instances
         """
-        if not self.exists:
-            return None
-        shapes = utils.runAndLog(mc.ls, self, dag=True, shapes=True)
-        engines = utils.runAndLog(mc.listConnections, shapes, type='shadingEngine')
-        return type(self)(engines[0]) if engines else None
+        return [Node(sg) for sg in _getShadingGroups(self.api.object)]
+
+    @property
+    def shadingEngine(self):
+        """Get the shading group assigned to the node.
+
+        TODO:
+            Rename to `shadingGroup`
+            Test with instances
+        """
+        for sg in _getShadingGroups(self.api.object):
+            return sg
+        return None
 
     @shadingEngine.setter
     def shadingEngine(self, shadingEngine):
-        """Set a new shadingEngine.
+        """Set a new shading group on the current object instance.
 
         Warnings:
             No objects specified that can have connections.
 
         Raises:
             NodeDeletedError
+
+        TODO:
+            Test with instances
         """
         utils.logger.info('Setting %s shader to %s', self, shadingEngine)
         utils.raiseIfNodeNotFound(self)
