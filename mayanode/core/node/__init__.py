@@ -63,6 +63,20 @@ def _getShadingGroups(mobj):
             yield node
 
 
+def _getShadingGroup(mobj, dagPath=None):
+    """Get the shading group for a specific node.
+    This takes instances into account.
+    """
+    if dagPath is None:
+        instNum = 0
+    else:
+        instNum = dagPath.instanceNumber()
+    for i, sg in enumerate(_getShadingGroups(mobj)):
+        if i == instNum:
+            return sg
+    return None
+
+
 class Ancestors(types.LazyList):
     """Only load the ancestor nodes when needed.
 
@@ -1048,21 +1062,23 @@ class Node(utils.StrMixin):
         """Get all the shading groups assigned to this node.
 
         TODO:
-            Test with instances
+            Setup tests for instances
         """
         return [Node(sg) for sg in _getShadingGroups(self.api.object)]
 
     @property
     def shadingEngine(self):
         """Get the shading group assigned to the node.
+        Works with instances.
 
         TODO:
             Rename to `shadingGroup`
-            Test with instances
+            Setup tests for instances
         """
-        for sg in _getShadingGroups(self.api.object):
-            return sg
-        return None
+        sg = _getShadingGroup(self.api.object, self.api.dagPath)
+        if sg is None:
+            return None
+        return Node(sg)
 
     @shadingEngine.setter
     def shadingEngine(self, shadingEngine):
