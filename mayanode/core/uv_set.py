@@ -64,7 +64,7 @@ class UVSet(utils.StrMixin):
             Tests
         """
         mfnMesh = self.node.api.mesh
-        return mfnMesh.getUVSetNames().index(mfnMesh.currentUVSetName())
+        return mfnMesh.getUVSetNames().index(self.name)
 
     @property
     def logicalIndex(self):
