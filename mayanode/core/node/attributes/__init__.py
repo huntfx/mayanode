@@ -665,7 +665,9 @@ class Attribute(types.StrMixin):
     @property
     def children(self):
         """Get all attribute children.
-        Note that this is not a dict as order is important.
+        This will be fixed in the future to be a dict-like list. For
+        now though, if it is a compound plug then a dict will be
+        returned, otherwise a list.
 
         TODO:
             Make into a dict-like list
@@ -680,7 +682,7 @@ class Attribute(types.StrMixin):
         # If compound, then regenerate any children previously stored
         if plug.isCompound:
             self._reloadCompoundChildren()
-            return list(self._compoundChildren.values())
+            return self._compoundChildren
 
         return []
 

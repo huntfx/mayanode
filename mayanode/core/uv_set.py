@@ -51,9 +51,9 @@ class UVSet(utils.StrMixin):
             Tests
         """
         physicalIndex = self.physicalIndex
-        for i, uvSet in enumerate(self.node.attrs['uvSet']):
+        for i, uvSet in enumerate(self.node.attrs['uvSet'].children):
             if i == physicalIndex:
-                return uvSet['uvSetName']
+                return uvSet.children['uvSetName']
         raise exceptions.UVSetNotFoundError(self.node, self)
 
     @property

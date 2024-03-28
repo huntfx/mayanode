@@ -1215,9 +1215,9 @@ class Node(utils.StrMixin):
                         if not j:
                             attribute = Attribute(Node(node), subattr)
                         else:
-                            attribute = attribute[int(subattr)]
+                            attribute = attribute.children[int(subattr)]
                     else:
-                        attribute = attribute[subattr]
+                        attribute = attribute.children[subattr]
             attributes.append(attribute)
         return attributes
 
