@@ -1098,6 +1098,40 @@ class Node(utils.StrMixin):
         utils.runAndLog(mc.sets, self, edit=True, forceElement=shadingEngine)
 
     @property
+    def _material(self):
+        """Get the default material assigned to the node.
+        Note that materials are usually assigned to meshes.
+
+        TODO:
+            Finish WIP implementation
+            Test different node types
+        """
+        shadingGroup = self.shadingEngine
+        if shadingGroup is None:
+            return None
+
+        plug = shadingGroup.api.dependencyNode.findPlug('surfaceShader', False)
+        connections = plug.connectedTo(True, False)
+        if not connections:
+            return None
+        return Node(connections[0].node())
+
+    @property
+    def _texture(self):
+        """Get the default texture assigned to the node.
+
+        TODO:
+            Finish WIP implementation
+            Test different node types
+        """
+        material = self._material
+        plug = material.api.dependencyNode.findPlug('color', False)
+        connections = plug.connectedTo(True, False)
+        if not connections:
+            return None
+        return Node(connections[0].node())
+
+    @property
     def visible(self):
         """Determine if the node is visible.
 
@@ -1239,9 +1273,55 @@ class Node(utils.StrMixin):
 
     @property
     def _uvLinks(self):
-        """WIP Implementation using OpenMaya."""
-        # Check if the object is able to receive UV links
-        # TODO: Is this the same as `mc.uvLink(isValid=True, texture=self)`?
+        """WIP Implementation using OpenMaya.
+        This is an attempt to understand what's going on under the hood
+        as there's not a lot of information.
+        """
+        # pylint: disable=code-unreachable
+        sg = _getShadingGroup(self.api.object, self.api.dagPath)
+        if sg is None:
+            return []
+
+        result = []
+
+        # Iterate over every connected member
+        # This is slightly slower than using maya.cmds
+        plug = om2.MFnDependencyNode(sg).findPlug('dagSetMembers', False)
+        for member in map(plug.elementByPhysicalIndex, range(plug.numElements())):
+            for connectedPlug in member.connectedTo(True, True):
+                node = connectedPlug.node()
+
+                depNode = om2.MFnDependencyNode(node)
+                if depNode.isDefaultNode:
+                    continue
+
+                mesh = om2.MFnMesh(node)
+                for physicalIndex, uvSetName in enumerate(mesh.getUVSetNames()):
+                    textures = mesh.getAssociatedUVSetTextures(uvSetName)
+                    if self.api.object not in textures:
+                        continue
+
+                    plugSets = depNode.findPlug('uvSet', False)
+                    plugSet = plugSets.elementByPhysicalIndex(physicalIndex)
+                    plugName = plugSet.child(0)
+                    result.append(Attribute(Node(node), plugName))
+        return result
+
+        # Slower version of the above using the available methods
+        result = []
+        for dagSetMember in self.shadingEngine.attrs['dagSetMembers'].children:
+            for connectedNode in dagSetMember.connections.inputs.nodes:
+                if connectedNode.default:
+                    continue
+                for uvSet in connectedNode.uvSets:
+                    if self in uvSet.textures:
+                        result.append(uvSet.attr)
+        return result
+
+        # Faster way of walking through the connections from uvChoosers
+        # However this ignores any "default" links
+
+        # This might be the same as `mc.uvLink(isValid=True, texture=self)`?
         if not self.api.dependencyNode.hasAttribute('uvCoord') or self.api.dependencyNode.typeName == 'uvChooser':
             return []
 
@@ -1261,25 +1341,7 @@ class Node(utils.StrMixin):
                 continue
             uvLinkPlugs.extend(uvSetPlug.connectedTo(True, False))
 
-        # Get remaining default UV sets
-        # TODO: Is this correct? If so rewrite to bypass the class overhead
-        foundNodes = {om2.MObjectHandle(plug.node()).hashCode() for plug in uvLinkPlugs}
-        for dagSetMember in self.shadingEngine.attrs['dagSetMembers']:
-            for connectedNode in dagSetMember.connections.inputs.nodes:
-                # Skip default nodes
-                # For example "shaderBallGeomShape1" shows up here
-                if connectedNode.default:
-                    continue
-                if connectedNode.api.handle.hashCode() in foundNodes:
-                    continue
-
-                # Find the correct UV set index
-                currentUvSet = connectedNode.uvSet
-                for attr in connectedNode.attrs['uvSet']:
-                    setNameAttr = attr['uvSetName']
-                    if setNameAttr.value == currentUvSet:
-                        uvLinkPlugs.append(setNameAttr.api.plug)
-                        break
+        # TODO: Get remaining default UV sets
 
         return [Attribute(self, plug) for plug in uvLinkPlugs]
 
