@@ -58,6 +58,15 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
     def endswith(self, value):
         return self.name.endswith(value)
 
+    def strip(self, value):
+        return self.name.strip(value)
+
+    def lstrip(self, value):
+        return self.name.lstrip(value)
+
+    def rstrip(self, value):
+        return self.name.rstrip(value)
+
 
 class LazyList(MutableSequence):
     """List-like object that is loaded only when needed.

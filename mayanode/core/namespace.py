@@ -31,7 +31,7 @@ class Namespace(utils.StrMixin):
         return self.name + other
 
     def __radd__(self, other):
-        return other + self.name
+        return other.rstrip(':') + self.name
 
     @classmethod
     def ls(cls):
