@@ -24,22 +24,6 @@ class Reference(Node):
 
         return refNodes
 
-    @classmethod
-    def fromNode(cls, node):
-        """Get the reference from an individual node.
-        All the references are searched for a matching namespace.
-        Returns None if no reference was found.
-        """
-        ns = node.namespace
-        if not ns:
-            return None
-        it = om2.MItDependencyNodes(om2.MFn.kReference)
-        for _ in it:
-            refNode = it.thisNode()
-            if ns == om2.MFnReference(refNode).associatedNamespace(False):
-                return cls(refNode)
-        return None
-
     @property
     def refNode(self):
         return self
@@ -79,10 +63,18 @@ class Reference(Node):
         Equivalent:
             `mc.referenceQuery(self, filename=True, withoutCopyNumber=True)`
 
+        Returns:
+            The filepath or None.
+
         TODO:
             `ref.filepath.unresolved`
         """
-        filepath = self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=False)
+        try:
+            filepath = self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=False)
+        except RuntimeError as e:
+            if '(kFailure): Object does not exist' in str(e):
+                return None
+            raise
         return os.path.normpath(filepath)
 
     @filepath.setter
@@ -96,8 +88,16 @@ class Reference(Node):
 
         Equivalent:
             `mc.referenceQuery(self, filename=True, shortName=True, withoutCopyNumber=True)`
+
+        Returns:
+            The filename or None.
         """
-        return self.api.reference.fileName(resolvedName=False, includePath=True, includeCopyNumber=False)
+        try:
+            return self.api.reference.fileName(resolvedName=False, includePath=True, includeCopyNumber=False)
+        except RuntimeError as e:
+            if '(kFailure): Object does not exist' in str(e):
+                return None
+            raise
 
     @property
     def loaded(self):

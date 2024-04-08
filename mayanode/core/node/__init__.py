@@ -266,6 +266,14 @@ class _ApiData(object):
         new._handle = handle
         return new
 
+    @classmethod
+    def fromReference(cls, reference):
+        # pylint: disable=protected-access
+        """Get API data from an `MFnReference`."""
+        new = cls(reference.object())
+        new._reference = reference
+        return new
+
     def copy(self, instanceNumber=-1):
         # pylint: disable=protected-access
         """Create a new copy of the object."""
@@ -276,6 +284,7 @@ class _ApiData(object):
         new._dagNode = self._dagNode
         new._dagPaths = self._dagPaths
         new._mesh = self._mesh
+        new._reference = self._reference
         return new
 
     @property
@@ -527,6 +536,8 @@ class Node(utils.StrMixin):
             self.api = _ApiData.fromDagPath(name)
         elif isinstance(name, om2.MObjectHandle):
             self.api = _ApiData.fromHandle(name)
+        elif isinstance(name, om2.MFnReference):
+            self.api = _ApiData.fromReference(name)
         else:
             self.api = _ApiData.fromName(name)
 
@@ -534,7 +545,7 @@ class Node(utils.StrMixin):
 
     def __new__(cls, name, *args, **kwargs):
         """Create a new class instance, or attribute proxy if an attribute was given."""
-        if not isinstance(name, (Node, om2.MObject, om2.MDagPath, om2.MObjectHandle)) and name and '.' in name:
+        if not isinstance(name, (Node, om2.MObject, om2.MDagPath, om2.MObjectHandle, om2.MFnReference)) and name and '.' in name:
             node, attr = name.split('.', 1)
             return cls(node, *args, **kwargs).attrs[attr]
         return super(Node, cls).__new__(cls, name, *args, **kwargs)
@@ -1410,8 +1421,20 @@ class Node(utils.StrMixin):
 
     @property
     def reference(self):
-        """Get the associated reference if the node is referenced."""
-        return Reference.fromNode(self)
+        """Get the associated reference if the node is referenced.
+
+        Equivalent:
+            `mc.referenceQuery(self, referenceNode=True)`
+        """
+        if not self.referenced:
+            return None
+        depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
+        for _ in depNodeIt:
+            refNode = depNodeIt.thisNode()
+            fnRefNode = om2.MFnReference(refNode)
+            if fnRefNode.containsNodeExactly(self.api.object):
+                return Reference(fnRefNode)
+        return None
 
     @property
     def boundingBox(self):
