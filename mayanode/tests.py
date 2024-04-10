@@ -591,6 +591,24 @@ class TestAttr(unittest.TestCase):
         self.assertTrue(cube1.attrs['tx'].disconnect(cube2.attrs['tx']))
         mc.delete(cube1, cube2)
 
+    def testConnectReverse(self):
+        cube1 = Node(mc.polyCube(name='connectionTest3')[0])
+        cube2 = Node(mc.polyCube(name='connectionTest4')[0])
+        cube2.attrs['tx'] >> cube1.attrs['tx']
+        self.assertIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
+        self.assertIn(cube2.attrs['tx'], cube1.attrs['tx'].connections)
+        with self.assertRaises(RuntimeError):
+            cube1.attrs['tx'] // cube2.attrs['tx']
+        cube2.attrs['tx'] // cube1.attrs['tx']
+        self.assertNotIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
+        self.assertTrue(cube2.attrs['tx'].connect(cube1.attrs['tx']))
+        connection = cube1.attrs['tx'].connections[0]
+        self.assertTrue(connection)
+        self.assertTrue(connection.disconnect())
+        self.assertTrue(connection.connect())
+        self.assertTrue(cube2.attrs['tx'].disconnect(cube1.attrs['tx']))
+        mc.delete(cube1, cube2)
+
     def testList(self):
         self.assertIn('outColor', list(self.node.attrs))
         self.assertNotIn('test', list(self.node.attrs))

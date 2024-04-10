@@ -292,11 +292,7 @@ class ConnectionProxy(ConnectionList):
 
     def _loadRecursive(self, plug, source=True, destination=True):
         # type: (om2.MPlug, bool, bool) -> Generator[Connection, None, None]
-        """Recursively load connections from the plug and any children.
-
-        TODO:
-            Test incoming and outgoing connections (with disconnect)
-        """
+        """Recursively load connections from the plug and any children."""
         if source:
             for connectedPlug in plug.connectedTo(True, False):
                 yield Connection(self.node, plug, connectedPlug, reverse=True)
