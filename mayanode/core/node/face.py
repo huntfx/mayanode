@@ -2,6 +2,9 @@ from __future__ import absolute_import
 
 from ... import types, utils
 
+if utils.TYPE_CHECKING:
+    from typing import List
+
 
 class FaceList(types.LazyList, types.StrMixin):
     """Hold a list of all the faces on a mesh.
@@ -14,6 +17,7 @@ class FaceList(types.LazyList, types.StrMixin):
     __slots__ = ['_node']
 
     def __init__(self, node):
+        # type: (Node) -> None
         """Initialise the data from a node."""
         self._node = node
         mesh = node.api.mesh
@@ -25,6 +29,7 @@ class FaceList(types.LazyList, types.StrMixin):
 
     @property
     def name(self):
+        # type: () -> str
         """Get the attribute for all faces.
 
         TODO: `self.node.attrs['f'][0:len(self)]`
@@ -33,10 +38,12 @@ class FaceList(types.LazyList, types.StrMixin):
 
     @property
     def node(self):
+        # type: () -> Node
         """Get the node."""
         return self._node
 
     def _loadData(self, index=None):
+        # type: (int) -> None
         """Load the `Face` objects when needed."""
         if index is None:
             indexes = [i for i, item in enumerate(self._data) if item is None]
@@ -47,8 +54,14 @@ class FaceList(types.LazyList, types.StrMixin):
             self._data[index] = Face(self.node, index)
 
     def reload(self):
+        # type: () -> None
         """Refresh the data."""
-        self._data[:] = [None for _ in range(self.node.api.mesh.numPolygons)]
+        mesh = self.node.api.mesh
+        if mesh is not None:
+            numPolygons = mesh.numPolygons
+        else:
+            numPolygons = 0
+        self._data[:] = [None for _ in range(numPolygons)]
 
 
 class Face(utils.StrMixin):
@@ -61,34 +74,40 @@ class Face(utils.StrMixin):
     __all__ = ['_node', '_index']
 
     def __init__(self, node, index):
+        # type: (Node, int) -> None
         self._node = node
         self._index = index
 
     @classmethod
     def fromNode(cls, node):
+        # type: (Node) -> List[Face]
         """Get a list of faces for a node."""
         mesh = node.api.mesh
         if mesh is None:
             return []
-        return [cls(node, i) for i in range(mesh.numPolygons)]
+        return [Face(node, i) for i in range(mesh.numPolygons)]
 
     @property
     def name(self):
+        # type: () -> str
         """Get the face attribute name."""
         return '{}.f[{}]'.format(self.node, self.index)
 
     @property
     def node(self):
+        # type: () -> Node
         """Get the node."""
         return self._node
 
     @property
     def index(self):
+        # type: () -> int
         """Get the polygon ID / index."""
         return self._index
 
     @property
     def uvSets(self):
+        # type: () -> List[UVSet]
         """Get the UV sets assigned to the face.
 
         Optimisation:

@@ -1,9 +1,13 @@
 import logging
 
-import maya.api.OpenMaya as om2
+import maya.api.OpenMaya as om2  # type: ignore
 
 from . import exceptions
-from .types import StrMixin
+from .type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any, Callable
+    from .core.node import Node
 
 
 logger = logging.getLogger(__name__)
@@ -17,11 +21,13 @@ class GenerateFnCall(object):
     __slots__ = ['fn', 'args', 'kwargs']
 
     def __init__(self, fn, *args, **kwargs):
+        # type: (Callable, *Any, **Any) -> None
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
 
     def __str__(self):
+        # type: () -> str
         module = self.fn.__module__
         if module == 'maya.cmds':
             module = 'mc'
@@ -33,12 +39,14 @@ class GenerateFnCall(object):
         return '{}.{}({})'.format(module, self.fn.__name__, params)
 
     def repr(self, item):
+        # type: (Any) -> str
         if isinstance(item, StrMixin):
             item = item.name
         return repr(item)
 
 
 def runAndLog(fn, *args, **kwargs):
+    # type: (Callable, *Any, **Any) -> Any
     """Run functions and log them."""
     fnCall = GenerateFnCall(fn, *args, **kwargs)
     logger.debug('%s', fnCall)
@@ -46,14 +54,16 @@ def runAndLog(fn, *args, **kwargs):
 
 
 def raiseIfNodeNotFound(node):
+    # type: (Node) -> None
     """Raise an error if the node doesn't exist."""
     if not node.exists:
         if not node.api.object.isNull:
-            return exceptions.NullMObjectError
+            raise exceptions.NullMObjectError
         raise exceptions.NodeDeletedError(node)
 
 
 def unnetworkPlug(plug):
+    # type: (om2.MPlug) -> om2.MPlug
     """Ensure an `MPlug` is not networked.
 
     In the majority of cases, this is just constucting a new plug using
@@ -87,3 +97,8 @@ def unnetworkPlug(plug):
         return new.elementByLogicalIndex(plug.logicalIndex())
 
     return new
+
+
+# Handle circular dependencies
+# pylint: disable=wrong-import-position
+from .types import StrMixin

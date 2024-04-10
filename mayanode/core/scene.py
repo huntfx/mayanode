@@ -1,9 +1,13 @@
 import os
 
-import maya.cmds as mc
-import maya.mel as mel
+import maya.cmds as mc  # type: ignore
+import maya.mel as mel  # type: ignore
 
 from .. import types, utils
+from ..type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Dict, Optional
 
 
 class _Scene(object):
@@ -11,8 +15,10 @@ class _Scene(object):
 
     TODO: Tests
     """
+
     @property
     def path(self):
+        # type: () -> Optional[str]
         """Get the full scene path.
 
         Returns:
@@ -25,6 +31,7 @@ class _Scene(object):
 
     @path.setter
     def path(self, path):
+        # type: (str) -> None
         """Set a new scene path.
         This does not save the scene.
         """
@@ -32,6 +39,7 @@ class _Scene(object):
 
     @property
     def name(self):
+        # type: () -> Optional[str]
         """Get the scene name without its extension.
 
         Returns:
@@ -44,10 +52,12 @@ class _Scene(object):
 
     @property
     def modified(self):
+        # type: () -> bool
         """Get if the scene has been modified."""
         return utils.runAndLog(mc.file, query=True, anyModified=True)
 
     def new(self, force=False):
+        # type: (bool) -> None
         """Create a new scene.
 
         Parameters:
@@ -56,6 +66,7 @@ class _Scene(object):
         utils.runAndLog(mc.file, new=True, force=force)
 
     def open(self, path, force=False, selectivePreload=None):
+        # type: (str, bool, Optional[bool]) -> None
         """Open a scene.
 
         Parameters:
@@ -90,11 +101,12 @@ class _Scene(object):
 
         # Selective reference preload
         if selectivePreload:
-            scene = scene.replace('\\', '\\\\')  # There is no escape
-            utils.runAndLog(mc.optionVar, stringValue=('preloadRefEdTopLevelFile', scene))
+            path = path.replace('\\', '\\\\')  # There is no escape
+            utils.runAndLog(mc.optionVar, stringValue=('preloadRefEdTopLevelFile', path))
             mel.eval('PreloadReferenceEditor;')
 
     def save(self, force=True):
+        # type: (bool) -> None
         """Save the scene."""
         if force or not mc.about(batch=True):
             mc.file(force=True, save=True)
@@ -103,6 +115,7 @@ class _Scene(object):
 
     @property
     def nodes(self):
+        # type: () -> SceneNodes
         """Get all the nodes currently in the scene.
 
         Example:
@@ -119,6 +132,7 @@ class _Scene(object):
 
     @property
     def plugins(self):
+        # type: () -> Dict[str, Plugin]
         """Get all the currently loaded plugins.
 
         Returns:
@@ -128,21 +142,25 @@ class _Scene(object):
 
     @property
     def currentFrame(self):
+        # type: () -> float
         """Get the current frame of the scene."""
         return utils.runAndLog(mc.currentTime, query=True)
 
     @currentFrame.setter
     def currentFrame(self, frame):
+        # type: (float) -> None
         """Set the current frame of the scene."""
         utils.runAndLog(mc.currentTime, frame)
 
     @property
     def autoKeyframe(self):
+        # type: () -> bool
         """Get if autoKeyframe is enabled."""
         return utils.runAndLog(mc.autoKeyframe, query=True, state=True)
 
     @autoKeyframe.setter
     def autoKeyframe(self, enabled):
+        # type: (bool) -> None
         """Enable or disable autoKeyframe."""
         utils.runAndLog(mc.autoKeyframe, edit=True, state=enabled)
 
@@ -153,10 +171,12 @@ class SceneNodes(types.LazyDict):
     __slots__ = ['_loaded']
 
     def __init__(self):
+        # type: () -> None
         self._loaded = False
         super(SceneNodes, self).__init__()
 
     def _loadData(self, key=None):
+        # type: (str) -> None
         """Get the node objects."""
         if self._loaded:
             return None
@@ -172,6 +192,7 @@ class SceneNodes(types.LazyDict):
             self._data.__setitem__(key, node)
 
     def reload(self):
+        # type: () -> None
         """Refresh all the loaded data."""
         self._data.clear()
         self._loaded = False

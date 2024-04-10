@@ -1,9 +1,13 @@
 import math
 
-import maya.api.OpenMaya as om2
-import maya.cmds as mc
+import maya.api.OpenMaya as om2  # type: ignore
+import maya.cmds as mc  # type: ignore
 
 from ... import exceptions, types, utils
+from ...type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any, Generator, List, Optional, Tuple, Union
 
 
 NODE_TYPES = {
@@ -16,6 +20,7 @@ _WORLD_DAG_PATH = None
 
 
 def _getWorldHandle():
+    # type: () -> om2.MObjectHandle
     """Get the handle to the world `MObject`.
     This is needed as it's parented to everything, but not wanted when
     querying DAG parents.
@@ -34,6 +39,7 @@ def _getWorldHandle():
 
 
 def _getWorldDagPath():
+    # type: () -> om2.MDagPath
     """Get the world `MDagPath`."""
     global _WORLD_DAG_PATH
     if _WORLD_DAG_PATH is None:
@@ -42,6 +48,7 @@ def _getWorldDagPath():
 
 
 def _getShadingGroups(mobj):
+    # type: (om2.MObject) -> Generator[om2.MObject, None, None]
     """Get all the shading group nodes for a given node.
 
     Equivalent:
@@ -88,16 +95,20 @@ class Ancestors(types.LazyList):
     __slots__ = ['_node', '_ancestors', '_loadedAllAncestors']
 
     def __init__(self, node):
+        # type: (Node) -> None
         self._node = node
-        self._ancestors = []
+        self._ancestors = []  # type: List[om2.MDagPath]
         self._loadedAllAncestors = False
         super(Ancestors, self).__init__()
 
     @property
     def node(self):
+        # type: () -> Node
         return self._node
 
     def __bool__(self):
+        # type: () -> bool
+        """Determine if there are any ancestors."""
         dagPath = self.node.api.dagPath
         if dagPath is None:
             return False
@@ -105,6 +116,7 @@ class Ancestors(types.LazyList):
     __nonzero__ = __bool__
 
     def __len__(self):
+        # type: () -> int
         """Get the number of ancestors."""
         # If already loaded then the length is correct
         if self._loadedAllAncestors or self._ancestors:
@@ -123,6 +135,7 @@ class Ancestors(types.LazyList):
         return ancestorLength
 
     def _loadData(self, index=None):
+        # type: (Optional[int]) -> None
         """Load the ancestor data.
 
         If a negative index is requested, then all the DAG paths will
@@ -182,7 +195,7 @@ class Ancestors(types.LazyList):
                 self._ancestors[index] = dagPath.pop(index - dagOffset)
 
         # Get the requested indexes
-        indexes = []
+        indexes = []  # type: List[int]
         if index is None:
             indexes.extend(i for i, item in enumerate(self._data) if item is None)
         else:
@@ -206,31 +219,40 @@ class _ApiData(object):
                  '_transform', '_mesh', '_reference']
 
     def __init__(self, mObject, instanceNumber=-1):
+        # type: (om2.MObject, int) -> None
         if mObject.isNull():
             raise exceptions.NullMObjectError
 
         self._object = mObject
         self._instanceNumber = instanceNumber
-        self._handle = None
-        self._dagNode = self._dagPaths = self._dependencyNode = None
-        self._transform = self._mesh = self._reference = None
+        self._handle = None  # type: Optional[om2.MObjectHandle]
+        self._dependencyNode = None  # type: Optional[om2.MFnDependencyNode]
+        self._transform = None  # type: Optional[om2.MFnTransform]
+        self._mesh = None  # type: Optional[om2.MFnMesh]
+        self._reference = None  # type: Optional[om2.MFnReference]
+        self._dagNode = None  # type: Optional[om2.MFnDagNode]
+        self._dagPaths = None  # type: Optional[List[om2.MDagPath]]
 
     def __bool__(self):
+        # type: () -> bool
         """Determine if the node is valid."""
         return not self.object.isNull()
     __nonzero__ = __bool__
 
     def __eq__(self, other):
+        # type: (Any) -> bool
         if isinstance(other, _ApiData):
             return self.handle == other.handle
         return False
 
     def __hash__(self):
+        # type: () -> int
         dagPath = self.dagPath
         return self.handle.hashCode() + dagPath.instanceNumber() if dagPath is not None else 0
 
     @classmethod
     def fromName(cls, name):
+        # type: (str) -> _ApiData
         # pylint: disable=protected-access
         """Get API data from the name of a node."""
         selection = om2.MSelectionList()
@@ -251,6 +273,7 @@ class _ApiData(object):
 
     @classmethod
     def fromDagPath(cls, dagPath):
+        # type: (om2.MDagPath) -> _ApiData
         # pylint: disable=protected-access
         """Get API data from an `MDagPath`."""
         instanceNumber = dagPath.instanceNumber()
@@ -260,6 +283,7 @@ class _ApiData(object):
 
     @classmethod
     def fromHandle(cls, handle):
+        # type: (om2.MObjectHandle) -> _ApiData
         # pylint: disable=protected-access
         """Get API data from an `MObjectHandle`."""
         new = cls(handle.object())
@@ -268,6 +292,7 @@ class _ApiData(object):
 
     @classmethod
     def fromReference(cls, reference):
+        # type: (om2.MFnReference) -> _ApiData
         # pylint: disable=protected-access
         """Get API data from an `MFnReference`."""
         new = cls(reference.object())
@@ -275,11 +300,11 @@ class _ApiData(object):
         return new
 
     def copy(self, instanceNumber=-1):
+        # type: (int) -> _ApiData
         # pylint: disable=protected-access
         """Create a new copy of the object."""
         new = type(self)(self.object, instanceNumber)
         new._handle = self._handle
-        new._dagPaths = self._dagPaths
         new._dependencyNode = self._dependencyNode
         new._dagNode = self._dagNode
         new._dagPaths = self._dagPaths
@@ -289,6 +314,7 @@ class _ApiData(object):
 
     @property
     def object(self):
+        # type: () -> om2.MObject
         """Get the `MObject`.
 
         Notable methods:
@@ -298,6 +324,7 @@ class _ApiData(object):
 
     @property
     def handle(self):
+        # type: () -> om2.MObjectHandle
         """Get the `MObjectHandle`.
 
         Notable methods:
@@ -310,6 +337,7 @@ class _ApiData(object):
 
     @property
     def dependencyNode(self):
+        # type: () -> om2.MFnDependencyNode
         """Get the `MFnDependencyNode`.
 
         Notable methods:
@@ -322,6 +350,7 @@ class _ApiData(object):
 
     @property
     def dagNode(self):
+        # type: () -> Optional[om2.MFnDagNode]
         """Get the `MFnDagNode`.
 
         Notable methods:
@@ -340,6 +369,7 @@ class _ApiData(object):
 
     @property
     def dagPath(self):
+        # type: () -> Optional[om2.dagPath]
         """Get the `MDagPath` object, or None.
 
         Notable methods:
@@ -363,9 +393,13 @@ class _ApiData(object):
 
     @property
     def dagPaths(self):
+        # type: () -> List[om2.dagPath]
         """Get all `MDagPath` objects to this node and instances.
         Because instances can be created and deleted, it is recommended
         to run `recalculateDagPaths()` first.
+
+        TODO:
+            Fix and test issue if `self._dagPaths` remains None.
         """
         if self._dagPaths is None:
             self.recalculateDagPaths()
@@ -376,6 +410,7 @@ class _ApiData(object):
         return self._dagPaths
 
     def recalculateDagPaths(self):
+        # type: () -> int
         """Recalculate all the `MDagPath` nodes.
         This should only be used when checking for instances, since they
         can be created or deleted at any time.
@@ -406,6 +441,7 @@ class _ApiData(object):
         return self._instanceNumber
 
     def getTransformDagPath(self):
+        # type: () -> Optional[om2.MDagPath]
         """Get the transform dag path from a shape node."""
         if self.dagPath is None:
             return None
@@ -416,6 +452,7 @@ class _ApiData(object):
         return transformDagPath
 
     def getShapeDagPath(self):
+        # type: () -> Optional[om2.MDagPath]
         """Get the shape dag path from a transform node."""
         if self.dagPath is None or not self.dagPath.numberOfShapesDirectlyBelow():
             return None
@@ -427,6 +464,7 @@ class _ApiData(object):
         return shapeDagPath
 
     def hasGeometry(self):
+        # type: () -> bool
         """Determine if the object contains geometry.
         If not, then `MFnMesh` commands will fail.
         """
@@ -434,6 +472,7 @@ class _ApiData(object):
 
     @property
     def mesh(self):
+        # type: () -> Optional[om2.MFnMesh]
         """Get the `MFnMesh`.
 
         Notable methods:
@@ -454,6 +493,7 @@ class _ApiData(object):
         return self._mesh
 
     def getShapeMesh(self):
+        # type: () -> Optional[om2.MFnMesh]
         """Get the `MFnMesh` for a transform or shape.
 
         Only shapes have support for it, so if a transform is given
@@ -474,6 +514,7 @@ class _ApiData(object):
 
     @property
     def transform(self):
+        # type: () -> Optional[om2.MFnTransform]
         """Get the `MFnTransform`
 
         Notable methods:
@@ -491,6 +532,7 @@ class _ApiData(object):
 
     @property
     def reference(self):
+        # type: () -> Optional[om2.MFnReference]
         """Get the `MFnReference`.
 
         Notable methods:
@@ -520,6 +562,7 @@ class Node(utils.StrMixin):
     __slots__ = ['api', '_attrs']
 
     def __init__(self, name, _instanceNumber=-1):
+        # type: (Any, int) -> None
         """Setup the data.
 
         Parameters:
@@ -529,7 +572,7 @@ class Node(utils.StrMixin):
                 loading with an MObject.
             """
         if isinstance(name, Node):
-            self.api = name.api.copy(instanceNumber=_instanceNumber)
+            self.api = name.api.copy(instanceNumber=_instanceNumber)  # type: _ApiData
         elif isinstance(name, om2.MObject):
             self.api = _ApiData(name, instanceNumber=_instanceNumber)
         elif isinstance(name, om2.MDagPath):
@@ -551,12 +594,17 @@ class Node(utils.StrMixin):
         return super(Node, cls).__new__(cls, name, *args, **kwargs)
 
     def __add__(self, attr):
-        """Get a new object or attribute."""
+        # type: (str) -> Union[Node, Attribute]
+        """Get a new object or attribute.
+
+        TODO: Use `str()` instead and don't construct a new class.
+        """
         if attr[0] == '.':
             return self.attrs[attr[1:]]
-        return type(self)(str(self) + attr)
+        return Node(str(self) + attr)
 
     def __eq__(self, other):
+        # type: (Any) -> bool
         """Determine if two nodes are equal.
 
         Examples:
@@ -592,10 +640,12 @@ class Node(utils.StrMixin):
         return self.name.rsplit('|', 1)[-1] == other
 
     def __hash__(self):
+        # type: () -> int
         return hash(self.api)
 
     @classmethod
     def ls(self, *args, **kwargs):
+        # type: (*Any, **Any) -> List[Node]
         """Shortcut to search the scene."""
         kwargs['objectsOnly'] = True
         result = utils.runAndLog(mc.ls, *args, **kwargs)
@@ -603,6 +653,7 @@ class Node(utils.StrMixin):
 
     @classmethod
     def create(cls, nodeType, **kwargs):
+        # type: (str, **Any) -> Node
         """Create a new node.
 
         Usage:
@@ -643,6 +694,7 @@ class Node(utils.StrMixin):
 
     @property
     def exists(self):
+        # type: () -> bool
         """Determine if the node exists.
 
         Preemptive tests barely add any overhead - 1,000,000 calls takes
@@ -652,6 +704,7 @@ class Node(utils.StrMixin):
 
     @property
     def uuid(self):
+        # type: () -> str
         """Get the node UUID.
         This will always work even when the node is deleted.
 
@@ -665,6 +718,7 @@ class Node(utils.StrMixin):
 
     @property
     def name(self):
+        # type: () -> str
         """Get the node name.
         This will always work even when the node is deleted.
 
@@ -680,6 +734,7 @@ class Node(utils.StrMixin):
 
     @name.setter
     def name(self, name):
+        # type: (str) -> None
         """Set a new node name.
 
         Warnings:
@@ -699,6 +754,7 @@ class Node(utils.StrMixin):
 
     @property
     def longName(self):
+        # type: () -> str
         """Get the node long name.
 
         Raises:
@@ -711,6 +767,7 @@ class Node(utils.StrMixin):
 
     @property
     def type(self):
+        # type: () -> str
         """Get the node type.
 
         Alternatives:
@@ -724,11 +781,13 @@ class Node(utils.StrMixin):
 
     @property
     def attrs(self):
+        # type: () -> NodeAttributes
         """Get the attr dict."""
         utils.raiseIfNodeNotFound(self)
         return self._attrs
 
     def translate(self, x, y, z):
+        # type: (float, float, float) -> None
         """Translate the node with relative coordinates.
 
         Raises:
@@ -739,6 +798,7 @@ class Node(utils.StrMixin):
 
     @property
     def translation(self):
+        # type: () -> Optional[types.Coordinate]
         """Get the translation of the node.
 
         Equivalent:
@@ -759,6 +819,7 @@ class Node(utils.StrMixin):
 
     @translation.setter
     def translation(self, value):
+        # type: (Tuple[float, float, float]) -> None
         """Set a new node translation.
 
         Raises:
@@ -768,6 +829,7 @@ class Node(utils.StrMixin):
         utils.runAndLog(mc.xform, self, translation=value, worldSpace=True)
 
     def rotate(self, x, y, z):
+        # type: (float, float, float) -> None
         """Rotate the node with relative coordinates.
 
         Raises:
@@ -778,6 +840,7 @@ class Node(utils.StrMixin):
 
     @property
     def rotation(self):
+        # type: () -> Optional[types.Coordinate]
         """Get the rotation of the node.
 
         Equivalent:
@@ -798,6 +861,7 @@ class Node(utils.StrMixin):
 
     @rotation.setter
     def rotation(self, value):
+        # type: (Tuple[float, float, float]) -> None
         """Set a new node rotation.
 
         Raises:
@@ -807,6 +871,7 @@ class Node(utils.StrMixin):
         utils.runAndLog(mc.xform, self, rotation=value, worldSpace=True)
 
     def scale(self, x, y, z):
+        # type: (float, float, float) -> None
         """Rotate the node with relative coordinates.
 
         Raises:
@@ -817,6 +882,7 @@ class Node(utils.StrMixin):
 
     @property
     def scaling(self):
+        # type: () -> Optional[types.Coordinate]
         """Get the scale of the node.
 
         Equivalent:
@@ -837,6 +903,7 @@ class Node(utils.StrMixin):
 
     @scaling.setter
     def scaling(self, value):
+        # type: (Tuple[float, float, float]) -> None
         """Set a new node scale.
 
         Raises:
@@ -847,6 +914,7 @@ class Node(utils.StrMixin):
 
     @property
     def namespace(self):
+        # type: () -> Namespace
         """Get the node namespace.
 
         Raises:
@@ -858,12 +926,16 @@ class Node(utils.StrMixin):
 
     @namespace.setter
     def namespace(self, namespace):
+        # type: (str) -> None
         """Set a new namespace.
         It will be created if it doesn't exist. Any illegal characters
         will be automatically converted to underscores.
 
         Raises:
             NodeDeletedError
+
+        TODO:
+            Test giving a namespace object
         """
         utils.raiseIfNodeNotFound(self)
         if not namespace or namespace == ':':
@@ -873,13 +945,14 @@ class Node(utils.StrMixin):
 
         else:
             utils.logger.info('Setting "%s" namespace to "%s"', self, namespace)
-            namespace = Namespace(namespace)
-            if not namespace.exists:
-                namespace.create()
-            utils.runAndLog(mc.rename, self.name, namespace + ':' + self.name.rsplit(':', 1)[-1])
+            namespaceObj = Namespace(namespace)
+            if not namespaceObj.exists:
+                namespaceObj.create()
+            utils.runAndLog(mc.rename, self.name, namespaceObj + ':' + self.name.rsplit(':', 1)[-1])
 
     @property
     def parents(self):
+        # type: () -> List[Node]
         """Get the node parents."""
         if self.api.dagNode is None:
             return []
@@ -888,11 +961,12 @@ class Node(utils.StrMixin):
         for parent in map(self.api.dagNode.parent, range(self.api.dagNode.parentCount())):
             if om2.MObjectHandle(parent) == _getWorldHandle():
                 continue
-            result.append(type(self)(parent))
+            result.append(Node(parent))
         return result
 
     @property
     def parent(self):
+        # type: () -> Optional[Node]
         """Get the node parent."""
         if not self.exists:
             return None
@@ -903,10 +977,11 @@ class Node(utils.StrMixin):
         parentDagPath = om2.MDagPath(dagPath).pop()
         if parentDagPath == _getWorldDagPath():
             return None
-        return type(self)(parentDagPath)
+        return Node(parentDagPath)
 
     @parent.setter
     def parent(self, parent):
+        # type: (Union[Node, str]) -> None
         """Set a new node parent.
         Note that Maya will error if setting the parent to the current parent.
 
@@ -937,6 +1012,7 @@ class Node(utils.StrMixin):
 
     @property
     def children(self):
+        # type: () -> List[Node]
         """Get all node children.
 
         TODO: Test correct instance.
@@ -944,10 +1020,11 @@ class Node(utils.StrMixin):
         if not self.exists or self.api.dagNode is None:
             return []
         apiChildren = map(self.api.dagNode.child, range(self.api.dagNode.childCount()))
-        return list(map(type(self), apiChildren))
+        return list(map(Node, apiChildren))
 
     @property
     def descendents(self):
+        # type: () -> List[Node]
         """Get all node descendents.
         Instances are deduplicated so this only returns unique nodes.
 
@@ -957,7 +1034,6 @@ class Node(utils.StrMixin):
         if not self.exists or self.api.dagPath is None:
             return []
 
-        cls = type(self)
         dag = om2.MItDag()
         dag.reset(self.api.dagPath, om2.MItDag.kBreadthFirst)
         dag.next()
@@ -972,14 +1048,15 @@ class Node(utils.StrMixin):
                 if handle.hashCode() in seen:
                     continue
                 seen.add(handle.hashCode())
-                result.append(cls(handle))
+                result.append(Node(handle))
 
             else:
-                result.append(cls(item))
+                result.append(Node(item))
         return result
 
     @property
     def ancestors(self):
+        # type: () -> Ancestors
         """Get all node ancestors, starting with the parent.
         This does not get ancestors of other instances.
 
@@ -994,13 +1071,13 @@ class Node(utils.StrMixin):
 
     @property
     def connections(self):
+        # type: () -> NodeConnectionProxy
         """Get the node connections as plugs."""
-        if not self.exists:
-            return []
         return NodeConnectionProxy(self)
 
     @property
     def shape(self):
+        # type: () -> Optional[Node]
         """Get the shape node."""
         if not self.exists:
             return None
@@ -1012,6 +1089,7 @@ class Node(utils.StrMixin):
 
     @property
     def transform(self):
+        # type: () -> Optional[Node]
         """Get the transform node."""
         if not self.exists:
             return None
@@ -1022,6 +1100,7 @@ class Node(utils.StrMixin):
         return Node(transformDagPath)
 
     def instance(self, **kwargs):
+        # type: (**Any) -> Optional[Node]
         """Create an instance of the object.
 
         Raises:
@@ -1029,10 +1108,11 @@ class Node(utils.StrMixin):
         """
         utils.raiseIfNodeNotFound(self)
         inst = utils.runAndLog(mc.instance, self, **kwargs)[0]
-        return type(self)(inst)
+        return Node(inst)
 
     @property
     def instanced(self):
+        # type: () -> bool
         """Return if the node is instanced."""
         if not self.exists:
             return False
@@ -1040,6 +1120,7 @@ class Node(utils.StrMixin):
 
     @property
     def instances(self):
+        # type: () -> List[Node]
         """Get all the node instances including this."""
         if not self.exists:
             return []
@@ -1047,16 +1128,18 @@ class Node(utils.StrMixin):
             return [self]
 
         instanceNumber = self.api.recalculateDagPaths()
-        return [self if instanceNumber == i else type(self)(self, _instanceNumber=i)
+        return [self if instanceNumber == i else Node(self, _instanceNumber=i)
                 for i, dagPath in enumerate(self.api.dagPaths) if dagPath.isValid()]
 
     @property
     def instanceNumber(self):
+        # type: () -> int
         """Get the index of the current index."""
         return self.api.recalculateDagPaths()
 
     @property
     def intermediate(self):
+        # type: () -> bool
         """Return if the node is intermediate."""
         if not self.exists or self.api.dagNode is None:
             return False
@@ -1064,12 +1147,14 @@ class Node(utils.StrMixin):
 
     @property
     def default(self):
+        # type: () -> bool
         """Return if the node is default."""
         utils.raiseIfNodeNotFound(self)
         return self.api.dependencyNode.isDefaultNode
 
     @property
     def shadingGroups(self):
+        # type: () -> List[Node]
         """Get all the shading groups assigned to this node.
 
         TODO:
@@ -1079,6 +1164,7 @@ class Node(utils.StrMixin):
 
     @property
     def shadingEngine(self):
+        # type: () -> Optional[Node]
         """Get the shading group assigned to the node.
         Works with instances.
 
@@ -1093,6 +1179,7 @@ class Node(utils.StrMixin):
 
     @shadingEngine.setter
     def shadingEngine(self, shadingEngine):
+        # type: (Union[str, Node]) -> None
         """Set a new shading group on the current object instance.
 
         Warnings:
@@ -1110,6 +1197,7 @@ class Node(utils.StrMixin):
 
     @property
     def _material(self):
+        # type: () -> Optional[Node]
         """Get the default material assigned to the node.
         Note that materials are usually assigned to meshes.
 
@@ -1129,6 +1217,7 @@ class Node(utils.StrMixin):
 
     @property
     def _texture(self):
+        # type: () -> Optional[Node]
         """Get the default texture assigned to the node.
 
         TODO:
@@ -1136,6 +1225,8 @@ class Node(utils.StrMixin):
             Test different node types
         """
         material = self._material
+        if material is None:
+            return None
         plug = material.api.dependencyNode.findPlug('color', False)
         connections = plug.connectedTo(True, False)
         if not connections:
@@ -1144,6 +1235,7 @@ class Node(utils.StrMixin):
 
     @property
     def visible(self):
+        # type: () -> bool
         """Determine if the node is visible.
 
         First test the "visibility" attribute. If it is still set, then
@@ -1172,6 +1264,7 @@ class Node(utils.StrMixin):
         return parent.visible
 
     def delete(self):
+        # type: () -> None
         """Delete the node.
 
         Raises:
@@ -1185,6 +1278,7 @@ class Node(utils.StrMixin):
 
     @property
     def uvSet(self):
+        # type: () -> Optional[UVSet]
         """Get the current UV set.
 
         Equivalent:
@@ -1196,12 +1290,16 @@ class Node(utils.StrMixin):
 
     @uvSet.setter
     def uvSet(self, uvSet):
+        # type: (Union[str, UVSet]) -> None
         """Set the current UV set.
         This will be skipped if the requested UV set is the current one.
 
         Raises:
             UVSetNotFoundError
             NodeNotFoundError
+
+        TODO:
+            Test giving a UVSet instance
         """
         utils.raiseIfNodeNotFound(self)
 
@@ -1220,6 +1318,7 @@ class Node(utils.StrMixin):
 
     @property
     def uvSets(self):
+        # type: () -> List[UVSet]
         """Get a list of UV sets for the node.
 
         Equivalent:
@@ -1231,6 +1330,7 @@ class Node(utils.StrMixin):
 
     @property
     def uvLinks(self):
+        # type: () -> List[Attribute]
         """Get any UV links pointing to the current node.
 
         TODO:
@@ -1284,6 +1384,7 @@ class Node(utils.StrMixin):
 
     @property
     def _uvLinks(self):
+        # type: () -> List[Attribute]
         """WIP Implementation using OpenMaya.
         This is an attempt to understand what's going on under the hood
         as there's not a lot of information.
@@ -1358,6 +1459,7 @@ class Node(utils.StrMixin):
 
     @property
     def colorSet(self):
+        # type: () -> Optional[ColorSet]
         """Get the current color set.
 
         Equivalent:
@@ -1369,11 +1471,15 @@ class Node(utils.StrMixin):
 
     @colorSet.setter
     def colorSet(self, colorSet):
+        # type: (Union[str, ColorSet]) -> None
         """Set a new color set.
 
         Raises:
             ColorSetNotFoundError
             NodeNotFoundError
+
+        TODO:
+            Test using a ColourSet instance
         """
         utils.logger.info('Setting %s color set to %s', self, colorSet)
         utils.raiseIfNodeNotFound(self)
@@ -1386,6 +1492,7 @@ class Node(utils.StrMixin):
 
     @property
     def colorSets(self):
+        # type: () -> List[ColorSet]
         """Get a list of color sets for the node.
 
         Equivalent:
@@ -1397,16 +1504,19 @@ class Node(utils.StrMixin):
 
     @property
     def faces(self):
+        # type: () -> FaceList
         """Get a list of faces."""
         return FaceList(self)
 
     @property
     def scene(self):
+        # type: () -> _Scene
         """Get the current scene."""
         return Scene
 
     @property
     def referenced(self):
+        # type: () -> bool
         """Get if the node is referenced.
 
         Equivalent:
@@ -1421,6 +1531,7 @@ class Node(utils.StrMixin):
 
     @property
     def reference(self):
+        # type: () -> Optional[Reference]
         """Get the associated reference if the node is referenced.
 
         Equivalent:
@@ -1438,6 +1549,7 @@ class Node(utils.StrMixin):
 
     @property
     def boundingBox(self):
+        # type: () -> BoundingBox
         """Get the bounding box of the node.
 
         Raises:
@@ -1458,5 +1570,5 @@ from ..bounding_box import BoundingBox
 from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
 from ..namespace import Namespace
-from ..scene import Scene
+from ..scene import Scene, _Scene
 from ..uv_set import UVSet

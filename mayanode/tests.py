@@ -1,7 +1,7 @@
 import unittest
 
-import maya.cmds as mc
-import maya.mel as mel
+import maya.cmds as mc  # type: ignore
+import maya.mel as mel  # type: ignore
 
 from mayanode import Node, exceptions
 

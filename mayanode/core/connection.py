@@ -1,7 +1,11 @@
-import maya.api.OpenMaya as om2
-import maya.cmds as mc
+import maya.api.OpenMaya as om2  # type: ignore
+import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
+from ..type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any, Generator, Iterator, List, Optional
 
 
 class Connection(utils.StrMixin):
@@ -13,6 +17,7 @@ class Connection(utils.StrMixin):
     __slots__ = ['_reverse', '_srcNode', '_srcPlug', '_srcAttr', '_dstNode', '_dstPlug', '_dstAttr']
 
     def __init__(self, srcNode, srcPlug, dstPlug, reverse=False):
+        # type: (Node, om2.MPlug, om2.MPlug, bool) -> None
         """Setup the connection attributes.
 
         Parameters:
@@ -23,14 +28,20 @@ class Connection(utils.StrMixin):
         self._reverse = reverse
         self._reverse = reverse
         self._srcNode = srcNode
+        self._dstNode = None  # type: Optional[Node]
+
         self._srcPlug = utils.unnetworkPlug(srcPlug)
         self._dstPlug = utils.unnetworkPlug(dstPlug)
-        self._srcAttr = self._dstNode = self._dstAttr = None
+
+        self._dstAttr = None  # type: Optional[Attribute]
+        self._srcAttr = None  # type: Optional[Attribute]
 
     def __repr__(self):
+        # type: () -> str
         return "<{}(source='{}', destination='{}')>".format(type(self).__name__, self.source, self.destination)
 
     def __eq__(self, other):
+        # type: (Any) -> bool
         """Check for equality.
         This takes into account the direction of the connection. For
         example, with `pCube1.tx >> pCube2.tx`, then it will equal
@@ -51,11 +62,13 @@ class Connection(utils.StrMixin):
 
     @property
     def valid(self):
+        # type: () -> bool
         """Determine if the connection is valid."""
         return self.source.exists and self.destination.exists
 
     @property
     def exists(self):
+        # type: () -> bool
         """Determine if the connection exists.
 
         The equivalent command is `mc.isConnected`, which from a quick
@@ -68,6 +81,7 @@ class Connection(utils.StrMixin):
 
     @property
     def origin(self):
+        # type: () -> Attribute
         """Load the attribute proxy for the origin attribute."""
         if self._srcAttr is None:
             self._srcAttr = Attribute(self._srcNode, self._srcPlug)
@@ -75,11 +89,13 @@ class Connection(utils.StrMixin):
 
     @property
     def source(self):
+        # type: () -> Attribute
         """Get the attribute proxy for the connection source."""
         return self.target if self._reverse else self.origin
 
     @property
     def target(self):
+        # type: () -> Attribute
         """Load the attribute proxy for the target attribute."""
         if self._dstAttr is None:
             self._dstAttr = Attribute(self.node, self._dstPlug)
@@ -87,31 +103,37 @@ class Connection(utils.StrMixin):
 
     @property
     def attr(self):
+        # type: () -> Attribute
         """Alias to get the target attribute."""
         return self.target
 
     @property
     def destination(self):
+        # type: () -> Attribute
         """Get the attribute proxy for the connection destination."""
         return self.origin if self._reverse else self.target
 
     @property
     def node(self):
+        # type: () -> Node
         """Load the destination node without an attribute."""
         if self._dstNode is None:
             self._dstNode = Node(self._dstPlug.node())
         return self._dstNode
 
     def __iter__(self):
+        # type: () -> Iterator[Attribute]
         yield self.source
         yield self.destination
 
     @property
     def name(self):
+        # type: () -> str
         """Get the destination attribute name."""
         return self.target.name
 
     def connect(self):
+        # type: () -> bool
         """Create a connection.
 
         Raises:
@@ -134,6 +156,7 @@ class Connection(utils.StrMixin):
         return False
 
     def disconnect(self):
+        # type: () -> bool
         """Break a connection.
 
         Raises:
@@ -159,6 +182,7 @@ class ConnectionList(types.LazyList):
     """Hold multiple connections and provide a way to connect/disconnect all."""
 
     def connect(self):
+        # type: () -> ConnectionList
         """Create all connections."""
         result = []
         for connection in self:
@@ -170,6 +194,7 @@ class ConnectionList(types.LazyList):
         return ConnectionList(result)
 
     def disconnect(self):
+        # type: () -> ConnectionList
         """Delete all connections."""
         result = []
         for connection in self:
@@ -180,9 +205,9 @@ class ConnectionList(types.LazyList):
                 pass
         return ConnectionList(result)
 
-
     @property
     def nodes(self):
+        # type: () -> List[Node]
         """Get a deduplicated list of all connected nodes.
 
         Equivalent:
@@ -190,10 +215,11 @@ class ConnectionList(types.LazyList):
         """
         nodes = (connection.node for connection in self._data)
         seen = set()
-        return [node for node in nodes if node not in seen and not seen.add(node)]
+        return [node for node in nodes if node not in seen and not seen.add(node)]  # type: ignore
 
     @property
     def attrs(self):
+        # type: () -> List[Attribute]
         """Get a deduplicated list of all connected attributes.
 
         Equivalent:
@@ -201,7 +227,7 @@ class ConnectionList(types.LazyList):
         """
         attrs = (connection.target for connection in self._data)
         seen = set()
-        return [attr for attr in attrs if attr not in seen and not seen.add(attr)]
+        return [attr for attr in attrs if attr not in seen and not seen.add(attr)]  # type: ignore
 
 
 class ConnectionProxy(ConnectionList):
@@ -216,42 +242,57 @@ class ConnectionProxy(ConnectionList):
     __slots__ = ['_connections', '_sourceConnections', '_destinationConnections']
 
     def __init__(self):
-        self._sourceConnections = None
-        self._destinationConnections = None
+        # type: () -> None
+        self._sourceConnections = None  # type: Optional[List[Connection]]
+        self._destinationConnections = None  # type: Optional[List[Connection]]
         super(ConnectionProxy, self).__init__()
 
     @property
     def inputs(self):
+        # type: () -> ConnectionList
         """Get the input/source connections."""
         self._loadData(source=True, destination=False)
         return ConnectionList(self._sourceConnections)
 
     @property
     def outputs(self):
+        # type: () -> ConnectionList
         """Get the output/destination connections."""
         self._loadData(source=False, destination=True)
         return ConnectionList(self._destinationConnections)
 
     @property
+    def node(self):
+        # type: () -> Node
+        """Get the node.
+        Requires an override.
+        """
+        raise NotImplementedError
+
+    @property
     def nodes(self):
+        # type: () -> List[Node]
         """Get all connected nodes."""
         self._loadData(source=True, destination=True)
         return super(ConnectionProxy, self).nodes
 
     @property
     def attrs(self):
+        # type: () -> List[Attribute]
         """Get all connected attributes."""
         self._loadData(source=True, destination=True)
         return super(ConnectionProxy, self).attrs
 
     @property
     def plugs(self):
+        # type: () -> List[om2.MPlug]
         """Get the `MPlug` objects.
         Requires override.
         """
         raise NotImplementedError
 
     def _loadRecursive(self, plug, source=True, destination=True):
+        # type: (om2.MPlug, bool, bool) -> Generator[Connection, None, None]
         """Recursively load connections from the plug and any children.
 
         TODO:
@@ -260,7 +301,7 @@ class ConnectionProxy(ConnectionList):
         for connectedPlug in plug.connectedTo(source, destination):
             yield Connection(self.node, plug, connectedPlug)
 
-        plugs = []
+        plugs = []  # type: List[om2.MPlug]
         if plug.isArray:
             plugs.extend(map(plug.elementByPhysicalIndex, range(plug.numElements())))
         elif plug.isCompound:
@@ -271,14 +312,19 @@ class ConnectionProxy(ConnectionList):
                 yield connection
 
     def _loadData(self, index=None, source=True, destination=True):
-        """Get the connection data from the plugs."""
+        # type: (Optional[int], bool, bool) -> None
+        """Get the connection data from the plugs.
+
+        TODO:
+            Split into a different method
+        """
         # Ensure the data is only loaded once
-        if destination:
+        if TYPE_CHECKING or destination:
             if self._destinationConnections is None:
                 self._destinationConnections = []
             else:
                 destination = False
-        if source:
+        if TYPE_CHECKING or source:
             if self._sourceConnections is None:
                 self._sourceConnections = []
             else:
@@ -300,6 +346,7 @@ class ConnectionProxy(ConnectionList):
             self._data.extend(self._sourceConnections)
 
     def reload(self):
+        # type: () -> None
         """Refresh all the loaded data."""
         self._destinationConnections = self._sourceConnections = None
         super(ConnectionProxy, self).reload()
@@ -311,23 +358,30 @@ class AttributeConnectionProxy(ConnectionProxy):
     __slots__ = ['_attr']
 
     def __init__(self, attr):
+        # type: (Attribute) -> None
         super(AttributeConnectionProxy, self).__init__()
         self._attr = attr
 
     @property
     def attr(self):
+        # type: () -> Attribute
         """Get the attribute."""
         return self._attr
 
     @property
     def node(self):
+        # type: () -> Node
         """Get the node."""
-        return self._attr.node
+        return self.attr.node
 
     @property
     def plugs(self):
+        # type: () -> List[om2.MPlug]
         """Get the attribute `MPlug` objects."""
-        return self._attr.api.plugs
+        attrApi = self.attr.api
+        if attrApi.plug.isNull:
+            return []
+        return attrApi.plugs
 
 
 class NodeConnectionProxy(ConnectionProxy):
@@ -336,18 +390,23 @@ class NodeConnectionProxy(ConnectionProxy):
     __slots__ = ['_node']
 
     def __init__(self, node):
+        # type: (Node) -> None
         super(NodeConnectionProxy, self).__init__()
         self._node = node
 
     @property
     def node(self):
+        # type: () -> Node
         """Get the node."""
         return self._node
 
     @property
     def plugs(self):
+        # type: () -> List[om2.MPlug]
         """Get the node `MPlug` objects."""
-        return [utils.unnetworkPlug(plug) for plug in self._node.api.dependencyNode.getConnections()]
+        if not self.node.exists:
+            return []
+        return [utils.unnetworkPlug(plug) for plug in self.node.api.dependencyNode.getConnections()]
 
 
 # Handle circular dependencies

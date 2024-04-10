@@ -1,9 +1,14 @@
 from __future__ import absolute_import
 
-import maya.api.OpenMaya as om2
-import maya.cmds as mc
+import maya.api.OpenMaya as om2  # type: ignore
+import maya.cmds as mc  # type: ignore
 
 from .... import exceptions, types, utils
+from ....type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any, Dict, Iterator, List, Optional, Union
+    from typing import KeysView, ValuesView, ItemsView
 
 
 if str is not bytes:
@@ -53,6 +58,7 @@ ATTR_TYPES = {
 
 
 def _getPlugValue(plug):
+    # type: (om2.MPlug) -> Any
     """Get the value of the plug as the correct type.
 
     Raises:
@@ -113,6 +119,7 @@ def _getPlugValue(plug):
 
 
 def _setPlugValue(plug, value):
+    # type: (om2.MPlug, Any) -> None
     """Recursively set the plug value.
     This assumes the correct data types are given.
 
@@ -142,30 +149,37 @@ class NodeAttributes(dict):
     __slots__ = ['node', '_loaded']
 
     def __init__(self, node):
+        # type: (Node) -> None
         self.node = node
         self._loaded = False
         super(NodeAttributes, self).__init__()
 
     def __repr__(self):
+        # type: () -> str
         self._ensureAttrs()
         return super(NodeAttributes, self).__repr__()
 
     def __getitem__(self, attr):
+        # type: (str) -> Attribute
         self._ensureAttr(attr)
         return super(NodeAttributes, self).__getitem__(attr)
 
     def __setitem__(self, attr, value):
+        # type: (str, Attribute) -> None
         self[attr].value = value
 
     def __iter__(self):
+        # type: () -> Iterator[str]
         self._ensureAttrs()
         return super(NodeAttributes, self).__iter__()
 
     def __len__(self):
+        # type: () -> int
         self._ensureAttrs()
         return super(NodeAttributes, self).__len__()
 
     def __contains__(self, value):
+        # type: (Any) -> bool
         """Determine if the attribute exists on the node."""
         if not self._loaded:
             if super(NodeAttributes, self).__contains__(value):
@@ -177,18 +191,22 @@ class NodeAttributes(dict):
         return super(NodeAttributes, self).__contains__(value)
 
     def keys(self):
+        # type: () -> KeysView
         self._ensureAttrs()
         return super(NodeAttributes, self).keys()
 
     def values(self):
+        # type: () -> ValuesView
         self._ensureAttrs()
         return super(NodeAttributes, self).values()
 
     def items(self):
+        # type: () -> ItemsView
         self._ensureAttrs()
         return super(NodeAttributes, self).items()
 
     def _ensureAttr(self, attr, reload=False):
+        # type: (Union[om2.MPlug, str], bool) -> bool
         """Load in the attribute proxy if required."""
         if isinstance(attr, om2.MPlug):
             attrName = attr.partialName(useLongNames=True)
@@ -208,6 +226,7 @@ class NodeAttributes(dict):
         return True
 
     def _ensureAttrs(self, reload=False):
+        # type: (bool) -> None
         """Load in all attribute proxies if required.
 
         Equivalent:
@@ -228,6 +247,7 @@ class NodeAttributes(dict):
         self._loaded = True
 
     def create(self, attr, attrType=None, **kwargs):
+        # type: (str, Optional[str], **Any) -> Attribute
         """Create the attribute."""
         if attrType is not None:
             if attrType is bool:
@@ -245,6 +265,7 @@ class NodeAttributes(dict):
 
 
 def _getPlugFromDepNode(depNode, attr):
+    # type: (om2.MFnDependencyNode, str) -> Optional[om2.MPlug]
     """Follow a valid attribute path to the correct plug.
     Returns None in the case of failure.
     """
@@ -279,7 +300,11 @@ class Attribute(types.StrMixin):
     """Easy way of handling attribute values and connections.
 
     A value is read and set using `.value`.
-    A connection is made by using the >> operator between two attributes.
+    A connection is made by using the `>>` operator between two attrs,
+    and `//` is used to disconnect.
+
+    TODO:
+        Add create/ensure methods if possible
     """
 
     __slots__ = ['node', 'attr', 'api', '_keyframes', '_compoundChildren']
@@ -290,6 +315,7 @@ class Attribute(types.StrMixin):
         __slots__ = ['_plug', '_attribute']
 
         def __init__(self, plug):
+            # type (om2.MPlug) -> None
             """Store the plug.
 
             If the plug is networked, then convert to non networked, as
@@ -301,6 +327,7 @@ class Attribute(types.StrMixin):
 
         @classmethod
         def fromNode(cls, node, attr):
+            # type (Node, str) -> Attribute
             """Get an attribute from a Node instance.
 
             Raises:
@@ -313,6 +340,7 @@ class Attribute(types.StrMixin):
 
         @classmethod
         def fromAttr(cls, attr):
+            # type (str) -> Attribute
             """Get an attribute from an attribute string.
 
             Raises:
@@ -338,6 +366,7 @@ class Attribute(types.StrMixin):
 
         @property
         def plug(self):
+            # type () -> om2.MPlug
             """Get the `MPlug`.
 
             Notable methods:
@@ -348,6 +377,7 @@ class Attribute(types.StrMixin):
 
         @property
         def plugs(self):
+            # type () -> List[om2.MPlug]
             """Get all the `MPlug` objects in the case of arrays."""
             if self.plug.isArray:
                 return [self.plug.elementByPhysicalIndex(i) for i in range(self.plug.numElements())]
@@ -355,6 +385,7 @@ class Attribute(types.StrMixin):
 
         @property
         def attribute(self):
+            # type () -> om2.MFnAttribute
             """Get the `MFnAttribute`.
 
             Notable methods:
@@ -366,6 +397,7 @@ class Attribute(types.StrMixin):
             return self._attribute
 
     def __init__(self, node, attr):
+        # type (Node, Union[str, om2.MPlug]) -> None
         """Create the attribute proxy.
 
         Parameters:
@@ -388,35 +420,45 @@ class Attribute(types.StrMixin):
 
     @classmethod
     def ls(self, attr):
+        # type (str) -> List[Attribute]
         """Search the scene for an attribute."""
         result = utils.runAndLog(mc.ls, '*.' + attr)
         split = (item.split('.', 1) for item in result)
         return [Attribute(Node(node), attr) for node, attr in split]
 
     def __bool__(self):
+        # type () -> bool
         return self.exists
     __nonzero__ = __bool__
 
     def __eq__(self, value):
-        if value == self.attr:
-            return True
-        return super(Attribute, self).__eq__(value)
+        # type (Any) -> bool
+        if isinstance(value, Attribute):
+            return self.node == value.node and self.attr == value.attr
+        return value == self.attr or value == self.name
 
     def __float__(self):
+        # type () -> float
         return float(self.value)
 
     def __int__(self):
+        # type () -> int
         return int(self.value)
 
     def __add__(self, value):
+        # type (str) -> Attribute
         """Allow attribute names to be added to.
+
+        TODO:
+            Return a string instead
 
         >>> Attribute('node.val') + 'ue'
         Attribute('node.value')
         """
-        return type(self)(self.node, self.attr + value)
+        return Attribute(self.node, self.attr + value)
 
     def __rshift__(self, connection):
+        # type: (Union[str, Attribute, om2.MPlug]) -> bool
         """Create an outgoing connection.
 
         >>> Attribute('node.attr') >> 'othernode.attr'
@@ -424,6 +466,7 @@ class Attribute(types.StrMixin):
         return self.connect(connection)
 
     def __rrshift__(self, connection):
+        # type: (Union[str, Attribute, om2.MPlug]) -> bool
         """Create an incoming connection.
 
         >>> 'othernode.attr' >> Attribute('node.attr')
@@ -431,6 +474,7 @@ class Attribute(types.StrMixin):
         return self.connect(connection, reverse=True)
 
     def __floordiv__(self, connection):
+        # type: (Union[str, Attribute, om2.MPlug]) -> bool
         """Break an outgoing connection.
 
         >>> Attribute('node.attr') // 'othernode.attr'
@@ -438,6 +482,7 @@ class Attribute(types.StrMixin):
         return self.disconnect(connection)
 
     def __rfloordiv__(self, connection):
+        # type: (Union[str, Attribute, om2.MPlug]) -> bool
         """Break an incoming connection.
 
         >>> 'othernode.attr' // Attribute('node.attr')
@@ -445,11 +490,13 @@ class Attribute(types.StrMixin):
         return self.disconnect(connection, reverse=True)
 
     def split(self, *args, **kwargs):
+        # type: (*Any, **Any) -> List[str]
         """Add the ability to split for backwards compatibility."""
         return self.name.split(*args, **kwargs)
 
     @property
     def exists(self):
+        # type: () -> bool
         """Determine if the attribute already exists.
 
         Equivelant:
@@ -479,6 +526,7 @@ class Attribute(types.StrMixin):
 
     @property
     def type(self):
+        # type: () -> Any
         """Get the attribute type.
 
         Returns:
@@ -509,6 +557,7 @@ class Attribute(types.StrMixin):
 
     @property
     def name(self):
+        # type: () -> str
         """Get the full node and attribute name for Maya to use."""
         if not self.api.plug.isNull:
             return self.api.plug.name()
@@ -516,6 +565,7 @@ class Attribute(types.StrMixin):
 
     @property
     def value(self):
+        # type: () -> Any
         """Get an attribute value."""
         if not self.api.plug.isNull:
             try:
@@ -526,6 +576,7 @@ class Attribute(types.StrMixin):
 
     @value.setter
     def value(self, value):
+        # type: (Any) -> None
         """Set a new attribute value.
 
         Raises:
@@ -550,6 +601,7 @@ class Attribute(types.StrMixin):
 
     @property
     def locked(self):
+        # type: () -> bool
         """Get the node locked state."""
         if not self.api.plug.isNull:
             return self.api.plug.isLocked
@@ -557,6 +609,7 @@ class Attribute(types.StrMixin):
 
     @locked.setter
     def locked(self, value):
+        # type: (bool) -> None
         """Set the node locked state.
 
         Raises:
@@ -568,6 +621,7 @@ class Attribute(types.StrMixin):
 
     @property
     def keyable(self):
+        # type: () -> bool
         """Get the node keyable state."""
         if not self.api.plug.isNull:
             return self.api.plug.isKeyable
@@ -575,6 +629,7 @@ class Attribute(types.StrMixin):
 
     @keyable.setter
     def keyable(self, value):
+        # type: (bool) -> None
         """Set the node keyable state.
 
         Raises:
@@ -585,6 +640,7 @@ class Attribute(types.StrMixin):
         utils.runAndLog(mc.setAttr, self, keyable=value)
 
     def connect(self, target, reverse=False):
+        # type: (Union[str, Attribute, om2.MPlug], bool) -> bool
         """Create a connection.
         Set `reverse` to reverse the connection direction.
 
@@ -609,6 +665,7 @@ class Attribute(types.StrMixin):
         return Connection(self.node, self.api.plug, plug, reverse=reverse).connect()
 
     def disconnect(self, target, reverse=False):
+        # type: (Union[str, Attribute, om2.MPlug], bool) -> bool
         """Remove a connection.
         Set `reverse` to reverse the direction.
 
@@ -634,18 +691,12 @@ class Attribute(types.StrMixin):
 
     @property
     def connections(self):
+        # type: () -> AttributeConnectionProxy
         """Get the attribute connections as plugs."""
-        if self.api.plug.isNull:
-            return []
         return AttributeConnectionProxy(self)
 
-    def ensure(self, attrType, **kwargs):
-        """Create the attribute if it doesn't exist."""
-        if self.exists:
-            return self
-        return self.connect(attrType, **kwargs)
-
     def delete(self):
+        # type: () -> None
         """Delete the attribute.
 
         Raises:
@@ -659,11 +710,13 @@ class Attribute(types.StrMixin):
 
     @property
     def keyframes(self):
+        # type: () -> AttributeKeyframes
         """Get the keyframe dict."""
         return self._keyframes
 
     @property
     def children(self):
+        # type: () -> Union[List[Attribute], Dict[Attribute]]
         """Get all attribute children.
         This will be fixed in the future to be a dict-like list. For
         now though, if it is a compound plug then a dict will be
@@ -687,6 +740,7 @@ class Attribute(types.StrMixin):
         return []
 
     def child(self, value):
+        # type: (Union[int, str]) -> Attribute
         """Get a child attribute.
 
         Note that this can't get `__getitem__`, as it'll either cause a
@@ -723,6 +777,7 @@ class Attribute(types.StrMixin):
         raise TypeError('plug is not an array or compound')
 
     def __len__(self):
+        # type: () -> int
         """Get the number of child attributes."""
         plug = self.api.plug
         if plug.isArray:
@@ -732,6 +787,7 @@ class Attribute(types.StrMixin):
         return 0
 
     def _reloadCompoundChildren(self):
+        # type: () -> None
         """Load all the children of a compound plug.
 
         Raises:
@@ -745,6 +801,7 @@ class Attribute(types.StrMixin):
 
     @property
     def uvLinks(self):
+        # type: () -> List[Node]
         """Get the nodes linked to this UV set attribute.
 
         TODO:

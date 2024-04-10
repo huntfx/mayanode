@@ -1,6 +1,11 @@
-import maya.cmds as mc
+import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, utils
+
+from ..type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .node import Node
 
 
 class ColorSet(utils.StrMixin):
@@ -9,19 +14,23 @@ class ColorSet(utils.StrMixin):
     __slots__ = ['_node', '_name']
 
     def __init__(self, node, name):
+        # type: (Node, str) -> None
         self._node = node
         self._name = name
 
     def __repr__(self):
+        # type: () -> str
         return "<{}('{}.{}')>".format(type(self).__name__, self.node, self.name)
 
     @property
     def name(self):
+        # type: () -> str
         """Get the name of the color set."""
         return self._name
 
     @name.setter
     def name(self, name):
+        # type: (str) -> None
         """Rename a color set.
         This does not update the UI window.
 
@@ -34,10 +43,12 @@ class ColorSet(utils.StrMixin):
 
     @property
     def node(self):
+        # type: () -> Node
         """Get the node."""
         return self._node
 
     def delete(self):
+        # type: () -> None
         """Delete a color set.
 
         Raises:

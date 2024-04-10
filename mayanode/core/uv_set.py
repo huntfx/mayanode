@@ -1,6 +1,10 @@
-import maya.cmds as mc
+import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
+from ..type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import List
 
 
 class UVSet(utils.StrMixin):
@@ -9,19 +13,23 @@ class UVSet(utils.StrMixin):
     __slots__ = ['_node', '_name']
 
     def __init__(self, node, name):
+        # type: (Node, str) -> None
         self._node = node
         self._name = name
 
     def __repr__(self):
+        # type: () -> str
         return "<{}('{}.{}')>".format(type(self).__name__, self.node, self.name)
 
     @property
     def name(self):
+        # type: () -> str
         """Get the name of the color set."""
         return self._name
 
     @name.setter
     def name(self, name):
+        # type: (str) -> None
         """Rename a color set.
         This does not update the UI window.
 
@@ -34,11 +42,13 @@ class UVSet(utils.StrMixin):
 
     @property
     def node(self):
+        # type: () -> Node
         """Get the node."""
         return self._node
 
     @property
     def attr(self):
+        # type: () -> Attribute
         """Get the UV set attribute.
 
         Raises:
@@ -58,16 +68,21 @@ class UVSet(utils.StrMixin):
 
     @property
     def physicalIndex(self):
+        # type: () -> int
         """Get the physical index of the UV set.
 
         TODO:
             Tests
+            Raise error if node has no mesh?
         """
-        mfnMesh = self.node.api.mesh
-        return mfnMesh.getUVSetNames().index(self.name)
+        mesh = self.node.api.mesh
+        if mesh is None:
+            return 0
+        return mesh.getUVSetNames().index(self.name)
 
     @property
     def logicalIndex(self):
+        # type: () -> int
         """Get the logical index of the UV set.
 
         TODO:
@@ -76,6 +91,7 @@ class UVSet(utils.StrMixin):
         return self.attr.api.plug.parent().logicalIndex()
 
     def delete(self):
+        # type: () -> None
         """Delete a color set.
 
         Raises:
@@ -94,6 +110,7 @@ class UVSet(utils.StrMixin):
 
     @property
     def textures(self):
+        # type: () -> List[Node]
         """Get a list of texture nodes which are using the UV set.
         If the texture has a 2D texture placement, then the texture and
         not the placement will be returned.
@@ -106,7 +123,10 @@ class UVSet(utils.StrMixin):
             `textures.remove(texture)` (with `mc.uvLink`)
             `textures = [texture]` (with `mc.uvLink`)
         """
-        textures = self.node.api.mesh.getAssociatedUVSetTextures(self.name)
+        mesh = self.node.api.mesh
+        if mesh is None:
+            return []
+        textures = mesh.getAssociatedUVSetTextures(self.name)
         return [Node(texture) for texture in textures]
 
 
