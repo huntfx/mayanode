@@ -286,14 +286,20 @@ class TestNode(unittest.TestCase):
 
     def testShadingEngine(self):
         node = Node(mc.polyCube(name='shadingEngineTest')[0])
-        self.assertEqual(node.shadingEngine, 'initialShadingGroup')
+        self.assertEqual(node.shadingEngine, None)
+        self.assertEqual(node.shape.shadingEngine, 'initialShadingGroup')
 
         material = mc.shadingNode('lambert', asShader=True)
         sg = mc.sets(empty=True, renderable=True, noSurfaceShader=True)
         mc.connectAttr(material + '.outColor', sg + '.surfaceShader')
 
         node.shadingEngine = sg
-        self.assertEqual(node.shadingEngine, sg)
+        self.assertEqual(node.shadingEngine, None)
+        self.assertEqual(node.shape.shadingEngine, sg)
+
+        node.shape.shadingEngine = 'initialShadingGroup'
+        self.assertEqual(node.shadingEngine, None)
+        self.assertEqual(node.shape.shadingEngine, 'initialShadingGroup')
 
         mc.delete(sg, material, node.name)
 

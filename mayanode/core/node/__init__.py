@@ -1191,6 +1191,8 @@ class Node(utils.StrMixin):
         TODO:
             Test with instances
         """
+        if shadingEngine is None:
+            shadingEngine = 'initialShadingGroup'
         utils.logger.info('Setting %s shader to %s', self, shadingEngine)
         utils.raiseIfNodeNotFound(self)
         utils.runAndLog(mc.sets, self, edit=True, forceElement=shadingEngine)
