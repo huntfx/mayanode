@@ -26,7 +26,6 @@ class Connection(utils.StrMixin):
             dstPlug: The `MPlug` for the destination attribute.
         """
         self._reverse = reverse
-        self._reverse = reverse
         self._srcNode = srcNode
         self._dstNode = None  # type: Optional[Node]
 
@@ -296,10 +295,14 @@ class ConnectionProxy(ConnectionList):
         """Recursively load connections from the plug and any children.
 
         TODO:
-            Tests
+            Test incoming and outgoing connections (with disconnect)
         """
-        for connectedPlug in plug.connectedTo(source, destination):
-            yield Connection(self.node, plug, connectedPlug)
+        if source:
+            for connectedPlug in plug.connectedTo(True, False):
+                yield Connection(self.node, plug, connectedPlug, reverse=True)
+        if destination:
+            for connectedPlug in plug.connectedTo(False, True):
+                yield Connection(self.node, plug, connectedPlug)
 
         plugs = []  # type: List[om2.MPlug]
         if plug.isArray:
