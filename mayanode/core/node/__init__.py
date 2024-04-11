@@ -1509,6 +1509,12 @@ class Node(utils.StrMixin):
         return FaceList(self)
 
     @property
+    def constructionHistory(self):
+        # type() -> ConstructionHistory
+        """Get the construction history of the node."""
+        return ConstructionHistory(self)
+
+    @property
     def scene(self):
         # type: () -> _Scene
         """Get the current scene."""
@@ -1564,6 +1570,7 @@ class Node(utils.StrMixin):
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .attributes import Attribute, NodeAttributes
+from .construction_history import ConstructionHistory
 from .face import FaceList
 from ..reference import Reference
 from ..bounding_box import BoundingBox
