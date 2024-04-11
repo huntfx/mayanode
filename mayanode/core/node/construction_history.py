@@ -3,9 +3,11 @@
 It is an area of Maya I am not familiar with, and there are multiple
 optional flags such as `allConnections`, so for now this is a very basic
 implementation. Future changes may be made if I dig more into it.
+
+TODO:
+        Tests
 """
 
-import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
 from ... import utils
@@ -35,22 +37,22 @@ class ConstructionHistory(list):
         return self._node
 
     def delete(self):
-        # type: () -> Node
+        # type: () -> None
         """Delete all the construction history."""
         utils.logger.info('Deleting construction history for "%s"', self.node)
         utils.runAndLog(mc.delete, self.node, constructionHistory=True)
 
     @property
     def history(self):
-        """Get the upstream nodes."""
         # type: () -> ConstructionHistory
+        """Get the upstream nodes."""
         future = utils.runAndLog(mc.listHistory, self.node)[1:]
         return ConstructionHistory(self.node, future)
 
     @property
     def future(self):
-        """Get the downstream nodes."""
         # type: () -> ConstructionHistory
+        """Get the downstream nodes."""
         future = utils.runAndLog(mc.listHistory, self.node, future=True)[1:]
         return ConstructionHistory(self.node, future)
 
