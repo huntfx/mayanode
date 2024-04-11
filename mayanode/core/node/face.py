@@ -50,8 +50,8 @@ class FaceList(types.LazyList, types.StrMixin):
         else:
             indexes = [index]
 
-        for index in indexes:
-            self._data[index] = Face(self.node, index)
+        for idx in indexes:
+            self._data[idx] = Face(self.node, index)
 
     def reload(self):
         # type: () -> None
@@ -107,7 +107,7 @@ class Face(utils.StrMixin):
 
     @property
     def uvSets(self):
-        # type: () -> List[UVSet]
+        # type: () -> UVSetList
         """Get the UV sets assigned to the face.
 
         Optimisation:
@@ -116,14 +116,10 @@ class Face(utils.StrMixin):
             If only the UV set names are needed, then consider using
             `map(mesh.getFaceUVSetNames, range(mesh.numPolygons))`.
         """
-        mesh = self.node.api.mesh
-        if mesh is None:
-            return []
-        uvSetNames = mesh.getFaceUVSetNames(self.index)
-        return [UVSet(self.node, uvSet) for uvSet in uvSetNames]
+        return UVSetList(self.node, self.index)
 
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
-from ..uv_set import UVSet
+from ..uv_set import UVSet, UVSetList
 from . import Node

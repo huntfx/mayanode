@@ -1320,15 +1320,13 @@ class Node(utils.StrMixin):
 
     @property
     def uvSets(self):
-        # type: () -> List[UVSet]
+        # type: () -> UVSetList
         """Get a list of UV sets for the node.
 
         Equivalent:
             `mc.polyUVSet(self, query=True, allUVSets=True)`
         """
-        if not self.exists or self.api.mesh is None:
-            return []
-        return [UVSet(self, uvSet) for uvSet in self.api.mesh.getUVSetNames()]
+        return UVSetList(self)
 
     @property
     def uvLinks(self):
@@ -1573,4 +1571,4 @@ from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
 from ..namespace import Namespace
 from ..scene import Scene, _Scene
-from ..uv_set import UVSet
+from ..uv_set import UVSet, UVSetList

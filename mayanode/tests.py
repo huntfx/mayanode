@@ -728,6 +728,10 @@ class TestUVSets(unittest.TestCase):
         self.assertEqual(self.node.uvSet, 'map1')
         self.assertEqual(self.node.uvSets, ['map1', 'map2'])
 
+    def testLength(self):
+        self.assertTrue(self.node.uvSets)
+        self.assertEqual(len(self.node.uvSets), 2)
+
     def testRename(self):
         self.node.uvSet.name = 'renamed'
         self.assertEqual(self.node.uvSet, 'renamed')
@@ -752,6 +756,9 @@ class TestUVSets(unittest.TestCase):
         self.assertEqual(self.node.uvSet, 'map1')
         self.assertEqual(self.node.uvSets, ['map1'])
 
+    def testFaces(self):
+        for face in self.node.faces:
+            self.assertEqual(len(face.uvSets), 2)
 
 class TestColorSets(unittest.TestCase):
     def setUp(self):
