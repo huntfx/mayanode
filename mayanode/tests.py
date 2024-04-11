@@ -521,6 +521,10 @@ class TestAttr(unittest.TestCase):
         self.assertIn('diffuse', self.node.attrs)
         self.assertNotIn('something', self.node.attrs)
 
+    def testDefaultGet(self):
+        self.assertIsNotNone(self.node.attrs.get('diffuse'))
+        self.assertIsNone(self.node.attrs.get('something'))
+
     def testConcatenate(self):
         self.assertEqual(self.node.attrs['color'], 'lambert1.color')
         self.assertEqual(str(self.node + '.color'), 'lambert1.color')

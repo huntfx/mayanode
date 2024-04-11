@@ -205,6 +205,13 @@ class NodeAttributes(dict):
         self._ensureAttrs()
         return super(NodeAttributes, self).items()
 
+    def get(self, attr, default=None):
+        # type: (str, Any) -> Any
+        """Return an attribute if it exists."""
+        if attr in self:
+            return self[attr]
+        return default
+
     def _ensureAttr(self, attr, reload=False):
         # type: (Union[om2.MPlug, str], bool) -> bool
         """Load in the attribute proxy if required."""
