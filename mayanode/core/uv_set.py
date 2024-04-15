@@ -4,30 +4,29 @@ from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Optional
+    from typing import List, Optional, Union
 
 
-class UVSetList(types.LazyList):
+class UVSetList(types.MappedLazyList):
     """Hold multiple UV sets.
 
     TODO:
         Allow uvSets[:].textures
     """
-    __slots__ = ['_node', '_faceIndex', '_uvSetNames', '_loadedAllNames']
+    __slots__ = ['_node', '_faceIndex', '_uvSetNames']
 
     def __init__(self, node, faceIndex=None):
         # type: (Node, Optional[int]) -> None
         """Store the origin mesh and optionally the index of the mesh face."""
         self._node = node
         self._faceIndex = faceIndex
-        self._uvSetNames = []  # type: List[str]
-        self._loadedAllNames = False
+        self._uvSetNames = None  # type: Optional[List[str]]
         super(UVSetList, self).__init__()
 
     def __bool__(self):
         # type: () -> bool
         """Determine if any UV sets are present."""
-        if self._loadedAllNames:
+        if self._uvSetNames is not None:
             return bool(self._uvSetNames)
 
         mesh = self.node.api.mesh
@@ -39,8 +38,8 @@ class UVSetList(types.LazyList):
     def __len__(self):
         # type: () -> int
         """Get the number of UV sets."""
-        if self._loadedAllNames:
-            return self._uvSetNames.__len__()
+        if self._uvSetNames is not None:
+            return super(UVSetList, self).__len__()
 
         mesh = self.node.api.mesh
         if mesh is None:
@@ -53,34 +52,53 @@ class UVSetList(types.LazyList):
         """Get the node."""
         return self._node
 
-    def _loadData(self, index=None):
-        # type: (Optional[int]) -> None
+    def loadData(self, key=None):
+        # type: (Optional[Union[int, str]]) -> bool
         """Load all data or for a specific index."""
-        if not self._loadedAllNames:
-            node = self.node
-            if node.exists:
-                mesh = node.api.mesh
-                if mesh is not None:
-                    if self._faceIndex is None:
-                        self._uvSetNames = mesh.getUVSetNames()
-                    else:
-                        self._uvSetNames = mesh.getFaceUVSetNames(self._faceIndex)
-            self._loadedAllNames = True
-            self._data = [None for _ in self._uvSetNames]
+        if self._uvSetNames is None:
+            if self.node.exists and self.node.api.mesh is not None:
+                if self._faceIndex is None:
+                    self._uvSetNames = self.node.api.mesh.getUVSetNames()
+                else:
+                    self._uvSetNames = self.node.api.mesh.getFaceUVSetNames(self._faceIndex)
+            else:
+                self._uvSetNames = []
+            self._set(None for _ in self._uvSetNames)
 
         indexes = []  # type: List[int]
-        if index is None:
+        loadedAll = False
+
+        # Load all
+        if key is None:
             indexes.extend(i for i, item in enumerate(self._data) if item is None)
-        else:
+            loadedAll = True
+
+        # Load at index
+        elif isinstance(key, int):
             # Ignore any index error here as it's only loading the data
             try:
-                if self._data[index] is None:
-                    indexes = [index]
+                if self._data[key] is None:
+                    indexes = [key]
             except IndexError:
                 pass
 
+        # Load all data if the UV set name isn't in the mapping
+        elif self._mapping is not None:
+            if key not in self._mapping:
+                indexes.extend(i for i, item in enumerate(self._data) if item is None)
+                loadedAll = True
+
+        # Load specific data if the UV set name was found
+        # TODO: Test performance
+        elif key in self._uvSetNames:
+            idx = self._uvSetNames.index(key)
+            if self._data[idx] is None:
+                indexes.append(idx)
+
         for idx in indexes:
-            self._data[idx] = UVSet(self.node, self._uvSetNames[idx])
+            self._setitem(idx, UVSet(self.node, self._uvSetNames[idx]))
+
+        return loadedAll
 
 
 class UVSet(utils.StrMixin):

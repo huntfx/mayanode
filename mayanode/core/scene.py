@@ -7,7 +7,7 @@ from .. import types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Dict, Optional
+    from typing import Dict, Optional, Union
 
 
 class _Scene(object):
@@ -165,37 +165,26 @@ class _Scene(object):
         utils.runAndLog(mc.autoKeyframe, edit=True, state=enabled)
 
 
-class SceneNodes(types.LazyDict):
+class SceneNodes(types.MappedLazyList):
     """Hold a dict of all nodes currently in the scene."""
 
-    __slots__ = ['_loaded']
-
-    def __init__(self):
-        # type: () -> None
-        self._loaded = False
-        super(SceneNodes, self).__init__()
-
-    def _loadData(self, key=None):
-        # type: (str) -> None
+    def loadData(self, key=None):
+        # type: (Optional[Union[int, str]]) -> bool
         """Get the node objects."""
-        if self._loaded:
-            return None
+        if key is None or isinstance(key, int):
+            self._extend(Node.ls())
+            return True
 
-        if key is None:
-            if not self._loaded:
-                allNodes = {node.name: node for node in Node.ls()}
-                self._data.update(allNodes)
-                self._loaded = True
+        if self._mapping is not None and key in self._mapping:
+            return False
 
-        elif key not in self._data:
+        if self._mapping is None or key not in self._mapping:
             node = Node(key)
-            self._data.__setitem__(key, node)
+            self._append(node)
+            if self._mapping is not None:
+                self._mapping[key] = node
 
-    def reload(self):
-        # type: () -> None
-        """Refresh all the loaded data."""
-        self._data.clear()
-        self._loaded = False
+        return False
 
 
 Scene = _Scene()

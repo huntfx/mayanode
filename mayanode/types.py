@@ -1,16 +1,15 @@
 from __future__ import absolute_import
 
 from collections import namedtuple
-try:
-    from collections.abc import MutableMapping, MutableSequence
-except ImportError:
-    from collections import MutableMapping, MutableSequence
+import sys
 
 from . import type_hints
 
 if type_hints.TYPE_CHECKING:
-    from typing import Any, Dict, Iterable, Iterator, List, Optional, Union
-    from typing import ItemsView, KeysView, ValuesView
+    from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+
+if sys.version_info.major != 2:
+    unicode = str  # pylint: disable=invalid-name
 
 
 Coordinate = namedtuple('Coordinate', ['x', 'y', 'z'])
@@ -99,24 +98,30 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
         return self.name.rstrip(value)
 
 
-class LazyList(MutableSequence):
-    """List-like object that is loaded only when needed.
-    Values of `None` are not supported.
+class MappedLazyList(object):
+    """Lazy list-like object that supports dict item mapping.
+
+    Note:
+        It is expected that the items will all result in unique strings when fed into `generateKey`.
+        For optimisation purposes, this does not support using strings or None as list items.
     """
 
-    __slots__ = ['_data', '_isCorrectLength']
+    __slots__ = ['_data', '_mapping', '_unmapped', '_isDataLoaded', '_expectedLength']
 
     def __init__(self, data=None):
         # type: (Optional[Iterable[Any]]) -> None
         """Set up the list.
         If `data` is given, then it is assumed to be of a set length.
         """
+        self._isDataLoaded = False
         if data is None:
-            self._data = []
-            self._isCorrectLength = False
+            self._data = []  # type: List[Any]
+            self._expectedLength = None
         else:
             self._data = list(data)
-            self._isCorrectLength = True
+            self._expectedLength = len(self._data)
+        self._unmapped = []  # type: List[int]
+        self._mapping = None  # type: Optional[Dict[str, Any]]
 
     def __repr__(self):
         # type: () -> str
@@ -127,58 +132,40 @@ class LazyList(MutableSequence):
         # type: () -> bool
         if self._data:
             return True
-        if not self._isCorrectLength:
+        if self._expectedLength is None:
             self._loadData()
         return bool(self._data)
     __nonzero__ = __bool__
+
+    def __contains__(self, value):
+        # type: (Any) -> bool
+        self._loadData(value)
+        if not isinstance(value, (unicode, str)):
+            return value in self._data
+
+        # If the mapping is already loaded then use that
+        if self._mapping is not None:
+            if value in self.mapping:
+                return True
+
+        # Check for a match in the actual data (if __eq__ is overridden)
+        if value in self._data:
+            return True
+
+        # Finally load the mapping and check if it exists
+        return value in self.mapping
 
     def __iter__(self):
         # type: () -> Iterator[Any]
         self._loadData()
         return self._data.__iter__()
 
-    def __getitem__(self, index):
-        # type: (Union[int, slice]) -> Any
-        """Get an individual item.
-
-        If the list is of the correct length, then only load the item
-        at the requested index. Otherwise, all items will have to be
-        loaded.
-        """
-        if isinstance(index, slice):
-            for i in range(index.start, index.stop, index.step):
-                if self._data[i] is None:
-                    self._loadData(i)
-
-        elif not self._isCorrectLength or (self._isCorrectLength and self._data[index] is None):
-            self._loadData(index)
-
-        return self._data.__getitem__(index)
-
-    def __setitem__(self, index, value):
-        # type: (Any, Any) -> None
-        raise AttributeError('__setitem__ not supported')
-
-    def __delitem__(self, index):
-        # type: (Any) -> None
-        raise AttributeError('__delitem__ not supported')
-
-    def append(self, value):
-        # type: (Any) -> None
-        raise AttributeError('append not supported')
-
-    def insert(self, index, value):
-        # type: (Any, Any) -> None
-        raise AttributeError('insert not supported')
-
-    def extend(self, values):
-        # type: (Any) -> None
-        raise AttributeError('extend not supported')
-
     def __len__(self):
         # type: () -> int
-        if not self._isCorrectLength:
+        if self._expectedLength is None:
             self._loadData()
+        if self._expectedLength is not None:
+            return self._expectedLength
         return self._data.__len__()
 
     def __eq__(self, other):
@@ -191,96 +178,167 @@ class LazyList(MutableSequence):
         self._loadData()
         return self._data != other
 
-    def __contains__(self, other):
-        # type: (Any) -> bool
-        self._loadData()
-        return other in self._data
+    def _loadData(self, value=None):
+        """Wrap the `loadData` method."""
+        # Prevent re-running if all data is loaded
+        if self._isDataLoaded:
+            return
+
+        # Run and check if all data is loaded
+        if self.loadData(value):
+            self._isDataLoaded = True
+
+    def loadData(self, key=None):  # pylint: disable=unused-argument, no-self-use
+        # type: (Optional[Union[int, str]]) -> bool
+        """Load all data or for a specific index or key.
+        Requires override.
+
+        An integer is for an index of the list. If the number of items
+        is not known, then it is recommended to load all items.
+        A string is to check for a dictionary mapping. If the mapping is
+        still set to `None`, then it is recommended to load all items.
+        An input of `None` is to request a load of all data.
+
+        Returns:
+            True if all data has been loaded.
+        """
+        return True
+
+    def generateKey(self, value):
+        # type: (Any) -> str
+        """Override this to get the dict keys for each item."""
+        return str(value)
+
+    def _append(self, value):
+        # type: (Any) -> None
+        """Append to the list.
+        This is for internal use only.
+        """
+        if value is None or isinstance(value, (unicode, str)):
+            raise TypeError('"{}" not supported'.format(type(value).__name__))
+
+        self._data.append(value)
+
+        # Update the mapping data
+        if self._mapping is not None:
+            self._unmapped.append(len(self._data) - 1)
+
+    def _insert(self, index, value):
+        # type: (int, Any) -> None
+        """Append to the list.
+        This is for internal use only.
+        """
+        if value is None or isinstance(value, (unicode, str)):
+            raise TypeError('"{}" not supported'.format(type(value).__name__))
+
+        self._data.insert(index, value)
+
+        # Update the mapping data
+        if self._mapping is not None:
+            for i, idx in enumerate(self._unmapped):
+                if idx >= index:
+                    self._unmapped[i] += 1
+            for key, idx in self._mapping.items():
+                if idx >= index:
+                    self._mapping[key] += 1
+            self._unmapped.append(index)
+
+    def _setitem(self, index, value):
+        # type: (int, Any) -> None
+        """Set a value at an index.
+        This is for internal use only.
+        """
+        self._data[index] = value
+        if self._mapping is not None:
+            if index < 0:
+                index = len(self._data) - index - 1
+            self._unmapped.append(index)
+
+    def _set(self, values):
+        # type: (Iterator[Any]) -> None
+        """Replace the list with new data.
+        This is for internal use only.
+        """
+        self._data[:] = list(values)
+        self._mapping = None
+        self._unmapped = []
+        self._expectedLength = len(self._data)
+
+    def _extend(self, value):
+        # type: (Iterable[Any]) -> None
+        """Update the list.
+        This is for internal use only.
+        """
+        length = len(self._data)
+        self._data.extend(value)
+        self._expectedLength = len(self._data)
+
+        # Update the mapping data
+        if self._mapping is not None:
+            self._unmapped.extend(range(length, len(self._data)))
+
+    @property
+    def mapping(self):
+        # type: () -> Dict[str, Any]
+        """Get the mapping of keys to indexes."""
+        if self._mapping is None:
+            self._mapping = {self.generateKey(item): i for i, item in enumerate(self._data)}
+        elif self._unmapped:
+            self._mapping.update({self.generateKey(item): i for i, item
+                                  in enumerate(map(self._data.__getitem__, self._unmapped))})
+            self._unmapped[:] = []
+        return self._mapping
+
+    def __getitem__(self, value):
+        # type: (Union[slice, int, str]) -> Any
+        """Get the value at a specific key or index."""
+        if isinstance(value, slice):
+            for i in range(value.start, value.stop, value.step or 1):
+                if self._data[i] is None:
+                    self._loadData(i)
+            return self._data[value]
+
+        if isinstance(value, int):
+            if self._expectedLength is None or self._data[value] is None:
+                self._loadData(value)
+            return self._data[value]
+
+        if isinstance(value, (str, unicode)):
+            self._loadData(value)
+
+        return self._data[self.mapping[value]]
+
+    def get(self, value, default=None):
+        # type: (Any, Any) -> Any
+        """Get the value at a specific key, or fallback to a default value."""
+        if isinstance(value, (str, unicode)):
+            self._loadData(value)
+        try:
+            return self._data[self.mapping[value]]
+        except KeyError:
+            return default
+
+    def keys(self):
+        # type: () -> List[str]
+        """Get all the mapped keys."""
+        return list(self.mapping)
+
+    def values(self):
+        # type: () -> List[Any]
+        """Get all of the data."""
+        return list(self._data)
+
+    def items(self):
+        # type: () -> Iterator[Tuple[str, Any]]
+        """Get all the mapped items."""
+        for k, v in self.mapping.items():
+            yield k, self._data[v]
 
     def reload(self):
         # type: () -> None
         """Refresh the data."""
-        self._data[:] = []
-
-    def _loadData(self, index=None):
-        # type: (Optional[int]) -> None
-        """Load all data or for a specific index.
-        Requires override.
-
-        Parameters:
-            idx (int, optional): Index of data.
-        """
-
-
-class LazyDict(MutableMapping):
-    """Dict-like object that is loaded only when needed."""
-
-    __slots__ = ['_data']
-
-    def __init__(self):
-        # type: () -> None
-        self._data = {}  # type: Dict[str, Any]
-
-    def __repr__(self):
-        # type: () -> str
-        self._loadData()
-        return self._data.__repr__()
-
-    def __getitem__(self, item):
-        # type: (Any) -> Any
-        self._loadData(item)
-        return self._data.__getitem__(item)
-
-    def __setitem__(self, item, value):
-        # type: (Any, Any) -> None
-        raise AttributeError('set not supported')
-
-    def __delitem__(self, item):
-        # type: (Any) -> None
-        raise AttributeError('delete not supported')
-
-    def update(self, *args, **kwargs):
-        # type: (*Any, **Any) -> None
-        raise AttributeError('update not supported')
-
-    def clear(self):
-        # type: () -> None
-        raise AttributeError('clear not supported')
-
-    def __iter__(self):
-        # type: () -> Iterator[Any]
-        self._loadData()
-        return self._data.__iter__()
-
-    def __len__(self):
-        # type: () -> int
-        self._loadData()
-        return self._data.__len__()
-
-    def __contains__(self, value):
-        # type: (Any) -> bool
-        self._loadData(value)
-        return self._data.__contains__(value)
-
-    def keys(self):
-        # type: () -> KeysView[str]
-        self._loadData()
-        return self._data.keys()
-
-    def values(self):
-        # type: () -> ValuesView[Any]
-        self._loadData()
-        return self._data.values()
-
-    def items(self):
-        # type: () -> ItemsView[str, Any]
-        self._loadData()
-        return self._data.items()
-
-    def _loadData(self, key=None):
-        # type: (Optional[str]) -> None
-        """Load all data or for a specific key.
-        Requires override.
-
-        Parameters:
-            key (any, optional): Dictionary key.
-        """
+        if self._expectedLength is None:
+            self._data[:] = []
+        else:
+            self._data[:] = [None for _ in range(self.__len__())]
+        self._isDataLoaded = False

@@ -84,7 +84,7 @@ def _getShadingGroup(mobj, dagPath=None):
     return None
 
 
-class Ancestors(types.LazyList):
+class Ancestors(types.MappedLazyList):
     """Only load the ancestor nodes when needed.
 
     This is very fast when requesting the first or last ancestor or a
@@ -99,7 +99,7 @@ class Ancestors(types.LazyList):
         self._node = node
         self._ancestors = []  # type: List[om2.MDagPath]
         self._loadedAllAncestors = False
-        super(Ancestors, self).__init__()
+        super(Ancestors, self).__init__([] if node.api.dagPath is None else None)
 
     @property
     def node(self):
@@ -118,9 +118,8 @@ class Ancestors(types.LazyList):
     def __len__(self):
         # type: () -> int
         """Get the number of ancestors."""
-        # If already loaded then the length is correct
-        if self._loadedAllAncestors or self._ancestors:
-            return len(self._ancestors)
+        if self._expectedLength is not None:
+            return self._expectedLength
 
         # Get the DAG path length
         dagPath = self.node.api.dagPath
@@ -131,11 +130,11 @@ class Ancestors(types.LazyList):
 
         # Populate the data lists
         self._ancestors.extend(None for _ in range(ancestorLength - len(self._ancestors)))
-        self._data.extend(None for _ in range(ancestorLength - len(self._data)))
+        self._set(None for _ in range(ancestorLength))
         return ancestorLength
 
-    def _loadData(self, index=None):
-        # type: (Optional[int]) -> None
+    def loadData(self, key=None):
+        # type: (Optional[Union[int, str]]) -> bool
         """Load the ancestor data.
 
         If a negative index is requested, then all the DAG paths will
@@ -154,14 +153,14 @@ class Ancestors(types.LazyList):
             `[ancestors[i] for i in reversed(range(n))]`  # 74
         """
         if self.node.api.dagPath is None:
-            return
+            return True
 
         if not self._loadedAllAncestors:
             ancestorLength = self.__len__()
 
             # Load in all the missing data
             # If a negative index then not all data needs loading
-            if index is None or index < 0:
+            if not isinstance(key, int) or key < 0:
 
                 previousDagPath = self.node.api.dagPath
                 for i, ancestor in enumerate(self._ancestors):
@@ -173,12 +172,12 @@ class Ancestors(types.LazyList):
                 self._loadedAllAncestors = True
 
             # Load a single positive index
-            elif 0 <= index < ancestorLength and self._ancestors[index] is None:
+            elif 0 <= key < ancestorLength and self._ancestors[key] is None:
 
                 # Find the closest child DAG path
                 dagPath = None
-                if index:
-                    i = index - 1
+                if key:
+                    i = key - 1
                     while i >= 0:
                         if self._ancestors[i] is not None:
                             dagPath = om2.MDagPath(self._ancestors[i])
@@ -192,23 +191,25 @@ class Ancestors(types.LazyList):
                     dagOffset = -1
 
                 # Jump down the required number of levels
-                self._ancestors[index] = dagPath.pop(index - dagOffset)
+                self._ancestors[key] = dagPath.pop(key - dagOffset)
 
         # Get the requested indexes
         indexes = []  # type: List[int]
-        if index is None:
-            indexes.extend(i for i, item in enumerate(self._data) if item is None)
-        else:
+        if isinstance(key, int):
             # Ignore any index error here as it's only loading the data
             try:
-                if self._data[index] is None:
-                    indexes = [index]
+                if self._data[key] is None:
+                    indexes = [key]
             except IndexError:
                 pass
+        else:
+            indexes.extend(i for i, item in enumerate(self._data) if item is None)
 
         # Map nodes to indexes
         for index in indexes:
-            self._data[index] = Node(self._ancestors[index])
+            self._setitem(index, Node(self._ancestors[index]))
+
+        return not isinstance(key, int)
 
 
 class _ApiData(object):

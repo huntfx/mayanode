@@ -141,7 +141,9 @@ class TestNode(unittest.TestCase):
         self.assertEqual(child.ancestors[0], parent)
         self.assertEqual(child.ancestors[-1], root)
         self.assertEqual(child.ancestors, [parent, root])
+        self.assertEqual(len(child.ancestors), 2)
         self.assertFalse(root.ancestors)
+        self.assertIn(root, child.ancestors)
 
         mc.delete(root)
 
@@ -158,6 +160,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(ancestors[0], parent)
         self.assertEqual(ancestors[1], group)
         self.assertEqual(ancestors, [parent, group, root])
+        self.assertEqual(len(ancestors), 3)
 
         ancestors = child.ancestors
         self.assertEqual(ancestors[1], group)

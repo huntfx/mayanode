@@ -3,10 +3,10 @@ from __future__ import absolute_import
 from ... import types, utils
 
 if utils.TYPE_CHECKING:
-    from typing import List
+    from typing import List, Optional, Union
 
 
-class FaceList(types.LazyList, types.StrMixin):
+class FaceList(types.MappedLazyList, types.StrMixin):
     """Hold a list of all the faces on a mesh.
 
     The data is of the correct size, but lazily populated when needed.
@@ -20,12 +20,13 @@ class FaceList(types.LazyList, types.StrMixin):
         # type: (Node) -> None
         """Initialise the data from a node."""
         self._node = node
-        mesh = node.api.mesh
-        if mesh is not None:
-            numPolygons = mesh.numPolygons
-        else:
-            numPolygons = 0
-        super(FaceList, self).__init__(None for _ in range(numPolygons))
+        super(FaceList, self).__init__(None for _ in range(self.__len__()))
+
+    def __len__(self):
+        mesh = self.node.api.mesh
+        if mesh is None:
+            return 0
+        return mesh.numPolygons
 
     @property
     def name(self):
@@ -42,26 +43,19 @@ class FaceList(types.LazyList, types.StrMixin):
         """Get the node."""
         return self._node
 
-    def _loadData(self, index=None):
-        # type: (int) -> None
+    def _loadData(self, key=None):
+        # type: (Optional[Union[int, str]]) -> bool
         """Load the `Face` objects when needed."""
-        if index is None:
-            indexes = [i for i, item in enumerate(self._data) if item is None]
+        indexes = []
+        if isinstance(key, int):
+            indexes = [key]
         else:
-            indexes = [index]
+            indexes = [i for i, item in enumerate(self._data) if item is None]
 
         for idx in indexes:
-            self._data[idx] = Face(self.node, index)
+            self._data[idx] = Face(self.node, idx)
 
-    def reload(self):
-        # type: () -> None
-        """Refresh the data."""
-        mesh = self.node.api.mesh
-        if mesh is not None:
-            numPolygons = mesh.numPolygons
-        else:
-            numPolygons = 0
-        self._data[:] = [None for _ in range(numPolygons)]
+        return not isinstance(key, int)
 
 
 class Face(utils.StrMixin):

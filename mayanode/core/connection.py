@@ -5,7 +5,7 @@ from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Generator, Iterator, List, Optional
+    from typing import Any, Generator, Iterator, List, Optional, Union
 
 
 class Connection(utils.StrMixin):
@@ -177,7 +177,7 @@ class Connection(utils.StrMixin):
         return False
 
 
-class ConnectionList(types.LazyList):
+class ConnectionList(types.MappedLazyList):
     """Hold multiple connections and provide a way to connect/disconnect all."""
 
     def connect(self):
@@ -250,14 +250,14 @@ class ConnectionProxy(ConnectionList):
     def inputs(self):
         # type: () -> ConnectionList
         """Get the input/source connections."""
-        self._loadData(source=True, destination=False)
+        self.loadConnections(source=True, destination=False)
         return ConnectionList(self._sourceConnections)
 
     @property
     def outputs(self):
         # type: () -> ConnectionList
         """Get the output/destination connections."""
-        self._loadData(source=False, destination=True)
+        self.loadConnections(source=False, destination=True)
         return ConnectionList(self._destinationConnections)
 
     @property
@@ -272,14 +272,14 @@ class ConnectionProxy(ConnectionList):
     def nodes(self):
         # type: () -> List[Node]
         """Get all connected nodes."""
-        self._loadData(source=True, destination=True)
+        self.loadConnections(source=True, destination=True)
         return super(ConnectionProxy, self).nodes
 
     @property
     def attrs(self):
         # type: () -> List[Attribute]
         """Get all connected attributes."""
-        self._loadData(source=True, destination=True)
+        self.loadConnections(source=True, destination=True)
         return super(ConnectionProxy, self).attrs
 
     @property
@@ -310,13 +310,14 @@ class ConnectionProxy(ConnectionList):
             for connection in self._loadRecursive(childPlug, source=source, destination=destination):
                 yield connection
 
-    def _loadData(self, index=None, source=True, destination=True):
-        # type: (Optional[int], bool, bool) -> None
-        """Get the connection data from the plugs.
+    def loadData(self, key=None):  # pylint: disable=unused-argument, no-self-use
+        # type: (Optional[Union[int, str]]) -> bool
+        self.loadConnections()
+        return False
 
-        TODO:
-            Split into a different method
-        """
+    def loadConnections(self, source=True, destination=True):
+        # type: (bool, bool) -> None
+        """Get the connection data from the plugs."""
         # Ensure the data is only loaded once
         if TYPE_CHECKING or destination:
             if self._destinationConnections is None:
