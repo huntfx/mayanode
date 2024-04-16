@@ -3,32 +3,27 @@
 It is an area of Maya I am not familiar with, and there are multiple
 optional flags such as `allConnections`, so for now this is a very basic
 implementation. Future changes may be made if I dig more into it.
-
-TODO:
-        Tests
 """
 
 import maya.cmds as mc  # type: ignore
 
-from ... import utils
+from ... import types, utils
 from ...type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Optional
-    from ...type_hints import StrLike
+    from typing import Optional, Union
 
 
-class ConstructionHistory(list):
-    """Get all upstream nodes in the construction history."""
+class ConstructionHistory(types.MappedLazyList):
+    """Get nodes in the construction history."""
 
-    __slots__ = ['_node']
+    __slots__ = ['_node', '_future']
 
-    def __init__(self, node, history=None):
-        # type: (Node, Optional[List[StrLike]]) -> None
+    def __init__(self, node, future=False):
+        # type: (Node, bool) -> None
         self._node = node
-        if history is None:
-            history = utils.runAndLog(mc.listHistory, node)[1:]
-        super(ConstructionHistory, self).__init__(map(Node, history))
+        self._future = future
+        super(ConstructionHistory, self).__init__()
 
     @property
     def node(self):
@@ -45,16 +40,28 @@ class ConstructionHistory(list):
     @property
     def history(self):
         # type: () -> ConstructionHistory
-        """Get the upstream nodes."""
-        future = utils.runAndLog(mc.listHistory, self.node)[1:]
-        return ConstructionHistory(self.node, future)
+        """Get the upstream nodes.
+
+        Equivalent:
+            mc.listHistory(self)[1:]
+        """
+        return self
 
     @property
     def future(self):
         # type: () -> ConstructionHistory
-        """Get the downstream nodes."""
-        future = utils.runAndLog(mc.listHistory, self.node, future=True)[1:]
-        return ConstructionHistory(self.node, future)
+        """Get the downstream nodes.
+
+        Equivalent:
+            mc.listHistory(self, future=True)[1:]
+        """
+        return ConstructionHistory(self.node, future=True)
+
+    def loadData(self, key=None):
+        # type: (Optional[Union[int, str]]) -> bool
+        history = utils.constructionHistory(self.node.api.object, future=self._future)
+        self._set(map(Node, history))
+        return True
 
 
 # Handle circular dependencies

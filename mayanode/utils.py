@@ -6,7 +6,7 @@ from . import exceptions
 from .type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from typing import Any, Callable, Iterator
     from .core.node import Node
 
 
@@ -97,6 +97,23 @@ def unnetworkPlug(plug):
         return new.elementByLogicalIndex(plug.logicalIndex())
 
     return new
+
+
+def constructionHistory(mobject, future=False):
+    # type: (om2.MObject, bool) -> Iterator[om2.MObject]
+    """Get the construction history of a node.
+    Note that this will not automatically convert a transform to a mesh.
+
+    Equivalent:
+        `mc.listHistory(node)`
+    """
+    iterator = om2.MItDependencyGraph(mobject, om2.MFn.kInvalid,
+                                      om2.MItDependencyGraph.kDownstream if future else om2.MItDependencyGraph.kUpstream,
+                                      om2.MItDependencyGraph.kDepthFirst,
+                                      om2.MItDependencyGraph.kNodeLevel)
+    iterator.next()  # Skip the current node
+    for _ in iterator:
+        yield iterator.currentNode()
 
 
 # Handle circular dependencies

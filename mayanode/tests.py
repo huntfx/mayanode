@@ -457,6 +457,23 @@ class TestNode(unittest.TestCase):
         self.assertEqual(str(mesh.faces), 'noGeometryTest.f[0:0]')
         mc.delete(mesh.parent)
 
+    def testConstructionHistory(self):
+        transform, polyCube = mc.polyCube(name='constructionHistoryTest')
+        node = Node(transform)
+        smoothNode = mc.polySmooth(node)[0]
+        reduceNode = mc.polyReduce(node)[0]
+        self.assertEqual(len(node.constructionHistory), 0)
+
+        self.assertEqual(len(node.shape.constructionHistory), 3)
+        self.assertEqual(node.shape.constructionHistory[0], reduceNode)
+
+        shapeHistory = node.shape.constructionHistory
+        self.assertEqual(shapeHistory[1], smoothNode)
+        self.assertEqual(shapeHistory, [reduceNode, smoothNode, polyCube])
+        self.assertEqual(Node(smoothNode).constructionHistory.future, [reduceNode, node.shape])
+
+        mc.delete(transform)
+
 
 class TestBoundingBox(unittest.TestCase):
 
