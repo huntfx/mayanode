@@ -52,6 +52,10 @@ class AttributeConnectedError(NodeAttributeError):
     MESSAGE = 'The attribute "{node}.{attr}" is connected and cannot be modified'
 
 
+class ConnectToSelfError(NodeAttributeError):
+    MESSAGE = 'Cannot connect attribute "{node}.{attr}" to itself.'
+
+
 class AlreadyIsChildError(NodeError):
     MESSAGE = '"{node}" is already a child of "{parent}"'
 

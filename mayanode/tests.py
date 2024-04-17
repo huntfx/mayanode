@@ -637,6 +637,11 @@ class TestAttr(unittest.TestCase):
         self.assertTrue(cube2.attrs['tx'].disconnect(cube1.attrs['tx']))
         mc.delete(cube1, cube2)
 
+    def testConnectionInvalid(self):
+        cube1 = Node(mc.polyCube(name='connectionTest')[0])
+        with self.assertRaises(exceptions.ConnectToSelfError):
+            cube1.attrs['tx'] >> 'cube1.tx'
+
     def testConnectChildren(self):
         cubeA = Node(mc.polyCube(name='connectionTest')[0]).shape
         cubeB = Node(mc.polyCube(name='connectionTest')[0]).shape
@@ -683,7 +688,7 @@ class TestAttr(unittest.TestCase):
         self.assertFalse(uvSetA1Name.connections)
         self.assertEqual(len(uvSetA1Name.connections), 0)
 
-        mc.delete(cubeA, cubeB)
+        mc.delete(cubeA.parent, cubeB.parent)
 
     def testList(self):
         self.assertIn('outColor', list(self.node.attrs))

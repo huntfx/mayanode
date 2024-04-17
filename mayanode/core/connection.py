@@ -137,12 +137,16 @@ class Connection(utils.StrMixin):
 
         Raises:
             AttributeNotFoundError: If either attribute doesn't exist
+            ConnectToSelfError: If connecting to itself
             RuntimeError: The attribute '{}' cannot be connected to '{}'.
 
         Returns:
             True if successful otherwise False.
         """
         utils.logger.info('Creating connection: %s >> %s', self.source, self.destination)
+        if self._srcPlug == self._dstPlug:
+            raise exceptions.ConnectToSelfError(self.source.node, self.source.attr)
+
         if not self.exists:
             if not self.source.exists:
                 raise exceptions.AttributeNotFoundError(self.source.node, self.source.attr)
