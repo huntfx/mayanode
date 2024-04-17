@@ -90,6 +90,11 @@ class Ancestors(types.MappedLazyList):
     This is very fast when requesting the first or last ancestor or a
     node. When iterating over every ancestor, the overhead cost of
     wrapping the list in this class is minimal.
+
+    Optimisation:
+        If using this to test that the top level node matches something
+        then it is quite a bit faster to completely skip this and just
+        use `node.longName.startswith('|topLevelNode|')`.
     """
 
     __slots__ = ['_node', '_ancestors', '_loadedAllAncestors']
