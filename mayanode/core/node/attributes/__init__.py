@@ -386,9 +386,11 @@ class Attribute(types.StrMixin):
         def plugs(self):
             # type () -> List[om2.MPlug]
             """Get all the `MPlug` objects in the case of arrays."""
-            if self.plug.isArray:
-                return [self.plug.elementByPhysicalIndex(i) for i in range(self.plug.numElements())]
-            return [self.plug]
+            plug = self.plug
+            result = [plug]
+            if plug.isArray:
+                result.extend(plug.elementByPhysicalIndex(i) for i in range(plug.numElements()))
+            return result
 
         @property
         def attribute(self):
