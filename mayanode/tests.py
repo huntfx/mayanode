@@ -600,10 +600,14 @@ class TestAttr(unittest.TestCase):
         self.assertIn(self.node.attrs['outColor'].connections[0], self.node.attrs['outColor'].connections)
 
     def testConnect(self):
-        cube1 = Node(mc.polyCube(name='connectionTest1')[0])
-        cube2 = Node(mc.polyCube(name='connectionTest2')[0])
+        cube1 = Node(mc.polyCube(name='connectionTest')[0])
+        cube2 = Node(mc.polyCube(name='connectionTest')[0])
+        self.assertFalse(cube1.connections)
+        self.assertFalse(cube1.attrs['tx'].connections)
         self.assertNotIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
         cube1.attrs['tx'] >> cube2.attrs['tx']
+        self.assertTrue(cube1.connections)
+        self.assertTrue(cube1.attrs['tx'].connections)
         self.assertIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
         cube1.attrs['tx'] // cube2.attrs['tx']
         self.assertNotIn(cube1.attrs['tx'], cube2.attrs['tx'].connections)
@@ -632,6 +636,54 @@ class TestAttr(unittest.TestCase):
         self.assertTrue(connection.connect())
         self.assertTrue(cube2.attrs['tx'].disconnect(cube1.attrs['tx']))
         mc.delete(cube1, cube2)
+
+    def testConnectChildren(self):
+        cubeA = Node(mc.polyCube(name='connectionTest')[0]).shape
+        cubeB = Node(mc.polyCube(name='connectionTest')[0]).shape
+        existingConsA = list(cubeA.connections)
+        uvSetA = cubeA.attrs['uvSet']
+        uvSetB = cubeB.attrs['uvSet']
+        uvSetA >> uvSetB
+        uvSetA1 = uvSetA.children[0]
+        uvSetB1 = uvSetB.children[0]
+        uvSetA1 >> uvSetB1
+        uvSetA1Name = uvSetA1.children['uvSetName']
+        uvSetB1Name = uvSetB1.children['uvSetName']
+        uvSetA1Name >> uvSetB1Name
+
+        self.assertTrue(cubeA.connections)
+        self.assertEqual(len([con for con in cubeA.connections if con not in existingConsA]), 3)
+        self.assertTrue(uvSetA.connections)
+        self.assertEqual(len(uvSetA.connections), 3)
+        self.assertTrue(uvSetA1.connections)
+        self.assertEqual(len(uvSetA1.connections), 2)
+        self.assertTrue(uvSetA1Name.connections)
+        self.assertEqual(len(uvSetA1Name.connections), 1)
+
+        uvSetA // uvSetB
+        uvSetA1 // uvSetB1
+
+        self.assertTrue(cubeA.connections)
+        self.assertEqual(len([con for con in cubeA.connections if con not in existingConsA]), 1)
+        self.assertTrue(uvSetA.connections)
+        self.assertEqual(len(uvSetA.connections), 1)
+        self.assertTrue(uvSetA1.connections)
+        self.assertEqual(len(uvSetA1.connections), 1)
+        self.assertTrue(uvSetA1Name.connections)
+        self.assertEqual(len(uvSetA1Name.connections), 1)
+
+        uvSetA1Name // uvSetB1Name
+
+        self.assertTrue(cubeA.connections)
+        self.assertEqual(len([con for con in cubeA.connections if con not in existingConsA]), 0)
+        self.assertFalse(uvSetA.connections)
+        self.assertEqual(len(uvSetA.connections), 0)
+        self.assertFalse(uvSetA1.connections)
+        self.assertEqual(len(uvSetA1.connections), 0)
+        self.assertFalse(uvSetA1Name.connections)
+        self.assertEqual(len(uvSetA1Name.connections), 0)
+
+        mc.delete(cubeA, cubeB)
 
     def testList(self):
         self.assertIn('outColor', list(self.node.attrs))

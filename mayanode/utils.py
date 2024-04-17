@@ -116,6 +116,28 @@ def constructionHistory(mobject, future=False):
         yield iterator.currentNode()
 
 
+def getChildPlugs(plug):
+    # type: (om2.MPlug) -> Iterator[om2.MPlug]
+    """Recursively get all child plugs from a given plug.
+    The current plug is also returned as the first item.
+    """
+    if plug.isNull:
+        return
+
+    yield plug
+
+    if plug.isArray:
+        childPlugs = map(plug.elementByPhysicalIndex, range(plug.numElements()))
+    elif plug.isCompound:
+        childPlugs = map(plug.child, range(plug.numChildren()))
+    else:
+        return
+
+    for allChildPlugs in map(getChildPlugs, childPlugs):
+        for childPlug in allChildPlugs:
+            yield childPlug
+
+
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .types import StrMixin

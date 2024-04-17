@@ -246,6 +246,14 @@ class ConnectionProxy(ConnectionList):
         self._destinationConnections = None  # type: Optional[List[Connection]]
         super(ConnectionProxy, self).__init__()
 
+    def __bool__(self):
+        # type: () -> bool
+        """Determine if any connections exist."""
+        for plug in self.plugs:
+            if plug.isConnected:
+                return True
+        return False
+
     @property
     def inputs(self):
         # type: () -> ConnectionList
@@ -284,31 +292,11 @@ class ConnectionProxy(ConnectionList):
 
     @property
     def plugs(self):
-        # type: () -> List[om2.MPlug]
+        # type: () -> Iterator[om2.MPlug]
         """Get the `MPlug` objects.
         Requires override.
         """
         raise NotImplementedError
-
-    def _loadRecursive(self, plug, source=True, destination=True):
-        # type: (om2.MPlug, bool, bool) -> Generator[Connection, None, None]
-        """Recursively load connections from the plug and any children."""
-        if source:
-            for connectedPlug in plug.connectedTo(True, False):
-                yield Connection(self.node, plug, connectedPlug, reverse=True)
-        if destination:
-            for connectedPlug in plug.connectedTo(False, True):
-                yield Connection(self.node, plug, connectedPlug)
-
-        plugs = []  # type: List[om2.MPlug]
-        if plug.isArray:
-            plugs.extend(map(plug.elementByPhysicalIndex, range(plug.numElements())))
-        elif plug.isCompound:
-            plugs.extend(map(plug.child, range(plug.numChildren())))
-
-        for childPlug in plugs:
-            for connection in self._loadRecursive(childPlug, source=source, destination=destination):
-                yield connection
 
     def loadData(self, key=None):  # pylint: disable=unused-argument, no-self-use
         # type: (Optional[Union[int, str]]) -> bool
@@ -335,9 +323,11 @@ class ConnectionProxy(ConnectionList):
         # Get the connections for each plug
         for currentPlug in self.plugs:
             if destination:
-                self._destinationConnections.extend(self._loadRecursive(currentPlug, False, True))
+                for connectedPlug in currentPlug.connectedTo(False, True):
+                    self._destinationConnections.append(Connection(self.node, currentPlug, connectedPlug))
             if source:
-                self._sourceConnections.extend(self._loadRecursive(currentPlug, True, False))
+                for connectedPlug in currentPlug.connectedTo(True, False):
+                    self._sourceConnections.append(Connection(self.node, currentPlug, connectedPlug, reverse=True))
 
         # Add to main list
         if destination:
@@ -376,12 +366,9 @@ class AttributeConnectionProxy(ConnectionProxy):
 
     @property
     def plugs(self):
-        # type: () -> List[om2.MPlug]
+        # type: () -> Iterator[om2.MPlug]
         """Get the attribute `MPlug` objects."""
-        attrApi = self.attr.api
-        if attrApi.plug.isNull:
-            return []
-        return attrApi.plugs
+        return utils.getChildPlugs(self.attr.api.plug)
 
 
 class NodeConnectionProxy(ConnectionProxy):
@@ -402,11 +389,12 @@ class NodeConnectionProxy(ConnectionProxy):
 
     @property
     def plugs(self):
-        # type: () -> List[om2.MPlug]
+        # type: () -> Iterator[om2.MPlug]
         """Get the node `MPlug` objects."""
         if not self.node.exists:
-            return []
-        return [utils.unnetworkPlug(plug) for plug in self.node.api.dependencyNode.getConnections()]
+            return
+        for plug in self.node.api.dependencyNode.getConnections():
+            yield utils.unnetworkPlug(plug)
 
 
 # Handle circular dependencies
