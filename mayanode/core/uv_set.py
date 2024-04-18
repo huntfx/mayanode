@@ -58,9 +58,9 @@ class UVSetList(types.MappedLazyList):
         if self._uvSetNames is None:
             if self.node.exists and self.node.api.mesh is not None:
                 if self._faceIndex is None:
-                    self._uvSetNames = self.node.api.mesh.getUVSetNames()
+                    self._uvSetNames = list(self.node.api.mesh.getUVSetNames())
                 else:
-                    self._uvSetNames = self.node.api.mesh.getFaceUVSetNames(self._faceIndex)
+                    self._uvSetNames = list(self.node.api.mesh.getFaceUVSetNames(self._faceIndex))
             else:
                 self._uvSetNames = []
             self._set(None for _ in self._uvSetNames)
@@ -99,6 +99,16 @@ class UVSetList(types.MappedLazyList):
             self._setitem(idx, UVSet(self.node, self._uvSetNames[idx]))
 
         return loadedAll
+
+    def create(self, name):
+        # type: (str) -> UVSet
+        """Add a new UV set to the node."""
+        uvSetName = utils.runAndLog(mc.polyUVSet, self.node, create=True, uvSet=name)[0]
+        if self._uvSetNames is not None:
+            self._uvSetNames.append(uvSetName)
+        uvSet = UVSet(self.node, uvSetName)
+        self._append(uvSet)
+        return uvSet
 
 
 class UVSet(utils.StrMixin):
@@ -150,12 +160,10 @@ class UVSet(utils.StrMixin):
 
         Returns:
             Attribute('node.uvSet[i].uvSetName')
-
-        TODO:
-            Tests
         """
         physicalIndex = self.physicalIndex
-        for i, uvSet in enumerate(self.node.attrs['uvSet'].children):
+        isValid = lambda uvSet: uvSet.children['uvSetName'].value
+        for i, uvSet in enumerate(filter(isValid, self.node.attrs['uvSet'].children)):
             if i == physicalIndex:
                 return uvSet.children['uvSetName']
         raise exceptions.UVSetNotFoundError(self.node, self)
@@ -165,22 +173,28 @@ class UVSet(utils.StrMixin):
         # type: () -> int
         """Get the physical index of the UV set.
 
-        TODO:
-            Tests
-            Raise error if node has no mesh?
+        Technically this is not the "real" internal index, that seems
+        to match the logical index even after the UV sets have been
+        deleted.
+
+        Raises:
+            UVSetNotFoundError
         """
         mesh = self.node.api.mesh
         if mesh is None:
-            return 0
-        return mesh.getUVSetNames().index(self.name)
+            raise exceptions.UVSetNotFoundError(self.node, self.name)
+        try:
+            return mesh.getUVSetNames().index(self.name)
+        except ValueError:
+            raise exceptions.UVSetNotFoundError(self.node, self.name)
 
     @property
     def logicalIndex(self):
         # type: () -> int
         """Get the logical index of the UV set.
 
-        TODO:
-            Tests
+        Raises:
+            UVSetNotFoundError
         """
         return self.attr.api.plug.parent().logicalIndex()
 

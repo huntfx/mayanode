@@ -823,7 +823,7 @@ class TestUVSets(unittest.TestCase):
         self.assertEqual(self.node.uvSet, 'map2')
         self.assertEqual(self.node.uvSets, ['map1', 'map2'])
 
-    def testCreate(self):
+    def testSetInvalid(self):
         with self.assertRaises(exceptions.UVSetNotFoundError):
             self.node.uvSet = 'map3'
         self.assertEqual(self.node.uvSet, 'map1')
@@ -840,6 +840,42 @@ class TestUVSets(unittest.TestCase):
     def testFaces(self):
         for face in self.node.faces:
             self.assertEqual(len(face.uvSets), 2)
+
+    def testCreate(self):
+        original = list(self.node.uvSets)
+        uvSets = self.node.uvSets
+        uvSet = uvSets.create('NewUVSet')
+        self.assertIn(uvSet, self.node.uvSets)
+        self.assertIn(uvSet, uvSets)
+        self.assertEqual(self.node.uvSets, original + [uvSet])
+        self.assertEqual(self.node.uvSet, self.node.uvSets[0])
+
+    def testIndex(self):
+        uvSet1 = self.node.uvSets.create('NewUVSet1')
+        uvSet2 = self.node.uvSets.create('NewUVSet2')
+        uvSet1.delete()
+        uvSet3 = self.node.uvSets.create('NewUVSet2')
+
+        self.assertEqual(self.node.uvSets, ['map1', 'map2', uvSet2, uvSet3])
+        self.assertEqual(len(self.node.attrs['uvSet']), 5)
+
+        with self.assertRaises(exceptions.UVSetNotFoundError):
+            uvSet1.physicalIndex
+        with self.assertRaises(exceptions.UVSetNotFoundError):
+            uvSet1.logicalIndex
+
+        self.assertEqual(uvSet2.physicalIndex, 2)
+        self.assertEqual(uvSet2.logicalIndex, 3)
+
+        self.assertEqual(uvSet3.physicalIndex, 3)
+        self.assertEqual(uvSet3.logicalIndex, 4)
+
+        for uvSet in self.node.uvSets:
+            idx = uvSet.logicalIndex
+            attr = self.node.attrs['uvSet'].children[idx].children['uvSetName']
+            self.assertEqual(attr.value, uvSet)
+            self.assertEqual(attr, uvSet.attr)
+
 
 class TestColorSets(unittest.TestCase):
     def setUp(self):
