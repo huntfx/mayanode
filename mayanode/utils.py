@@ -93,8 +93,9 @@ def unnetworkPlug(plug):
 
     # If an element plug, then the index needs to be re-applied
     # eg. `uvSet[1]` becomes `uvSet[-1]` without this
+    # Note that using `elementByLogicalIndex` creates a networked node
     if plug.isElement:
-        return new.elementByLogicalIndex(plug.logicalIndex())
+        new.selectAncestorLogicalIndex(plug.logicalIndex())
 
     return new
 
