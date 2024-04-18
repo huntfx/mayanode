@@ -104,6 +104,11 @@ class MappedLazyList(object):
     Note:
         It is expected that the items will all result in unique strings when fed into `generateKey`.
         For optimisation purposes, this does not support using strings or None as list items.
+
+    TODO:
+        Add support for intermediate API types before they get converted.
+            ie. Load plugs/UV set names etc separately.
+        Allow duplicate keys to be mapped (eg. link "tx" to "translateX").
     """
 
     __slots__ = ['_data', '_mapping', '_unmapped', '_isDataLoaded', '_expectedLength']
