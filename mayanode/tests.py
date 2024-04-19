@@ -640,7 +640,8 @@ class TestAttr(unittest.TestCase):
     def testConnectionInvalid(self):
         cube1 = Node(mc.polyCube(name='connectionTest')[0])
         with self.assertRaises(exceptions.ConnectToSelfError):
-            cube1.attrs['tx'] >> 'cube1.tx'
+            cube1.attrs['tx'] >> cube1.attrs['tx']
+        mc.delete(cube1)
 
     def testConnectChildren(self):
         cubeA = Node(mc.polyCube(name='connectionTest')[0]).shape
