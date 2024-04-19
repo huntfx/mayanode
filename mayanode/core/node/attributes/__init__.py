@@ -584,6 +584,9 @@ class Attribute(types.StrMixin):
         # type: () -> Any
         """Get the attribute type.
 
+        Raises:
+            AttributeNotFoundError
+
         Returns:
             Python type for standard attributes.
             Tuple of types if a compound attribute.
@@ -607,7 +610,12 @@ class Attribute(types.StrMixin):
             elif apiType == om2.MFn.kEnumAttribute:
                 return 'enum'  # Match the getAttr result
 
-        attrType = utils.runAndLog(mc.getAttr, self, type=True)
+        try:
+            attrType = utils.runAndLog(mc.getAttr, self, type=True)
+        except ValueError as e:
+            if 'No object matches name' in str(e):
+                raise exceptions.AttributeNotFoundError(self.node, self.attr)
+            raise
         return ATTR_TYPES.get(attrType, attrType)
 
     @property
@@ -750,6 +758,28 @@ class Attribute(types.StrMixin):
         """Get the attribute connections as plugs."""
         return AttributeConnectionProxy(self)
 
+    def create(self, attrType=None, **kwargs):
+        # type: (str, Optional[str], **Any) -> Attribute
+        """Create the attribute."""
+        try:
+            if attrType is None:
+                attrType = self.type
+        except exceptions.AttributeNotFoundError:
+            pass
+
+        if attrType is not None:
+            if attrType is bool:
+                kwargs['attributeType'] = 'bool'
+            elif attrType is int:
+                kwargs['attributeType'] = 'long'
+            elif attrType is str:
+                kwargs['dataType'] = 'string'
+            elif attrType is float:
+                kwargs['attributeType'] = 'double'
+
+        utils.logger.info('Adding attribute %s with arguments %s', self, kwargs)
+        utils.runAndLog(mc.addAttr, self.node, longName=self.attr, **kwargs)
+
     def delete(self):
         # type: () -> None
         """Delete the attribute.
@@ -761,7 +791,10 @@ class Attribute(types.StrMixin):
         """
         utils.logger.info('Deleting attribute: %s', self)
         utils.raiseIfNodeNotFound(self.node)
-        utils.runAndLog(mc.deleteAttr, self)
+        if self.api.plug.isElement:
+            utils.runAndLog(mc.removeMultiInstance, self, b=True)
+        else:
+            utils.runAndLog(mc.deleteAttr, self)
 
     @property
     def keyframes(self):
@@ -772,7 +805,13 @@ class Attribute(types.StrMixin):
     @property
     def children(self):
         # type: () -> AttributeChildren
-        """Get all attribute children."""
+        """Get all attribute children.
+
+        Raises:
+            AttributeNotFoundError
+        """
+        if not self.exists:
+            raise exceptions.AttributeNotFoundError(self.node, self.attr)
         return AttributeChildren(self.node, self.api.plug)
 
     def child(self, value):

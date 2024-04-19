@@ -810,6 +810,60 @@ class TestAttr(unittest.TestCase):
 
         mc.delete(t1)
 
+    def testDelete(self):
+        cube = mc.polyCube(name='compoundExistsTest')[0]
+        mc.addAttr(cube, longName='test', attributeType='compound', numberOfChildren=1, multi=True)
+        mc.addAttr(cube, longName='testA', attributeType='float', parent='test')
+        mc.setAttr(cube + '.test[0].testA', 1)
+        mc.setAttr(cube + '.test[1].testA', 1)
+
+        node = Node(cube)
+        attr = node.attrs['test']
+        element = attr.children[0]
+        child = element.children['testA']
+
+        with self.assertRaises(RuntimeError):
+            child.delete()
+        element.delete()
+        self.assertEqual(list(attr.children.keys()), [1])
+        attr.delete()
+        self.assertNotIn('test', Node(cube).attrs)
+        self.assertFalse(node.attrs['test'].exists)
+        with self.assertRaises(exceptions.AttributeNotFoundError):
+            attr.children
+        mc.delete(cube)
+
+    def testCreateFromDelete(self):
+        cube = mc.polyCube(name='compoundExistsTest')[0]
+
+        mc.addAttr(cube, longName='test', attributeType='long')
+        attr = Node(cube).attrs['test']
+        attr.value = 5
+        attr.delete()
+        attr.create()
+        self.assertIs(attr.type, int)
+        self.assertEqual(attr.value, 0)
+        attr.delete()
+
+        mc.delete(cube)
+
+    def testCreateFromDeleteUnknownType(self):
+        cube = mc.polyCube(name='compoundExistsTest')[0]
+
+        mc.addAttr(cube, longName='test', attributeType='compound', numberOfChildren=1, multi=True)
+        mc.addAttr(cube, longName='testA', attributeType='float', parent='test')
+        mc.setAttr(cube + '.test[0].testA', 1)
+        mc.setAttr(cube + '.test[1].testA', 1)
+        attr = Node(cube).attrs['test']
+        attr.delete()
+        attr.create()
+        self.assertIs(attr.type, float)  # Falls back to default with a non standard type
+        attr.delete()
+        attr.create(attributeType='bool')
+        self.assertIs(attr.type, bool)
+
+        mc.delete(cube)
+
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
