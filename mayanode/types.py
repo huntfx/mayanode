@@ -6,7 +6,9 @@ import sys
 from . import type_hints
 
 if type_hints.TYPE_CHECKING:
-    from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+    from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Type, Union
+    MappingKey = Any
+    MappingKeyType = Type[MappingKey]
 
 if sys.version_info.major != 2:
     unicode = str  # pylint: disable=invalid-name
@@ -111,12 +113,19 @@ class MappedLazyList(object):
         Allow duplicate keys to be mapped (eg. link "tx" to "translateX").
     """
 
-    __slots__ = ['_data', '_mapping', '_unmapped', '_isDataLoaded', '_expectedLength']
+    __slots__ = ['_data', '_mapping', '_unmapped', '_isDataLoaded', '_expectedLength', '_keyType']
 
-    def __init__(self, data=None):
-        # type: (Optional[Iterable[Any]]) -> None
+    def __init__(self, data=None, keyType=None):
+        # type: (Optional[Iterable[Any]], Optional[Union[MappingKeyType, Tuple[MappingKeyType, ...]]]) -> None
         """Set up the list.
-        If `data` is given, then it is assumed to be of a set length.
+
+        Parameters:
+            data: Initial data to load.
+                If this is given, then the list is assumed to be a set
+                length.
+            keyType: What type the mapping is.
+                If `int`, then the list lookups will be overridden with
+                the dict key counterpart.
         """
         self._isDataLoaded = False
         if data is None:
@@ -126,7 +135,11 @@ class MappedLazyList(object):
             self._data = list(data)
             self._expectedLength = len(self._data)
         self._unmapped = []  # type: List[int]
-        self._mapping = None  # type: Optional[Dict[str, Any]]
+        self._mapping = None  # type: Optional[Dict[str, MappingKey]]
+
+        if not keyType or keyType in (str, unicode):
+            keyType = (str, unicode)
+        self._keyType = keyType
 
     def __repr__(self):
         # type: () -> str
@@ -145,7 +158,7 @@ class MappedLazyList(object):
     def __contains__(self, value):
         # type: (Any) -> bool
         self._loadData(value)
-        if not isinstance(value, (unicode, str)):
+        if not isinstance(value, self._keyType):
             return value in self._data
 
         # If the mapping is already loaded then use that
@@ -210,7 +223,7 @@ class MappedLazyList(object):
         return True
 
     def generateKey(self, value):
-        # type: (Any) -> str
+        # type: (Any) -> MappingKey
         """Override this to get the dict keys for each item."""
         return str(value)
 
@@ -219,7 +232,7 @@ class MappedLazyList(object):
         """Append to the list.
         This is for internal use only.
         """
-        if value is None or isinstance(value, (unicode, str)):
+        if value is None or isinstance(value, self._keyType):
             raise TypeError('"{}" not supported'.format(type(value).__name__))
 
         self._data.append(value)
@@ -233,7 +246,7 @@ class MappedLazyList(object):
         """Append to the list.
         This is for internal use only.
         """
-        if value is None or isinstance(value, (unicode, str)):
+        if value is None or isinstance(value, self._keyType):
             raise TypeError('"{}" not supported'.format(type(value).__name__))
 
         self._data.insert(index, value)
@@ -284,7 +297,7 @@ class MappedLazyList(object):
 
     @property
     def mapping(self):
-        # type: () -> Dict[str, Any]
+        # type: () -> Dict[MappingKey, Any]
         """Get the mapping of keys to indexes."""
         if self._mapping is None:
             self._mapping = {self.generateKey(item): i for i, item in enumerate(self._data)}
@@ -303,20 +316,20 @@ class MappedLazyList(object):
                     self._loadData(i)
             return self._data[value]
 
-        if isinstance(value, int):
+        if isinstance(value, self._keyType):
+            self._loadData(value)
+
+        elif isinstance(value, int):
             if self._expectedLength is None or self._data[value] is None:
                 self._loadData(value)
             return self._data[value]
-
-        if isinstance(value, (str, unicode)):
-            self._loadData(value)
 
         return self._data[self.mapping[value]]
 
     def get(self, value, default=None):
         # type: (Any, Any) -> Any
         """Get the value at a specific key, or fallback to a default value."""
-        if isinstance(value, (str, unicode)):
+        if isinstance(value, self._keyType):
             self._loadData(value)
         try:
             return self._data[self.mapping[value]]
@@ -324,7 +337,7 @@ class MappedLazyList(object):
             return default
 
     def keys(self):
-        # type: () -> List[str]
+        # type: () -> List[MappingKey]
         """Get all the mapped keys."""
         return list(self.mapping)
 
@@ -334,7 +347,7 @@ class MappedLazyList(object):
         return list(self._data)
 
     def items(self):
-        # type: () -> Iterator[Tuple[str, Any]]
+        # type: () -> Iterator[Tuple[MappingKey, Any]]
         """Get all the mapped items."""
         for k, v in self.mapping.items():
             yield k, self._data[v]

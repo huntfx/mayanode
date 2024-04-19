@@ -7,7 +7,7 @@ from .... import exceptions, types, utils
 from ....type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Iterator, List, Optional, Union
+    from typing import Any, Iterator, Iterable, List, Optional, Tuple, Type, Union
     from typing import KeysView, ValuesView, ItemsView
 
 
@@ -138,6 +138,32 @@ def _setPlugValue(plug, value):
             _setPlugValue(plug.child(i), val)
     else:
         raise NotImplementedError(type(value))
+
+
+class AttributeChildren(types.MappedLazyList):
+    """Access the child attributes."""
+
+    def __init__(self, node, plug):
+        # type: (Node, om2.MPlug) -> None
+        keyType = str  # type: Type[Any]
+        if plug.isArray:
+            plugs = map(plug.elementByPhysicalIndex, range(plug.numElements()))
+            keyType = int
+        elif plug.isCompound:
+            plugs = map(plug.child, range(plug.numChildren()))
+        else:
+            plugs = map(plug.child, ())  # Keep the type hints happy
+        super(AttributeChildren, self).__init__((Attribute(node, plug) for plug in plugs), keyType=keyType)
+
+    def generateKey(self, value):
+        # type: (Any) -> Any
+        if isinstance(value, Attribute):
+            plug = value.api.plug
+            if plug.isChild:
+                return value.name.rsplit('.', 1)[-1]
+            if plug.isCompound:
+                return value.api.plug.logicalIndex()
+        raise NotImplementedError(type(value).__name__)
 
 
 class NodeAttributes(dict):
@@ -519,19 +545,39 @@ class Attribute(types.StrMixin):
         the opposite with networked plugs, but any other plugs are left
         as valid. A check on the parent node is needed for these.
         """
-        plug = self.api.plug
-        if plug.isNull:
-            return False
         if not self.node.exists:
             return False
 
-        # TODO: Test what happens when parent attribute is deleted
-        if plug.isElement:
-            return True
-        if plug.isChild:
-            return True
+        # Walk through the plugs until the top one
+        plug = self.api.plug
+        checkElementIn = [] # type: List[Tuple[om2.MPlug, om2.MPlug]]
+        while True:
+            if plug.isNull:
+                return False
 
-        return self.node.api.dependencyNode.hasAttribute(self.attr)
+            # Array child (eg. uvSet[0])
+            if plug.isElement:
+                parent = plug.array()
+                checkElementIn.append((plug, parent))
+                plug = parent
+
+            # Compound child (eg. uvSet[0].uvSetName)
+            elif plug.isChild:
+                plug = plug.parent()
+
+            else:
+                break
+
+        # Check
+        if not self.node.api.dependencyNode.hasAttribute(plug.partialName()):
+            return False
+
+        # This needs to be done after, because if the attribute is deleted
+        # then `getExistingArrayAttributeIndices` will crash Maya
+        for child, parent in checkElementIn:
+            if child.logicalIndex() not in parent.getExistingArrayAttributeIndices():
+                return False
+        return True
 
     @property
     def type(self):
@@ -725,28 +771,9 @@ class Attribute(types.StrMixin):
 
     @property
     def children(self):
-        # type: () -> Union[List[Attribute], Dict[Attribute]]
-        """Get all attribute children.
-        This will be fixed in the future to be a dict-like list. For
-        now though, if it is a compound plug then a dict will be
-        returned, otherwise a list.
-
-        TODO:
-            Make into a dict-like list
-        """
-        plug = self.api.plug
-
-        # If array, create a live up to date copy of the children
-        if plug.isArray:
-            plugs = map(plug.elementByPhysicalIndex, range(plug.numElements()))
-            return [Attribute(self.node, plug) for plug in plugs]
-
-        # If compound, then regenerate any children previously stored
-        if plug.isCompound:
-            self._reloadCompoundChildren()
-            return self._compoundChildren
-
-        return []
+        # type: () -> AttributeChildren
+        """Get all attribute children."""
+        return AttributeChildren(self.node, self.api.plug)
 
     def child(self, value):
         # type: (Union[int, str]) -> Attribute

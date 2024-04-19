@@ -541,6 +541,57 @@ class TestAttr(unittest.TestCase):
         self.assertIn('diffuse', self.node.attrs)
         self.assertNotIn('something', self.node.attrs)
 
+    def testExistsCompound(self):
+        cube = mc.polyCube(name='compoundExistsTest')[0]
+        mc.addAttr(cube, longName='test', attributeType='compound', numberOfChildren=1, multi=True)
+        mc.addAttr(cube, longName='testA', attributeType='float', parent='test')
+        mc.setAttr(cube + '.test[0].testA', 1)
+        mc.setAttr(cube + '.test[1].testA', 1)
+
+        node = Node(cube)
+        attr = node.attrs['test']
+        element = attr.children[0]
+        child = element.children['testA']
+
+        self.assertTrue(child.exists)
+        self.assertTrue(element.exists)
+        self.assertTrue(attr.exists)
+
+        mc.removeMultiInstance(cube + '.test[0]')
+
+        self.assertFalse(child.exists)
+        self.assertFalse(element.exists)
+        self.assertTrue(attr.exists)
+
+        mc.deleteAttr(cube + '.test')
+        self.assertFalse(child.exists)
+        self.assertFalse(element.exists)
+        self.assertFalse(attr.exists)
+
+        mc.delete(cube)
+
+    def testCompoundIndex(self):
+        cube = mc.polyCube(name='compoundExistsTest')[0]
+
+        mc.addAttr(cube, longName='test', attributeType='compound', numberOfChildren=1, multi=True)
+        mc.addAttr(cube, longName='testA', attributeType='float', parent='test')
+        mc.setAttr(cube + '.test[2].testA', 2)
+        mc.setAttr(cube + '.test[0].testA', 0)
+        mc.setAttr(cube + '.test[1].testA', 1)
+        mc.removeMultiInstance(cube + '.test[0]')
+
+        attr = Node(cube).attrs['test']
+        self.assertEqual(list(attr.children.keys()), [1, 2])
+        with self.assertRaises(KeyError):
+            attr.children[0]
+        element = attr.children[2]
+        self.assertEqual(list(element.children.keys()), ['testA'])
+        child = element.children['testA']
+        self.assertFalse(child.children)
+        self.assertEqual(child.value, 2.0)
+
+        mc.delete(cube)
+
     def testDefaultGet(self):
         self.assertIsNotNone(self.node.attrs.get('diffuse'))
         self.assertIsNone(self.node.attrs.get('something'))
