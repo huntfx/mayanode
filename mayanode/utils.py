@@ -1,12 +1,15 @@
 import logging
+import math
 
 import maya.api.OpenMaya as om2  # type: ignore
+import maya.cmds as mc  # type: ignore
 
 from . import exceptions
 from .type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Iterator
+    from typing import Any, Callable, Iterator, List, Union
+    from .type_hints import StrLike
     from .core.node import Node
 
 
@@ -137,6 +140,18 @@ def getChildPlugs(plug):
     for allChildPlugs in map(getChildPlugs, childPlugs):
         for childPlug in allChildPlugs:
             yield childPlug
+
+
+def calculateTexelDensity(faces):
+    # type: (Union[List[StrLike], StrLike]) -> float
+    """Get the texel density value from a face selection.
+
+    Equivalent:
+        `texGetTexelDensity(1)`
+    """
+    area2D = sum(mc.polyEvaluate(faces, uvFaceArea=True))
+    area3D = sum(mc.polyEvaluate(faces, worldFaceArea=True))
+    return math.sqrt(area2D) / math.sqrt(area3D)
 
 
 # Handle circular dependencies

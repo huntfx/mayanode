@@ -91,3 +91,11 @@ class ColorSetError(NodeError):
 
 class ColorSetNotFoundError(ColorSetError):
     MESSAGE = 'The color set "{node}.{colorSet}" was not found'
+
+
+class ZeroTexelDensityError(BaseError):
+    MESSAGE = 'The texel density for "{faces}" is zero and cannot be updated.'
+
+    def __init__(self, faces):
+        super(ZeroTexelDensityError, self).__init__(faces=', '.join(faces))
+

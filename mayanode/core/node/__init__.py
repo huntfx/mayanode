@@ -222,7 +222,7 @@ class _ApiData(object):
 
     __slots__ = ['_object', '_handle', '_instanceNumber',
                  '_dagPaths', '_dependencyNode', '_dagNode',
-                 '_transform', '_mesh', '_reference']
+                 '_transform', '_hasGeometry', '_reference']
 
     def __init__(self, mObject, instanceNumber=-1):
         # type: (om2.MObject, int) -> None
@@ -234,7 +234,7 @@ class _ApiData(object):
         self._handle = None  # type: Optional[om2.MObjectHandle]
         self._dependencyNode = None  # type: Optional[om2.MFnDependencyNode]
         self._transform = None  # type: Optional[om2.MFnTransform]
-        self._mesh = None  # type: Optional[om2.MFnMesh]
+        self._hasGeometry = None  # type: Optional[bool]
         self._reference = None  # type: Optional[om2.MFnReference]
         self._dagNode = None  # type: Optional[om2.MFnDagNode]
         self._dagPaths = None  # type: Optional[List[om2.MDagPath]]
@@ -314,7 +314,7 @@ class _ApiData(object):
         new._dependencyNode = self._dependencyNode
         new._dagNode = self._dagNode
         new._dagPaths = self._dagPaths
-        new._mesh = self._mesh
+        new._hasGeometry = self._hasGeometry
         new._reference = self._reference
         return new
 
@@ -469,17 +469,25 @@ class _ApiData(object):
             return None
         return shapeDagPath
 
+    @property
     def hasGeometry(self):
         # type: () -> bool
         """Determine if the object contains geometry.
         If not, then `MFnMesh` commands will fail.
         """
-        return om2.MItGeometry(self.object).index() != -1
+        if self._hasGeometry is None:
+            self._hasGeometry = self.object.hasFn(om2.MFn.kMesh) and om2.MItGeometry(self.object).index() != -1
+        return self._hasGeometry
 
     @property
     def mesh(self):
         # type: () -> Optional[om2.MFnMesh]
         """Get the `MFnMesh`.
+
+        Note that the object has to be generated per call rather than
+        being cached, as an existing mesh can become invalidated with
+        certain operations such as `polyEditUV`, causing fatal errors
+        and crashing Maya.
 
         Notable methods:
             `numVertices`
@@ -488,15 +496,9 @@ class _ApiData(object):
             `numFaceVertices`
             `currentUVSetName()`
         """
-        if self._mesh is None:
-            if self.object.hasFn(om2.MFn.kMesh) and self.hasGeometry():
-                self._mesh = om2.MFnMesh(self.object)
-            else:
-                self._mesh = -1
-
-        if self._mesh == -1:
-            return None
-        return self._mesh
+        if self.hasGeometry:
+            return om2.MFnMesh(self.object)
+        return None
 
     def getShapeMesh(self):
         # type: () -> Optional[om2.MFnMesh]
