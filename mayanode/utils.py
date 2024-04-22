@@ -144,7 +144,10 @@ def getChildPlugs(plug):
 
 def calculateTexelDensity(faces):
     # type: (Union[List[StrLike], StrLike]) -> float
-    """Get the texel density value from a face selection.
+    """Get the texel density value for the current UV set.
+    Multiply the result to get the value for different map sizes.
+
+    Reading the value on a different UV set is not supported.
 
     Equivalent:
         `texGetTexelDensity(1)`
@@ -152,6 +155,42 @@ def calculateTexelDensity(faces):
     area2D = sum(mc.polyEvaluate(faces, uvFaceArea=True))
     area3D = sum(mc.polyEvaluate(faces, worldFaceArea=True))
     return math.sqrt(area2D) / math.sqrt(area3D)
+
+
+def setTexelDensity(faces, density):
+    """Set the texel density value for the current UV set.
+
+    The map size used is 1, so divide the density by the map size if
+    required. For example, to set a density of 1024 for map size of
+    4096, the density should be set to 0.25.
+
+    Setting the value on a different UV set is not supported.
+
+    Equivalent:
+        `texSetTexelDensity(density, 1)`
+
+    Raises:
+        ZeroTexelDensityError: If texel density is zero.
+    """
+    # type: (Union[List[StrLike], StrLike], float) -> None
+    originalSelection = mc.ls(selection=True)
+    mc.select(faces)   # The `activeUVShells` flag doesn't work if node isn't selected
+
+    for shell in mc.polyEvaluate(faces, activeUVShells=True):  # [0, 1, 2, ...]
+        uvs = mc.polyEvaluate(faces, uvsInShell=shell)  # [node.map[0:100], ...]
+        faces = mc.polyListComponentConversion(uvs, toFace=True, uvs=True)  # [node.f[0:100], ...]
+        currentdensity = calculateTexelDensity(faces)
+        try:
+            scale = density / currentdensity
+        except ZeroDivisionError:
+            raise exceptions.ZeroTexelDensityError(faces)
+
+        (u1, u2), (v1, v2) = mc.polyEvaluate(uvs, boundingBoxComponent2d=True)
+        pU = (u1 + u2) / 2
+        pV = (v1 + v2) / 2
+        mc.polyEditUV(uvs, pivotU=pU, pivotV=pV, scaleU=scale, scaleV=scale)
+    mc.select(originalSelection)
+
 
 
 # Handle circular dependencies

@@ -476,16 +476,16 @@ class TestNode(unittest.TestCase):
 
     def testTexelDensity(self):
         node = Node(mc.polyPlane(name='texelDensityTest')[0])
-        faces = node.shape.faces
-        self.assertEqual(faces.texelDensity, 1.0)
-        faces.texelDensity = 2
-        self.assertEqual(round(faces.texelDensity, 1), 2.0)
-        faces.texelDensity = 0.5
-        self.assertEqual(round(faces.texelDensity, 1), 0.5)
-        faces.texelDensity = 0
-        self.assertEqual(faces.texelDensity, 0.0)
+        shape = node.shape
+        self.assertEqual(shape.texelDensity, 1.0)
+        node.texelDensity = 2
+        self.assertEqual(round(shape.texelDensity, 1), 2.0)
+        shape.texelDensity = 0.5
+        self.assertEqual(round(node.texelDensity, 1), 0.5)
+        shape.texelDensity = 0
+        self.assertEqual(shape.texelDensity, 0.0)
         with self.assertRaises(exceptions.ZeroTexelDensityError):
-            faces.texelDensity = 1
+            shape.texelDensity = 1
         mc.delete(node)
 
 

@@ -198,6 +198,15 @@ class UVSet(utils.StrMixin):
         """
         return self.attr.api.plug.parent().logicalIndex()
 
+    @property
+    def current(self):
+        # type: () -> bool
+        """Determine if this UV set is the current one."""
+        mesh = self.node.api.mesh
+        if mesh is None:
+            return False
+        return self.name == self.node.mesh.currentUVSetName()
+
     def delete(self):
         # type: () -> None
         """Delete a color set.

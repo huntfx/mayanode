@@ -1574,6 +1574,35 @@ class Node(utils.StrMixin):
             raise exceptions.NoBoundingBoxError(self)
         return boundingBox
 
+    @property
+    def texelDensity(self):
+        # type: () -> float
+        """Get the texel density value for the current UV set.
+        Multiply the result to get it for a specific map size.
+
+        Equivalent:
+            `texGetTexelDensity(1)`
+        """
+        return utils.calculateTexelDensity(self.name + '.f[*]')
+
+    @texelDensity.setter
+    def texelDensity(self, density):
+        # type: (float) -> None
+        """Set the texel density value for the current UV set.
+
+        The map size used is 1, so divide the density by the map size if
+        required. For example, to set a density of 1024 for map size of
+        4096, the density should be set to 0.25.
+
+        Equivalent:
+            `texSetTexelDensity(density, 1)`
+
+        Raises:
+            ZeroTexelDensityError: If texel density is zero.
+        """
+        utils.logger.info('Setting texel density of %s to %s', self, density)
+        utils.setTexelDensity(self.name + '.f[*]', density)
+
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
