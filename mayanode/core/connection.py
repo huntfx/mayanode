@@ -5,7 +5,7 @@ from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Generator, Iterator, List, Optional, Union
+    from typing import Any, Iterator, List, Optional, Union
 
 
 class Connection(utils.StrMixin):
@@ -152,7 +152,7 @@ class Connection(utils.StrMixin):
                 raise exceptions.AttributeNotFoundError(self.source.node, self.source.attr)
             if not self.destination.exists:
                 raise exceptions.AttributeNotFoundError(self.destination.node, self.destination.attr)
-            utils.runAndLog(mc.connectAttr, self.source, self.destination)
+            mc.connectAttr(self.source, self.destination)
             return True
 
         utils.logger.debug('Connection already exists')
@@ -174,7 +174,7 @@ class Connection(utils.StrMixin):
                 raise exceptions.AttributeNotFoundError(self.source.node, self.source.attr)
             if not self.destination.exists:
                 raise exceptions.AttributeNotFoundError(self.destination.node, self.destination.attr)
-            utils.runAndLog(mc.disconnectAttr, self.source, self.destination)
+            mc.disconnectAttr(self.source, self.destination)
             return True
 
         utils.logger.debug('Connection does not exist')

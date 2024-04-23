@@ -35,7 +35,7 @@ class ConstructionHistory(types.MappedLazyList):
         # type: () -> None
         """Delete all the construction history."""
         utils.logger.info('Deleting construction history for "%s"', self.node)
-        utils.runAndLog(mc.delete, self.node, constructionHistory=True)
+        mc.delete(self.node, constructionHistory=True)
 
     @property
     def history(self):

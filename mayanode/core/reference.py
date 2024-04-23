@@ -21,7 +21,7 @@ class Reference(Node):
         # type: (Optional[bool]) -> List[Reference]
         """Get all references."""
         # Map to the class
-        refNodes = [cls(refNode) for refNode in utils.runAndLog(mc.ls, references=True)]
+        refNodes = [cls(refNode) for refNode in mc.ls(references=True)]
 
         # Filter by loaded refs
         if loaded is not None:
@@ -51,7 +51,7 @@ class Reference(Node):
             return Namespace(associatedNamespace)
 
         # If the namespace doesn't exist then fallback to the slower command
-        return Namespace(utils.runAndLog(mc.file, self.filepath, query=True, namespace=True))
+        return Namespace(mc.file(self.filepath, query=True, namespace=True))
 
     @namespace.setter
     def namespace(self, namespace):
@@ -62,7 +62,7 @@ class Reference(Node):
             Should this rename the existing one?
         """
         utils.logger.info('Setting new reference namespace for "%s": %s', self, namespace)
-        utils.runAndLog(mc.file, self.filepath, edit=True, namespace=namespace)
+        mc.file(self.filepath, edit=True, namespace=namespace)
 
     @property
     def filepath(self):
@@ -90,7 +90,7 @@ class Reference(Node):
     def filepath(self, filepath):
         # type: (str) -> None
         utils.logger.info('Setting new reference path for "%s": %s', self, filepath)
-        utils.runAndLog(mc.file, filepath, loadReference=self)
+        mc.file(filepath, loadReference=self)
 
     @property
     def filename(self):
@@ -133,12 +133,12 @@ class Reference(Node):
         # type: () -> None
         """Load the reference."""
         utils.logger.info('Loading reference: %s', self)
-        utils.runAndLog(mc.file, loadReference=self)
+        mc.file(loadReference=self)
 
     def unload(self):
         # type: () -> None
         utils.logger.info('Unloading reference: %s', self)
-        utils.runAndLog(mc.file, unloadReference=self)
+        mc.file(unloadReference=self)
 
     @property
     def nodes(self):

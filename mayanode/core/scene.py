@@ -3,7 +3,7 @@ import os
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from .. import types, utils
+from .. import types
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class _Scene(object):
         Returns:
             Scene path as a string or None.
         """
-        path = utils.runAndLog(mc.file, query=True, sceneName=True)
+        path = mc.file(query=True, sceneName=True)
         if path:
             return os.path.normpath(path)
         return None
@@ -35,7 +35,7 @@ class _Scene(object):
         """Set a new scene path.
         This does not save the scene.
         """
-        utils.runAndLog(mc.file, rename=path)
+        mc.file(rename=path)
 
     @property
     def name(self):
@@ -54,7 +54,7 @@ class _Scene(object):
     def modified(self):
         # type: () -> bool
         """Get if the scene has been modified."""
-        return utils.runAndLog(mc.file, query=True, anyModified=True)
+        return mc.file(query=True, anyModified=True)
 
     def new(self, force=False):
         # type: (bool) -> None
@@ -63,7 +63,7 @@ class _Scene(object):
         Parameters:
             force (bool): Force create even if the current scene is modified.
         """
-        utils.runAndLog(mc.file, new=True, force=force)
+        mc.file(new=True, force=force)
 
     def open(self, path, force=False, selectivePreload=None):
         # type: (str, bool, Optional[bool]) -> None
@@ -83,11 +83,11 @@ class _Scene(object):
             if force:
                 selectivePreload = False
             else:
-                selectivePreload = utils.runAndLog(mc.optionVar, query='fileSelPreload')
+                selectivePreload = mc.optionVar(query='fileSelPreload')
 
         # Load the scene
         try:
-            utils.runAndLog(mc.file, path, open=True, force=True, buildLoadSettings=selectivePreload)
+            mc.file(path, open=True, force=True, buildLoadSettings=selectivePreload)
         except RuntimeError as e:
             if str(e).startswith('File not found'):
                 raise IOError(str(e))
@@ -102,7 +102,7 @@ class _Scene(object):
         # Selective reference preload
         if selectivePreload:
             path = path.replace('\\', '\\\\')  # There is no escape
-            utils.runAndLog(mc.optionVar, stringValue=('preloadRefEdTopLevelFile', path))
+            mc.optionVar(stringValue=('preloadRefEdTopLevelFile', path))
             mel.eval('PreloadReferenceEditor;')
 
     def save(self, force=True):
@@ -144,25 +144,25 @@ class _Scene(object):
     def currentFrame(self):
         # type: () -> float
         """Get the current frame of the scene."""
-        return utils.runAndLog(mc.currentTime, query=True)
+        return mc.currentTime(query=True)
 
     @currentFrame.setter
     def currentFrame(self, frame):
         # type: (float) -> None
         """Set the current frame of the scene."""
-        utils.runAndLog(mc.currentTime, frame)
+        mc.currentTime(frame)
 
     @property
     def autoKeyframe(self):
         # type: () -> bool
         """Get if autoKeyframe is enabled."""
-        return utils.runAndLog(mc.autoKeyframe, query=True, state=True)
+        return mc.autoKeyframe(query=True, state=True)
 
     @autoKeyframe.setter
     def autoKeyframe(self, enabled):
         # type: (bool) -> None
         """Enable or disable autoKeyframe."""
-        utils.runAndLog(mc.autoKeyframe, edit=True, state=enabled)
+        mc.autoKeyframe(edit=True, state=enabled)
 
 
 class SceneNodes(types.MappedLazyList):

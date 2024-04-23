@@ -8,52 +8,12 @@ from . import exceptions
 from .type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Iterator, List, Union
+    from typing import Iterator, List, Union
     from .type_hints import StrLike
     from .core.node import Node
 
 
 logger = logging.getLogger(__name__)
-
-
-class GenerateFnCall(object):
-    """Lazily generate the function call text.
-    This is intended for use with debug logging so that the expensive
-    string operations don't need to be performed for most users.
-    """
-    __slots__ = ['fn', 'args', 'kwargs']
-
-    def __init__(self, fn, *args, **kwargs):
-        # type: (Callable, *Any, **Any) -> None
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-
-    def __str__(self):
-        # type: () -> str
-        module = self.fn.__module__
-        if module == 'maya.cmds':
-            module = 'mc'
-        elif module == 'pymel.core':
-            module = 'pm'
-        args = map(self.repr, self.args)
-        kwargs = ('{}={}'.format(k, self.repr(v)) for k, v in self.kwargs.items())
-        params = ', '.join(list(args) + list(kwargs))
-        return '{}.{}({})'.format(module, self.fn.__name__, params)
-
-    def repr(self, item):
-        # type: (Any) -> str
-        if isinstance(item, StrMixin):
-            item = item.name
-        return repr(item)
-
-
-def runAndLog(fn, *args, **kwargs):
-    # type: (Callable, *Any, **Any) -> Any
-    """Run functions and log them."""
-    fnCall = GenerateFnCall(fn, *args, **kwargs)
-    logger.debug('%s', fnCall)
-    return fn(*args, **kwargs)
 
 
 def raiseIfNodeNotFound(node):

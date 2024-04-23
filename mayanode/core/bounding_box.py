@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 import maya.cmds as mc  # type: ignore
 
-from .. import utils
 from ..types import Coordinate
 from ..type_hints import TYPE_CHECKING
 
@@ -16,7 +15,7 @@ class BoundingBox(tuple):
 
     def __new__(cls, nodes):
         # type: (Union[StrLike, List[StrLike]]) -> BoundingBox
-        boundingBox = utils.runAndLog(mc.exactWorldBoundingBox, nodes)
+        boundingBox = mc.exactWorldBoundingBox(nodes)
         return tuple.__new__(cls, boundingBox)
 
     @property
@@ -100,7 +99,7 @@ class BoundingBox(tuple):
     def drawCube(self, name='BoundingBox'):
         # type: (str) -> Node
         """Draw a cube representation of the bounding box."""
-        transform, shape = utils.runAndLog(mc.polyCube, width=self.width, height=self.height, depth=self.depth, name=name)
+        transform, shape = mc.polyCube(width=self.width, height=self.height, depth=self.depth, name=name)
         cube = Node(transform)
         cube.translation = self.origin
         return cube

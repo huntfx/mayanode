@@ -52,17 +52,17 @@ class AttributeKeyframes(MutableMapping):
 
     def keys(self):
         # type () -> List[float]
-        result = utils.runAndLog(mc.keyframe, self.attr.node, attribute=self.attr.attr, query=True, timeChange=True)
+        result = mc.keyframe(self.attr.node, attribute=self.attr.attr, query=True, timeChange=True)
         return result or []
 
     def values(self):
         # type () -> List[float]
-        result = utils.runAndLog(mc.keyframe, self.attr.node, attribute=self.attr.attr, query=True, valueChange=True)
+        result = mc.keyframe(self.attr.node, attribute=self.attr.attr, query=True, valueChange=True)
         return result or []
 
     def items(self):
         # type () -> Generator[Tuple[float, float]]
-        result = utils.runAndLog(mc.keyframe, self.attr.node, attribute=self.attr.attr, query=True, timeChange=True, valueChange=True)
+        result = mc.keyframe(self.attr.node, attribute=self.attr.attr, query=True, timeChange=True, valueChange=True)
         for i in range(0, len(result), 2):
             yield result[i], result[i+1]
 
@@ -77,7 +77,7 @@ class KeyframeProxy(object):
         self.kf = keyframe
 
         if frame is None:
-            frame = utils.runAndLog(mc.currentTime, query=True)
+            frame = mc.currentTime(query=True)
 
         self.frame = frame
 
@@ -89,7 +89,7 @@ class KeyframeProxy(object):
     def value(self):
         # type () -> Union[List[float], float]
         if not isinstance(self.frame, slice):
-            result = utils.runAndLog(mc.keyframe, self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(self.frame, self.frame))
+            result = mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(self.frame, self.frame))
             if not result:
                 return None
             return result[0]
@@ -97,10 +97,10 @@ class KeyframeProxy(object):
         if (self.frame.step or 1) != 1:
             results = []
             for frame in range(self.frame.start, self.frame.stop, self.frame.step):
-                result = utils.runAndLog(mc.keyframe, self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(frame, frame))
+                result = mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(frame, frame))
             return results
 
-        return utils.runAndLog(mc.keyframe, self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(self.frame.start, self.frame.stop))
+        return mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(self.frame.start, self.frame.stop))
 
     def set(self, value=None):
         # type (Union[float, slice]) -> None
@@ -117,17 +117,17 @@ class KeyframeProxy(object):
         if value is not None:
             kwargs['value'] = value
 
-        utils.runAndLog(mc.setKeyframe, *args, **kwargs)
+        mc.setKeyframe(*args, **kwargs)
 
     def delete(self):
         # type () -> None
         utils.logger.info('Deleting keyframe on "%s" (frame %s)', self.kf.attr, self.frame)
         if not isinstance(self.frame, slice):
-            utils.runAndLog(mc.cutKey, self.kf.attr.node, attribute=self.kf.attr.attr, time=(self.frame, self.frame))
+            mc.cutKey(self.kf.attr.node, attribute=self.kf.attr.attr, time=(self.frame, self.frame))
 
         elif (self.frame.step or 1) != 1:
             for frame in range(self.frame.start, self.frame.stop, self.frame.step):
-                utils.runAndLog(mc.cutKey, self.kf.attr.node, attribute=self.kf.attr.attr, time=(frame, frame))
+                mc.cutKey(self.kf.attr.node, attribute=self.kf.attr.attr, time=(frame, frame))
 
         else:
-            utils.runAndLog(mc.cutKey, self.kf.attr.node, attribute=self.kf.attr.attr, time=(self.frame.start, self.frame.stop))
+            mc.cutKey(self.kf.attr.node, attribute=self.kf.attr.attr, time=(self.frame.start, self.frame.stop))

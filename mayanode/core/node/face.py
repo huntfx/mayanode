@@ -1,8 +1,6 @@
 from __future__ import absolute_import
 
-import maya.cmds as mc  # type: ignore
-
-from ... import exceptions, types, utils
+from ... import types, utils
 
 if utils.TYPE_CHECKING:
     from typing import List, Optional, Union

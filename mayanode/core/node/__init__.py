@@ -656,7 +656,7 @@ class Node(utils.StrMixin):
         # type: (*Any, **Any) -> List[Node]
         """Shortcut to search the scene."""
         kwargs['objectsOnly'] = True
-        result = utils.runAndLog(mc.ls, *args, **kwargs)
+        result = mc.ls(*args, **kwargs)
         return [Node(node) for node in result]
 
     @classmethod
@@ -681,18 +681,18 @@ class Node(utils.StrMixin):
 
         # Create shading node
         if nodeType in NODE_TYPES['shader']:
-            result = utils.runAndLog(mc.shadingNode, nodeType, asShader=True, **kwargs)
+            result = mc.shadingNode(nodeType, asShader=True, **kwargs)
 
         # Create shading engine
         elif nodeType == 'shadingEngine':
             kwargs.setdefault('renderable', True)
             kwargs.setdefault('noSurfaceShader', True)
             kwargs.setdefault('empty', True)
-            result = utils.runAndLog(mc.sets, **kwargs)
+            result = mc.sets(**kwargs)
 
         # Create other
         else:
-            result = utils.runAndLog(mc.createNode, nodeType, **kwargs)
+            result = mc.createNode(nodeType, **kwargs)
 
         # Get the top level node in the case multiple were created
         if isinstance(result, (list, tuple)):
@@ -758,7 +758,7 @@ class Node(utils.StrMixin):
         """
         utils.logger.info('Renaming %r to %r', self, name)
         utils.raiseIfNodeNotFound(self)
-        utils.runAndLog(mc.rename, self, self.namespace + ':' + name)
+        mc.rename(self, self.namespace + ':' + name)
 
     @property
     def longName(self):
@@ -802,7 +802,7 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        utils.runAndLog(mc.move, x, y, z, self, relative=True)
+        mc.move(x, y, z, self, relative=True)
 
     @property
     def translation(self):
@@ -834,7 +834,7 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        utils.runAndLog(mc.xform, self, translation=value, worldSpace=True)
+        mc.xform(self, translation=value, worldSpace=True)
 
     def rotate(self, x, y, z):
         # type: (float, float, float) -> None
@@ -844,7 +844,7 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        utils.runAndLog(mc.rotate, x, y, z, self, relative=True)
+        mc.rotate(x, y, z, self, relative=True)
 
     @property
     def rotation(self):
@@ -876,7 +876,7 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        utils.runAndLog(mc.xform, self, rotation=value, worldSpace=True)
+        mc.xform(self, rotation=value, worldSpace=True)
 
     def scale(self, x, y, z):
         # type: (float, float, float) -> None
@@ -886,7 +886,7 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        utils.runAndLog(mc.scale, x, y, z, self, relative=True)
+        mc.scale(x, y, z, self, relative=True)
 
     @property
     def scaling(self):
@@ -918,7 +918,7 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        utils.runAndLog(mc.xform, self, scale=value, worldSpace=True)
+        mc.xform(self, scale=value, worldSpace=True)
 
     @property
     def namespace(self):
@@ -949,14 +949,14 @@ class Node(utils.StrMixin):
         if not namespace or namespace == ':':
             newName = self.name.rsplit(':', 1)[-1]
             utils.logger.info('Setting "%s" namespace to ":"', newName)
-            utils.runAndLog(mc.rename, self.name, ':' + newName)
+            mc.rename(self.name, ':' + newName)
 
         else:
             utils.logger.info('Setting "%s" namespace to "%s"', self, namespace)
             namespaceObj = Namespace(namespace)
             if not namespaceObj.exists:
                 namespaceObj.create()
-            utils.runAndLog(mc.rename, self.name, namespaceObj + ':' + self.name.rsplit(':', 1)[-1])
+            mc.rename(self.name, namespaceObj + ':' + self.name.rsplit(':', 1)[-1])
 
     @property
     def parents(self):
@@ -1006,9 +1006,9 @@ class Node(utils.StrMixin):
             raise exceptions.NotADagNodeError(self)
         try:
             if parent:
-                utils.runAndLog(mc.parent, self, parent)
+                mc.parent(self, parent)
             else:
-                utils.runAndLog(mc.parent, self, world=True)
+                mc.parent(self, world=True)
         except RuntimeError as e:
             if str(e) == 'Maya command error':
                 raise exceptions.AlreadyIsChildError(self, parent or 'world')
@@ -1115,7 +1115,7 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        inst = utils.runAndLog(mc.instance, self, **kwargs)[0]
+        inst = mc.instance(self, **kwargs)[0]
         return Node(inst)
 
     @property
@@ -1203,7 +1203,7 @@ class Node(utils.StrMixin):
             shadingEngine = 'initialShadingGroup'
         utils.logger.info('Setting %s shader to %s', self, shadingEngine)
         utils.raiseIfNodeNotFound(self)
-        utils.runAndLog(mc.sets, self, edit=True, forceElement=shadingEngine)
+        mc.sets(self, edit=True, forceElement=shadingEngine)
 
     @property
     def _material(self):
@@ -1282,7 +1282,7 @@ class Node(utils.StrMixin):
         """
         utils.logger.info('Deleting node: %s', self)
         try:
-            utils.runAndLog(mc.delete, self)
+            mc.delete(self)
         except ValueError as e:
             raise exceptions.NodeDeletedError(str(e))
 
@@ -1324,7 +1324,7 @@ class Node(utils.StrMixin):
         utils.logger.info('Setting %s UV set to "%s" (was "%s")', self, uvSet, currentUVSet)
         if uvSet not in mesh.getUVSetNames():
             raise exceptions.UVSetNotFoundError(self, uvSet)
-        return utils.runAndLog(mc.polyUVSet, self, currentUVSet=True, uvSet=uvSet)
+        return mc.polyUVSet(self, currentUVSet=True, uvSet=uvSet)
 
     @property
     def uvSets(self):
@@ -1349,7 +1349,7 @@ class Node(utils.StrMixin):
             return []
 
         # Check if the object is able to receive UV links
-        if not utils.runAndLog(mc.uvLink, isValid=True, texture=self):
+        if not mc.uvLink(isValid=True, texture=self):
             return []
 
         # Get the UV links
@@ -1358,7 +1358,7 @@ class Node(utils.StrMixin):
         # textures per UV set, but I found no way to do the reverse to
         # get the UV sets per texture. The current method of splitting
         # the string is messy and should be upgraded if possible.
-        uvLinks = utils.runAndLog(mc.uvLink, query=True, texture=self)
+        uvLinks = mc.uvLink(query=True, texture=self)
         attributes = []
         for uvLink in uvLinks:
             node, attrs = uvLink.split('.', 1)
@@ -1492,7 +1492,7 @@ class Node(utils.StrMixin):
         utils.logger.info('Setting %s color set to %s', self, colorSet)
         utils.raiseIfNodeNotFound(self)
         try:
-            return utils.runAndLog(mc.polyColorSet, self, currentColorSet=True, colorSet=colorSet)
+            return mc.polyColorSet(self, currentColorSet=True, colorSet=colorSet)
         except RuntimeError:
             if colorSet not in self.colorSets:
                 raise exceptions.ColorSetNotFoundError(self, colorSet)

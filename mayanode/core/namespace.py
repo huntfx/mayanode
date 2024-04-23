@@ -75,7 +75,7 @@ class Namespace(utils.StrMixin):
             RuntimeError: A namespace of the given name '<ns>' already exists.
         """
         utils.logger.info('Creating namespace: %s', self)
-        utils.runAndLog(mc.namespace, add=self)
+        mc.namespace(add=self)
 
     def delete(self):
         # type: () -> None
@@ -85,7 +85,7 @@ class Namespace(utils.StrMixin):
             RuntimeError: No namespace matches name: 'test'.
         """
         utils.logger.info('Deleting namespace: %s', self)
-        utils.runAndLog(mc.namespace, removeNamespace=self)
+        mc.namespace(removeNamespace=self)
 
     @property
     def name(self):

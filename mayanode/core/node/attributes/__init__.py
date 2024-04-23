@@ -7,7 +7,7 @@ from .... import exceptions, types, utils
 from ....type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator, Iterable, List, Optional, Tuple, Type, Union
+    from typing import Any, Iterator, List, Optional, Tuple, Type, Union
     from typing import KeysView, ValuesView, ItemsView
 
 
@@ -293,7 +293,7 @@ class NodeAttributes(dict):
                 kwargs['attributeType'] = 'double'
 
         utils.logger.info('Adding attribute %s with arguments %s', self, kwargs)
-        utils.runAndLog(mc.addAttr, self.node, longName=attr, **kwargs)
+        mc.addAttr(self.node, longName=attr, **kwargs)
         return self.__getitem__(attr)
 
 
@@ -457,7 +457,7 @@ class Attribute(types.StrMixin):
     def ls(self, attr):
         # type (str) -> List[Attribute]
         """Search the scene for an attribute."""
-        result = utils.runAndLog(mc.ls, '*.' + attr)
+        result = mc.ls('*.' + attr)
         split = (item.split('.', 1) for item in result)
         return [Attribute(Node(node), attr) for node, attr in split]
 
@@ -611,7 +611,7 @@ class Attribute(types.StrMixin):
                 return 'enum'  # Match the getAttr result
 
         try:
-            attrType = utils.runAndLog(mc.getAttr, self, type=True)
+            attrType = mc.getAttr(self, type=True)
         except ValueError as e:
             if 'No object matches name' in str(e):
                 raise exceptions.AttributeNotFoundError(self.node, self.attr)
@@ -635,7 +635,7 @@ class Attribute(types.StrMixin):
                 return _getPlugValue(self.api.plug)
             except NotImplementedError:
                 pass
-        return utils.runAndLog(mc.getAttr, self)
+        return mc.getAttr(self)
 
     @value.setter
     def value(self, value):
@@ -656,11 +656,11 @@ class Attribute(types.StrMixin):
                 raise exceptions.AttributeConnectedError(self.node, self.attr)
 
         if isinstance(value, (str, unicode, types.StrMixin)):
-            utils.runAndLog(mc.setAttr, self, value, type='string')
+            mc.setAttr(self, value, type='string')
         elif isinstance(value, (tuple, list)):
-            utils.runAndLog(mc.setAttr, self, *value)
+            mc.setAttr(self, *value)
         else:
-            utils.runAndLog(mc.setAttr, self, value)
+            mc.setAttr(self, value)
 
     @property
     def locked(self):
@@ -668,7 +668,7 @@ class Attribute(types.StrMixin):
         """Get the node locked state."""
         if not self.api.plug.isNull:
             return self.api.plug.isLocked
-        return utils.runAndLog(mc.getAttr, self, lock=True)
+        return mc.getAttr(self, lock=True)
 
     @locked.setter
     def locked(self, value):
@@ -680,7 +680,7 @@ class Attribute(types.StrMixin):
         """
         utils.logger.info('Setting %s locked state: %r', self, value)
         utils.raiseIfNodeNotFound(self.node)
-        utils.runAndLog(mc.setAttr, self, lock=value)
+        mc.setAttr(self, lock=value)
 
     @property
     def keyable(self):
@@ -688,7 +688,7 @@ class Attribute(types.StrMixin):
         """Get the node keyable state."""
         if not self.api.plug.isNull:
             return self.api.plug.isKeyable
-        return utils.runAndLog(mc.getAttr, self, keyable=True)
+        return mc.getAttr(self, keyable=True)
 
     @keyable.setter
     def keyable(self, value):
@@ -700,7 +700,7 @@ class Attribute(types.StrMixin):
         """
         utils.logger.info('Setting %s keyable state: %s', self, value)
         utils.raiseIfNodeNotFound(self.node)
-        utils.runAndLog(mc.setAttr, self, keyable=value)
+        mc.setAttr(self, keyable=value)
 
     def connect(self, target, reverse=False):
         # type: (Union[str, Attribute, om2.MPlug], bool) -> bool
@@ -778,7 +778,7 @@ class Attribute(types.StrMixin):
                 kwargs['attributeType'] = 'double'
 
         utils.logger.info('Adding attribute %s with arguments %s', self, kwargs)
-        utils.runAndLog(mc.addAttr, self.node, longName=self.attr, **kwargs)
+        mc.addAttr(self.node, longName=self.attr, **kwargs)
 
     def delete(self):
         # type: () -> None
@@ -792,9 +792,9 @@ class Attribute(types.StrMixin):
         utils.logger.info('Deleting attribute: %s', self)
         utils.raiseIfNodeNotFound(self.node)
         if self.api.plug.isElement:
-            utils.runAndLog(mc.removeMultiInstance, self, b=True)
+            mc.removeMultiInstance(self, b=True)
         else:
-            utils.runAndLog(mc.deleteAttr, self)
+            mc.deleteAttr(self)
 
     @property
     def keyframes(self):
@@ -882,7 +882,7 @@ class Attribute(types.StrMixin):
         TODO:
             Tests
         """
-        links = utils.runAndLog(mc.uvLink, query=True, uvSet=self.name)
+        links = mc.uvLink(query=True, uvSet=self.name)
         return [Node(link) for link in links]
 
 

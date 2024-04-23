@@ -103,7 +103,7 @@ class UVSetList(types.MappedLazyList):
     def create(self, name):
         # type: (str) -> UVSet
         """Add a new UV set to the node."""
-        uvSetName = utils.runAndLog(mc.polyUVSet, self.node, create=True, uvSet=name)[0]
+        uvSetName = mc.polyUVSet(self.node, create=True, uvSet=name)[0]
         if self._uvSetNames is not None:
             self._uvSetNames.append(uvSetName)
         uvSet = UVSet(self.node, uvSetName)
@@ -141,7 +141,7 @@ class UVSet(utils.StrMixin):
             RuntimeError: Cannot rename color set to an existing color set name.
         """
         utils.logger.info("Renaming '%s' UV set '%s' to '%s'", self.node, self.name, name)
-        utils.runAndLog(mc.polyUVSet, self.node, rename=True, uvSet=self.name, newUVSet=name)
+        mc.polyUVSet(self.node, rename=True, uvSet=self.name, newUVSet=name)
         self._name = name
 
     @property
@@ -217,7 +217,7 @@ class UVSet(utils.StrMixin):
         """
         utils.logger.info('Deleting UV set: %s.%s', self.node, self.name)
         try:
-            utils.runAndLog(mc.polyUVSet, self.node, delete=True, uvSet=self.name)
+            mc.polyUVSet(self.node, delete=True, uvSet=self.name)
         except RuntimeError as e:
             if 'The default uv set cannot be deleted.' in str(e):
                 raise exceptions.UVSetDeleteDefaultError(self.node, self.name)

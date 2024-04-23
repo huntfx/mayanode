@@ -38,7 +38,7 @@ class ColorSet(utils.StrMixin):
             RuntimeError: Cannot rename color set to an existing color set name.
         """
         utils.logger.info("Renaming '%s' color set '%s' to '%s'", self.node, self.name, name)
-        utils.runAndLog(mc.polyColorSet, self.node, rename=True, colorSet=self.name, newColorSet=name)
+        mc.polyColorSet(self.node, rename=True, colorSet=self.name, newColorSet=name)
         self._name = name
 
     @property
@@ -56,7 +56,7 @@ class ColorSet(utils.StrMixin):
         """
         utils.logger.info('Deleting color set: %s.%s', self.node, self.name)
         try:
-            utils.runAndLog(mc.polyColorSet, self.node, delete=True, colorSet=self.name)
+            mc.polyColorSet(self.node, delete=True, colorSet=self.name)
         except RuntimeError as e:
             if str(e) == 'Specified color set does not exist on the polygonal object.':
                 raise exceptions.ColorSetNotFoundError(self.node, self.name)

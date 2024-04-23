@@ -1,6 +1,6 @@
 import maya.cmds as mc  # type: ignore
 
-from .. import types, utils
+from .. import types
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ class Plugin(types.StrMixin):
     def ls(cls):
         # type: () -> List[Plugin]
         """Get all namespaces within the scene."""
-        pluginList = utils.runAndLog(mc.pluginInfo, query=True, listPlugins=True)
+        pluginList = mc.pluginInfo(query=True, listPlugins=True)
         return [cls(plugin) for plugin in pluginList]
 
     @property
@@ -33,13 +33,13 @@ class Plugin(types.StrMixin):
     def path(self):
         # type: () -> str
         """Get the path to the plugin."""
-        return utils.runAndLog(mc.pluginInfo, self, query=True, path=True)
+        return mc.pluginInfo(self, query=True, path=True)
 
     @property
     def vendor(self):
         # type: () -> str
         """Get the plugin vendor."""
-        return utils.runAndLog(mc.pluginInfo, self, query=True, vendor=True)
+        return mc.pluginInfo(self, query=True, vendor=True)
 
     @property
     def commands(self):
@@ -47,13 +47,13 @@ class Plugin(types.StrMixin):
         """Get all the commands provided by the plugin.
         Constraint, control, context and model editor commands are not included.
         """
-        return utils.runAndLog(mc.pluginInfo, self, query=True, commands=True)
+        return mc.pluginInfo(self, query=True, commands=True)
 
     @property
     def loaded(self):
         # type: () -> bool
         """Determine if the plugin is loaded."""
-        return utils.runAndLog(mc.pluginInfo, self, query=True, loaded=True)
+        return mc.pluginInfo(self, query=True, loaded=True)
 
     @loaded.setter
     def loaded(self, load):
@@ -75,7 +75,7 @@ class Plugin(types.StrMixin):
         Warnings:
             Plug-in, "<plugin>", is already loaded. Skipped.
         """
-        utils.runAndLog(mc.loadPlugin, self)
+        mc.loadPlugin(self)
 
     def unload(self, force=False):
         # type: (bool) -> None
@@ -87,16 +87,16 @@ class Plugin(types.StrMixin):
         Raises:
             RuntimeError: Plug-in, "<plugin>", cannot be unloaded because it is still in use
         """
-        utils.runAndLog(mc.loadPlugin, self, force=force)
+        mc.loadPlugin(self, force=force)
 
     @property
     def autoLoad(self):
         # type: () -> bool
         """Get if auto loading is enabled."""
-        return utils.runAndLog(mc.pluginInfo, self, query=True, autoload=True)
+        return mc.pluginInfo(self, query=True, autoload=True)
 
     @autoLoad.setter
     def autoLoad(self, autoLoad):
         # type: (bool) -> None
         """Set if auto loading is enabled."""
-        utils.runAndLog(mc.pluginInfo, self, edit=True, autoload=autoLoad)
+        mc.pluginInfo(self, edit=True, autoload=autoLoad)
