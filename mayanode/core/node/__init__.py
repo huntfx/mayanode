@@ -220,7 +220,7 @@ class Ancestors(types.MappedLazyList):
 class _ApiData(object):
     """Hold the OpenMaya API objects for a node."""
 
-    __slots__ = ['_object', '_handle', '_instanceNumber',
+    __slots__ = ['_object', '_handle', '_instanceNumber', 'dgModifier',
                  '_dagPaths', '_dependencyNode', '_dagNode',
                  '_transform', '_hasGeometry', '_reference']
 
@@ -229,6 +229,7 @@ class _ApiData(object):
         if mObject.isNull():
             raise exceptions.NullMObjectError
 
+        self.dgModifier = None  # type: Optional[om2.MDGModifier]
         self._object = mObject
         self._instanceNumber = instanceNumber
         self._handle = None  # type: Optional[om2.MObjectHandle]
@@ -310,6 +311,7 @@ class _ApiData(object):
         # pylint: disable=protected-access
         """Create a new copy of the object."""
         new = type(self)(self.object, instanceNumber)
+        new.dgModifier = self.dgModifier
         new._handle = self._handle
         new._dependencyNode = self._dependencyNode
         new._dagNode = self._dagNode
@@ -567,15 +569,17 @@ class Node(utils.StrMixin):
     then it will raise `TypeError: Object  is invalid`.
     """
 
-    __slots__ = ['api', '_attrs']
+    __slots__ = ['api', '_attrs', '_dgModifier']
 
-    def __init__(self, name, _instanceNumber=-1):
-        # type: (Any, int) -> None
+    def __init__(self, name, dgModifier=None, _instanceNumber=-1):
+        # type: (Any, Optional[om2.MDGModifier], int) -> None
         """Setup the data.
 
         Parameters:
-            name (str): Name of the node.
-            _instanceNumber (int): MObject instance number.
+            name: Name of the node.
+            dgModifier: Optionally use an MDGModifier for efficiency.
+                Note that this does not work with undo commands.
+            _instanceNumber: MObject instance number.
                 This should not be set manually. It only applies when
                 loading with an MObject.
             """
@@ -591,6 +595,7 @@ class Node(utils.StrMixin):
             self.api = _ApiData.fromReference(name)
         else:
             self.api = _ApiData.fromName(name)
+        self.api.dgModifier = dgModifier
 
         self._attrs = NodeAttributes(self)
 
@@ -1093,7 +1098,7 @@ class Node(utils.StrMixin):
         shapeDagPath = self.api.getShapeDagPath()
         if shapeDagPath is None:
             return None
-        return Node(shapeDagPath)
+        return Node(shapeDagPath, dgModifier=self.api.dgModifier)
 
     @property
     def transform(self):
@@ -1105,7 +1110,7 @@ class Node(utils.StrMixin):
         transformDagPath = self.api.getTransformDagPath()
         if transformDagPath is None:
             return None
-        return Node(transformDagPath)
+        return Node(transformDagPath, dgModifier=self.api.dgModifier)
 
     def instance(self, **kwargs):
         # type: (**Any) -> Optional[Node]
@@ -1116,7 +1121,7 @@ class Node(utils.StrMixin):
         """
         utils.raiseIfNodeNotFound(self)
         inst = mc.instance(self, **kwargs)[0]
-        return Node(inst)
+        return Node(inst, dgModifier=self.api.dgModifier)
 
     @property
     def instanced(self):
@@ -1183,7 +1188,7 @@ class Node(utils.StrMixin):
         sg = _getShadingGroup(self.api.object, self.api.dagPath)
         if sg is None:
             return None
-        return Node(sg)
+        return Node(sg, dgModifier=self.api.dgModifier)
 
     @shadingEngine.setter
     def shadingEngine(self, shadingEngine):
@@ -1223,7 +1228,7 @@ class Node(utils.StrMixin):
         connections = plug.connectedTo(True, False)
         if not connections:
             return None
-        return Node(connections[0].node())
+        return Node(connections[0].node(), dgModifier=self.api.dgModifier)
 
     @property
     def _texture(self):
@@ -1241,7 +1246,7 @@ class Node(utils.StrMixin):
         connections = plug.connectedTo(True, False)
         if not connections:
             return None
-        return Node(connections[0].node())
+        return Node(connections[0].node(), dgModifier=self.api.dgModifier)
 
     @property
     def visible(self):
@@ -1313,18 +1318,25 @@ class Node(utils.StrMixin):
         """
         utils.raiseIfNodeNotFound(self)
 
+        # Checks
         mesh = self.api.mesh
         if mesh is None:
             raise exceptions.UVSetNotFoundError(self, uvSet)
-
         currentUVSet = mesh.currentUVSetName()
         if uvSet == currentUVSet:
             return
 
         utils.logger.info('Setting %s UV set to "%s" (was "%s")', self, uvSet, currentUVSet)
+
+        # Validation
         if uvSet not in mesh.getUVSetNames():
             raise exceptions.UVSetNotFoundError(self, uvSet)
-        return mc.polyUVSet(self, currentUVSet=True, uvSet=uvSet)
+
+        # Set UV set
+        if self.api.dgModifier is None:
+            mc.polyUVSet(self, currentUVSet=True, uvSet=uvSet)
+        else:
+            mesh.setCurrentUVSetName(uvSet, self.api.dgModifier)
 
     @property
     def uvSets(self):

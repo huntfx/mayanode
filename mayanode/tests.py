@@ -1,5 +1,6 @@
 import unittest
 
+import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
@@ -487,6 +488,39 @@ class TestNode(unittest.TestCase):
         with self.assertRaises(exceptions.ZeroTexelDensityError):
             shape.texelDensity = 1
         mc.delete(node)
+
+
+class TestDgModifier(unittest.TestCase):
+    def setUp(self):
+        cube = mc.polyCube(name='dgModifierTest')[0]
+        mc.polyUVSet(cube, create=True, uvSet='map2')
+        mc.polyUVSet(cube, currentUVSet=True, uvSet='map1')
+
+        self.withoutMod = Node(cube)
+        self.dgMod = om2.MDGModifier()
+        self.withMod = Node(cube, dgModifier=self.dgMod)
+
+    def tearDown(self):
+        mc.delete(self.withoutMod)
+
+    def testUVSet(self):
+        mc.undoInfo(openChunk=True)
+        self.withoutMod.shape.uvSet = 'map2'
+        mc.undoInfo(openChunk=False)
+        self.assertTrue(self.withoutMod.shape.uvSet, 'map2')
+        mc.undo()
+        self.assertTrue(self.withoutMod.shape.uvSet, 'map1')
+
+        mc.undoInfo(openChunk=True)
+        self.withMod.shape.uvSet = 'map2'
+        mc.undoInfo(openChunk=False)
+        self.assertTrue(self.withMod.shape.uvSet, 'map2')
+        with self.assertRaises(RuntimeError):
+            mc.undo()
+        self.assertTrue(self.withMod.shape.uvSet, 'map2')
+        self.dgMod.undoIt()
+        self.assertTrue(self.withMod.shape.uvSet, 'map1')
+
 
 
 class TestBoundingBox(unittest.TestCase):
