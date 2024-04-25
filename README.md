@@ -89,8 +89,8 @@ Attribute('perspShape.focusDistance')
 >>> connection.node  # It will always get the "target" node no matter the direction
 Node('side')
 
-# Optionally get just the inputs/outputs
->>> persp.connections.outputs
+# Optionally get just the source/destination connections
+>>> persp.connections.destination
 [<Connection(source='persp.translateX', destination='side.translateX')>]
 
 # Break connections

@@ -259,14 +259,14 @@ class ConnectionProxy(ConnectionList):
         return False
 
     @property
-    def inputs(self):
+    def source(self):
         # type: () -> ConnectionList
         """Get the input/source connections."""
         self.loadConnections(source=True, destination=False)
         return ConnectionList(self._sourceConnections)
 
     @property
-    def outputs(self):
+    def destination(self):
         # type: () -> ConnectionList
         """Get the output/destination connections."""
         self.loadConnections(source=False, destination=True)
@@ -326,10 +326,10 @@ class ConnectionProxy(ConnectionList):
 
         # Get the connections for each plug
         for currentPlug in self.plugs:
-            if destination:
+            if destination and currentPlug.isSource:
                 for connectedPlug in currentPlug.connectedTo(False, True):
                     self._destinationConnections.append(Connection(self.node, currentPlug, connectedPlug))
-            if source:
+            if source and currentPlug.isDestination:
                 for connectedPlug in currentPlug.connectedTo(True, False):
                     self._sourceConnections.append(Connection(self.node, currentPlug, connectedPlug, reverse=True))
 

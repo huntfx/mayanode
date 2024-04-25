@@ -1442,7 +1442,7 @@ class Node(utils.StrMixin):
         # Slower version of the above using the available methods
         result = []
         for dagSetMember in self.shadingEngine.attrs['dagSetMembers'].children:
-            for connectedNode in dagSetMember.connections.inputs.nodes:
+            for connectedNode in dagSetMember.connections.source.nodes:
                 if connectedNode.default:
                     continue
                 for uvSet in connectedNode.uvSets:
