@@ -63,7 +63,7 @@ Examples:
     # Get relationships
     >>> cube.shape
     Node('pCubeShape1')
-    >>> cube.shadingEngine
+    >>> cube.shadingGroup
     Node('initialShadingGroup')
     >>> cube.parents
     []

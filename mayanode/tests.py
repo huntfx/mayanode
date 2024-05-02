@@ -288,24 +288,43 @@ class TestNode(unittest.TestCase):
 
         mc.delete(transform, inst)
 
-    def testShadingEngine(self):
-        node = Node(mc.polyCube(name='shadingEngineTest')[0])
-        self.assertEqual(node.shadingEngine, None)
-        self.assertEqual(node.shape.shadingEngine, 'initialShadingGroup')
+    def testShadingGroup(self):
+        node = Node(mc.polyCube(name='shadingGroupTest')[0])
+        self.assertEqual(node.shadingGroup, None)
+        self.assertEqual(node.shape.shadingGroup, 'initialShadingGroup')
 
         material = mc.shadingNode('lambert', asShader=True)
         sg = mc.sets(empty=True, renderable=True, noSurfaceShader=True)
         mc.connectAttr(material + '.outColor', sg + '.surfaceShader')
 
-        node.shadingEngine = sg
-        self.assertEqual(node.shadingEngine, None)
-        self.assertEqual(node.shape.shadingEngine, sg)
+        node.shadingGroup = sg
+        self.assertEqual(node.shadingGroup, None)
+        self.assertEqual(node.shape.shadingGroup, sg)
 
-        node.shape.shadingEngine = 'initialShadingGroup'
-        self.assertEqual(node.shadingEngine, None)
-        self.assertEqual(node.shape.shadingEngine, 'initialShadingGroup')
+        node.shape.shadingGroup = 'initialShadingGroup'
+        self.assertEqual(node.shadingGroup, None)
+        self.assertEqual(node.shape.shadingGroup, 'initialShadingGroup')
 
         mc.delete(sg, material, node.name)
+
+    def testShadingGroupInst(self):
+        node = Node(mc.polyCube(name='shadingGroupInstTest')[0])
+        inst = node.instance()
+
+        self.assertEqual(node.shadingGroup, None)
+        self.assertEqual(node.shape.shadingGroup, 'initialShadingGroup')
+        self.assertEqual(node.shape.shadingGroups, ['initialShadingGroup', 'initialShadingGroup'])
+
+        sg = mc.sets(name='shadingGroupInstTestSG', renderable=True, noSurfaceShader=True, empty=True)
+        node.shape.shadingGroup = sg
+
+        self.assertEqual(node.shadingGroup, None)
+        self.assertEqual(node.shape.shadingGroup, sg)
+        self.assertEqual(inst.shape.shadingGroup, 'initialShadingGroup')
+        self.assertEqual(node.shape.shadingGroups, [sg, 'initialShadingGroup'])
+        self.assertEqual(inst.shape.shadingGroups, [sg, 'initialShadingGroup'])
+
+        mc.delete(node, inst, sg)
 
     def testDelete(self):
         node = Node(mc.createNode('transform'))
@@ -416,8 +435,8 @@ class TestNode(unittest.TestCase):
         self.assertFalse(node.instanced)
 
         with self.assertRaises(exceptions.NodeDeletedError):
-            node.shadingEngine = 'test'
-        self.assertIsNone(node.shadingEngine)
+            node.shadingGroup = 'test'
+        self.assertIsNone(node.shadingGroup)
 
     def testComparison(self):
         transform, shape = mc.polyCube(name='comparisonTest')

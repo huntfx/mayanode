@@ -58,7 +58,7 @@ True
 True
 >>> persp in perspShape.ancestors
 True
->>> persp.shadingEngine
+>>> persp.shadingGroup
 None
 
 

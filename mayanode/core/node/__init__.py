@@ -1091,7 +1091,11 @@ class Node(utils.StrMixin):
     @property
     def shape(self):
         # type: () -> Optional[Node]
-        """Get the shape node."""
+        """Get the shape node.
+
+        Equivalent:
+            `mc.listRelatives(self, shapes=True)[0]`
+        """
         if not self.exists:
             return None
 
@@ -1103,7 +1107,11 @@ class Node(utils.StrMixin):
     @property
     def transform(self):
         # type: () -> Optional[Node]
-        """Get the transform node."""
+        """Get the transform node.
+
+        Equivalent:
+            `mc.listRelatives(self, parent=True)[0]`
+        """
         if not self.exists:
             return None
 
@@ -1170,28 +1178,27 @@ class Node(utils.StrMixin):
         # type: () -> List[Node]
         """Get all the shading groups assigned to this node.
 
-        TODO:
-            Setup tests for instances
+        Equivalent:
+            `mc.listConnections(self, type='shadingEngine')`
         """
         return [Node(sg) for sg in _getShadingGroups(self.api.object)]
 
     @property
-    def shadingEngine(self):
+    def shadingGroup(self):
         # type: () -> Optional[Node]
         """Get the shading group assigned to the node.
         Works with instances.
 
-        TODO:
-            Rename to `shadingGroup`
-            Setup tests for instances
+        Equivalent:
+            `mc.listConnections(self, type='shadingEngine')[0]`
         """
         sg = _getShadingGroup(self.api.object, self.api.dagPath)
         if sg is None:
             return None
         return Node(sg, dgModifier=self.api.dgModifier)
 
-    @shadingEngine.setter
-    def shadingEngine(self, shadingEngine):
+    @shadingGroup.setter
+    def shadingGroup(self, shadingEngine):
         # type: (Union[str, Node]) -> None
         """Set a new shading group on the current object instance.
 
@@ -1200,9 +1207,6 @@ class Node(utils.StrMixin):
 
         Raises:
             NodeDeletedError
-
-        TODO:
-            Test with instances
         """
         if shadingEngine is None:
             shadingEngine = 'initialShadingGroup'
@@ -1220,7 +1224,7 @@ class Node(utils.StrMixin):
             Finish WIP implementation
             Test different node types
         """
-        shadingGroup = self.shadingEngine
+        shadingGroup = self.shadingGroup
         if shadingGroup is None:
             return None
 
@@ -1441,7 +1445,7 @@ class Node(utils.StrMixin):
 
         # Slower version of the above using the available methods
         result = []
-        for dagSetMember in self.shadingEngine.attrs['dagSetMembers'].children:
+        for dagSetMember in self.shadingGroup.attrs['dagSetMembers'].children:
             for connectedNode in dagSetMember.connections.source.nodes:
                 if connectedNode.default:
                     continue
