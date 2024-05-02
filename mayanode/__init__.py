@@ -16,6 +16,15 @@ Examples:
     >>> cube.namespace
     ''
 
+    # Get/set relationships
+    >>> cube.parent = 'persp'
+    >>> Node('persp').children
+    [Node('perspShape'), Node('pCube1')]
+    >>> cube.shape
+    Node('pCubeShape1')
+    >>> Node('persp').descendents
+    [Node('perspShape'), Node('myCube'), Node('pCubeShape1')]
+
     # Bounding box
     >>> bb = cube.boundingBox
     >>> bb.width
@@ -25,7 +34,7 @@ Examples:
     >>> bb.xMin
     -0.5
     >>> bb.origin
-    (0, 0, 0)
+    Coordinate(x=0.0, y=0.0, z=0.0)
 
     # Transform node
     >>> cube.translation
@@ -39,13 +48,23 @@ Examples:
     # Attribute values
     >>> lambert.attrs['diffuse'] = 1
     >>> lambert.attrs['diffuse']
-    NodeAttribute('pCube1.diffuse')
+    NodeAttribute('myCube.diffuse')
     >>> lambert.attrs['diffuse'].value
     1.0
     >>> float(lambert.attrs['diffuse'])
     1.0
     >>> mc.getAttr(lambert + '.diffuse')
     1.0
+
+    # Keyframes
+    >>> kf = lambert.attrs['diffuse'].keyframes
+    >>> kf.keys()
+    []
+    >>> kf[1] = 0
+    >>> kf[3] = 0.5
+    >>> kf[5] = 1
+    >>> lambert.attrs['diffuse'].keyframes[3].value
+    0.5
 
     # Attribute states
     >>> lambert.attrs['diffuse'].lock = True
@@ -54,21 +73,19 @@ Examples:
     >>> lambert.attrs['diffuse'].keyable
     True
 
-    # Outgoing attribute connections
-    >>> lambert.attrs['diffuse'] >> 'lambert1.diffuse'
+    # Keyframes
+    >>> lambert.attrs['diffuse']
 
-    # Incoming connections
+    # Get/set/break connections
     >>> 'lambert1.refractions' >> lambert.attrs['refractions']
-
-    # Get relationships
-    >>> cube.shape
-    Node('pCubeShape1')
-    >>> cube.shadingGroup
-    Node('initialShadingGroup')
-    >>> cube.parents
+    >>> lambert.attrs['diffuse'] >> 'lambert1.diffuse'
+    >>> lambert.attrs['diffuse'] // 'lambert1.diffuse'
+    >>> lambert.connections
+    [<Connection(source='lambert1.refractions', destination='lambert2.refractions')>]
+    >>> lambert.connections.nodes
+    [Node(u'lambert1')]
+    >>> lambert.connections.destination
     []
-    >>> cube.parent
-    None
 
     # Instance
     >>> inst = cube.instance()
@@ -78,6 +95,29 @@ Examples:
     True
     >>> cube.shape == inst.shape
     True
+
+    # Reference
+    >>> cube.referenced
+    False
+    >>> ref = Node('refNs:refObj').reference
+    >>> ref
+    Reference('refRN')
+    >>> ref.loaded
+    True
+    >>> ref.nodes
+    [Node('refNs:refObj'), ...]
+    >>> ref.nodes['refObj']
+    Node('refNs:refObj')
+
+    # UV sets
+    >>> cube.shape.uvSet
+    UVSet('pCubeShape1.map1')
+    >>> map2 = cube.shape.uvSets.create('map2')
+    >>> map2.physicalIndex
+    2
+    >>> map2.name = 'bumpSet'
+    >>> cube.shape.uvSets
+    [UVSet('pCubeShape1.map1'), UVSet('pCubeShape1.bumpSet')]
 """
 
 __all__ = [
