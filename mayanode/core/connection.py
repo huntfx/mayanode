@@ -326,11 +326,10 @@ class ConnectionProxy(ConnectionList):
         # Get the connections for each plug
         for currentPlug in self.plugs:
             if destination and currentPlug.isSource:
-                for connectedPlug in currentPlug.connectedTo(False, True):
+                for connectedPlug in currentPlug.destinations():
                     self._destinationConnections.append(Connection(self.node, currentPlug, connectedPlug))
             if source and currentPlug.isDestination:
-                for connectedPlug in currentPlug.connectedTo(True, False):
-                    self._sourceConnections.append(Connection(self.node, currentPlug, connectedPlug, reverse=True))
+                self._sourceConnections.append(Connection(self.node, currentPlug, currentPlug.source(), reverse=True))
 
         # Add to main list
         if destination:
