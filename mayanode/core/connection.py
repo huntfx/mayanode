@@ -70,13 +70,12 @@ class Connection(utils.StrMixin):
         # type: () -> bool
         """Determine if the connection exists.
 
-        The equivalent command is `mc.isConnected`, which from a quick
-        benchmark appears to be around 20x slower than `connectedTo`.
-        Under some circumstances it seems `connectedTo` returns an
-        empty list on one side, so for safety both sides are checked.
+        Equivalent:
+            `mc.isConnected(self.source, self.destination)`
         """
-        return (self.target.api.plug in self.origin.api.plug.connectedTo(True, True)
-                or self.origin.api.plug in self.target.api.plug.connectedTo(True, True))
+        if self._reverse:
+            return self._srcPlug.source() == self._dstPlug
+        return self._srcPlug == self._dstPlug.source()
 
     @property
     def origin(self):
