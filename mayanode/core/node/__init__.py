@@ -741,8 +741,9 @@ class Node(utils.StrMixin):
         api = self.api
         if not api:
             return ''
-        if api.dagPath is not None and api.dagPath.isValid():
-            return api.dagPath.partialPathName()
+        dagPath = api.dagPath
+        if dagPath is not None and dagPath.isValid():
+            return dagPath.partialPathName()
         return api.dependencyNode.name()
 
     @name.setter
@@ -774,8 +775,9 @@ class Node(utils.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        if self.api.dagPath is not None and self.api.dagPath.isValid():
-            return self.api.dagPath.fullPathName()
+        dagPath = self.api.dagPath
+        if dagPath is not None:
+            return dagPath.fullPathName()
         return self.name
 
     @property
@@ -1137,7 +1139,7 @@ class Node(utils.StrMixin):
         """Return if the node is instanced."""
         if not self.exists:
             return False
-        return self.api.dagPath is not None and self.api.dagPath.isInstanced()
+        return self.api.dagNode is not None and self.api.dagNode.isInstanced()
 
     @property
     def instances(self):
