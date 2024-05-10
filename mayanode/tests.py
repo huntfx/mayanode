@@ -508,6 +508,30 @@ class TestNode(unittest.TestCase):
             shape.texelDensity = 1
         mc.delete(node)
 
+    def testLsExactType(self):
+        cube = mc.polyCube()[0]
+        objSet = mc.sets(name='lsTypeTestObj', empty=True)
+        mc.sets(cube, add=objSet)
+        edges = ['{}.e[{}]'.format(cube, i) for i in range(4)]
+        creaseSet = mc.createNode('creaseSet', name='lsTypeTestCrease')
+        mc.sets(edges, add=creaseSet)
+
+        lsObjType = Node.ls(type='objectSet')
+        lsObjExactType = Node.ls(exactType='objectSet')
+        lsCreaseType = Node.ls(type='creaseSet')
+        lsCreaseExactType = Node.ls(exactType='creaseSet')
+
+        self.assertIn(objSet, lsObjType)
+        self.assertIn(objSet, lsObjExactType)
+        self.assertNotIn(objSet, lsCreaseType)
+        self.assertNotIn(objSet, lsCreaseExactType)
+        self.assertIn(creaseSet, lsObjType)
+        self.assertNotIn(creaseSet, lsObjExactType)
+        self.assertIn(creaseSet, lsCreaseType)
+        self.assertIn(creaseSet, lsCreaseExactType)
+
+        mc.delete(cube, objSet, creaseSet)
+
 
 class TestDgModifier(unittest.TestCase):
     def setUp(self):
