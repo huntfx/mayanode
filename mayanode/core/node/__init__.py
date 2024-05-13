@@ -258,8 +258,8 @@ class _ApiData(object):
         return self.handle.hashCode() + dagPath.instanceNumber() if dagPath is not None else 0
 
     @classmethod
-    def fromName(cls, name):
-        # type: (str) -> _ApiData
+    def fromName(cls, name, instanceNumber=-1):
+        # type: (str, int) -> _ApiData
         # pylint: disable=protected-access
         """Get API data from the name of a node."""
         selection = om2.MSelectionList()
@@ -271,9 +271,9 @@ class _ApiData(object):
             raise
 
         mobject = selection.getDependNode(0)
-        new = cls(mobject)
+        new = cls(mobject, instanceNumber=instanceNumber)
         if mobject.hasFn(om2.MFn.kDagNode):
-            new._dagPaths = [selection.getDagPath(0)]
+            new._dagPaths = [selection.getDagPath(0)] + [None] * instanceNumber
         else:
             new._dagPaths = []
         return new
@@ -285,15 +285,15 @@ class _ApiData(object):
         """Get API data from an `MDagPath`."""
         instanceNumber = dagPath.instanceNumber()
         new = cls(dagPath.node(), instanceNumber=instanceNumber)
-        new._dagPaths = [None for _ in range(instanceNumber)] + [dagPath]
+        new._dagPaths = [None] * instanceNumber + [dagPath]
         return new
 
     @classmethod
-    def fromHandle(cls, handle):
-        # type: (om2.MObjectHandle) -> _ApiData
+    def fromHandle(cls, handle, instanceNumber=-1):
+        # type: (om2.MObjectHandle, int) -> _ApiData
         # pylint: disable=protected-access
         """Get API data from an `MObjectHandle`."""
-        new = cls(handle.object())
+        new = cls(handle.object(), instanceNumber=instanceNumber)
         new._handle = handle
         return new
 
@@ -389,9 +389,12 @@ class _ApiData(object):
         `MObjects` can have multiple and don't specify which to use.
         """
         # Load for the first time
-        if self._dagPaths is None:
+        if self._dagPaths is None or (self._instanceNumber > 0 and self._dagPaths[self._instanceNumber] is None):
             if self.object.hasFn(om2.MFn.kDagNode):
-                self._dagPaths = [om2.MDagPath.getAPathTo(self.object)]
+                if self._instanceNumber < 0:
+                    self._dagPaths = [om2.MDagPath.getAPathTo(self.object)]
+                else:
+                    self._dagPaths = self.dagNode.getAllPaths()
             else:
                 self._dagPaths = []
 
@@ -409,7 +412,7 @@ class _ApiData(object):
         TODO:
             Fix and test issue if `self._dagPaths` remains None.
         """
-        if self._dagPaths is None:
+        if self._dagPaths is None or any(dagPath is None for dagPath in self._dagPaths):
             self.recalculateDagPaths()
 
         # Get the correct instance number before populating the paths
@@ -590,11 +593,11 @@ class Node(utils.StrMixin):
         elif isinstance(name, om2.MDagPath):
             self.api = _ApiData.fromDagPath(name)
         elif isinstance(name, om2.MObjectHandle):
-            self.api = _ApiData.fromHandle(name)
+            self.api = _ApiData.fromHandle(name, instanceNumber=_instanceNumber)
         elif isinstance(name, om2.MFnReference):
             self.api = _ApiData.fromReference(name)
         else:
-            self.api = _ApiData.fromName(name)
+            self.api = _ApiData.fromName(name, instanceNumber=_instanceNumber)
         self.api.dgModifier = dgModifier
 
         self._attrs = NodeAttributes(self)

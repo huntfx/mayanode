@@ -258,6 +258,17 @@ class TestNode(unittest.TestCase):
         self.assertFalse(shape.instances)
         mc.delete(node, inst)
 
+    def testInstanceInit(self):
+        cube = mc.polyCube(name='instTest1')[0]
+        node = Node(cube)
+        shape = node.shape.name
+        insts = [node.instance() for _ in range(5)]
+        self.assertEqual([inst.shape.api.dagPath.instanceNumber() for inst in insts], [1, 2, 3, 4, 5])
+        self.assertEqual(Node(shape, _instanceNumber=5), insts[-1].shape)
+        self.assertNotEqual(Node(shape, _instanceNumber=5), insts[0].shape)
+        mc.delete(node)
+        mc.delete(insts)
+
     def testVisibility(self):
         self.assertFalse(Node('lambert1').visible)
 
