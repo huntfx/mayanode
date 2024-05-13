@@ -14,38 +14,6 @@ NODE_TYPES = {
     'shader': set(mc.listNodeTypes('shader')),
 }
 
-_WORLD_HANDLE = None
-
-_WORLD_DAG_PATH = None
-
-
-def _getWorldHandle():
-    # type: () -> om2.MObjectHandle
-    """Get the handle to the world `MObject`.
-    This is needed as it's parented to everything, but not wanted when
-    querying DAG parents.
-    """
-    global _WORLD_HANDLE, _WORLD_DAG_PATH
-    if _WORLD_HANDLE is not None:
-        return _WORLD_HANDLE
-    iterator = om2.MItDependencyNodes(om2.MSpace.kWorld)
-    while not iterator.isDone():
-        mObject = iterator.thisNode()
-        if om2.MFnDependencyNode(mObject).name() == 'world':
-            _WORLD_HANDLE = om2.MObjectHandle(mObject)
-            _WORLD_DAG_PATH = om2.MDagPath.getAPathTo(mObject)
-            return _WORLD_HANDLE
-        iterator.next()
-
-
-def _getWorldDagPath():
-    # type: () -> om2.MDagPath
-    """Get the world `MDagPath`."""
-    global _WORLD_DAG_PATH
-    if _WORLD_DAG_PATH is None:
-        _getWorldHandle()
-    return _WORLD_DAG_PATH
-
 
 def _getShadingGroups(mobj):
     # type: (om2.MObject) -> Generator[om2.MObject, None, None]
@@ -660,75 +628,57 @@ class Node(utils.StrMixin):
         return hash(self.api)
 
     @classmethod
-    def ls(self, *args, **kwargs):
-        # type: (*Any, **Any) -> List[Node]
-        """Shortcut to search the scene."""
-        result = []
-
-        # Get the parameters and discard ones with no effect
+    def _apiLs(cls, **kwargs):
+        # type: (**Any) -> Optional[List[Node]]
+        """Use the API to search the scene.
+        The behaviour must return the exact same results as `mc.ls` with
+        the same arguments, but not necessarily in the same order.
+        """
+        # Read parameters and discard ones with no effect
         parameters = set(kwargs) - {'long', 'l', 'objectsOnly', 'o'}
 
-        # Only use the API if not searching for specific names
+        # Get every node in the scene
+        if not parameters:
+            return [cls(item) for item in utils.iterDG()]
+
+        # Cancel if the node type is unknown
+        nodeType = kwargs.get('type', kwargs.get('typ'))
+        if nodeType not in utils.MEL_API_TYPE:
+            return None
+
+        # Get the remaining important parameters
+        # This will likely be extended in the future
+        allPaths = kwargs.get('allPaths', kwargs.get('ap', False))
+        parameters -= {'type', 'typ', 'allPaths', 'ap'}
+
+        result = []
+
+        # Get top level transforms
+        if kwargs.get('assemblies'):
+            result.extend(cls(item) for item in utils.iterAssemblies())
+            parameters.remove('assemblies')
+
+        # Only search DAG if allPaths was requested
+        if allPaths and nodeType in utils.DAG_TYPES:
+            fn = utils.iterDAG
+        else:
+            fn = utils.iterDG
+
+        result.extend(cls(item) for item in fn(utils.MEL_API_TYPE[nodeType]))
+        return result
+
+    @classmethod
+    def ls(cls, *args, **kwargs):
+        # type: (*Any, **Any) -> List[Node]
+        """Shortcut to search the scene."""
         if not args:
-            # Get every node in the scene
-            if not parameters:
-                world = _getWorldHandle()
-                iterator = om2.MItDependencyNodes()
-                for _ in iterator:
-                    item = iterator.thisNode()
-                    handle = om2.MObjectHandle(item)
-                    if handle != world:
-                        result.append(Node(item))
-                return result
-
-            # Get the remaining important parameters
-            nodeType = kwargs.get('type', kwargs.get('typ'))
-            allPaths = kwargs.get('allPaths', kwargs.get('ap', False))
-            parameters -= {'type', 'typ', 'allPaths', 'ap'}
-
-            # Get top level transforms
-            if kwargs.get('assemblies'):
-                for child in map(_getWorldDagPath().child, range(_getWorldDagPath().childCount())):
-                    depNode = om2.MFnDependencyNode(child)
-                    if depNode.typeName == 'transform' and not depNode.isDefaultNode:
-                        result.append(Node(child))
-                parameters.remove('assemblies')
-
-            if nodeType in utils.MEL_API_TYPE:
-                apiType = utils.MEL_API_TYPE[nodeType]
-
-                # Search the DAG for nodes of a particular type
-                # In case of instances, all dag paths are loaded once and
-                # each instance number will be used sequentially
-                if allPaths and nodeType in utils.DAG_TYPES:
-                    dagIterator = om2.MItDag(om2.MItDag.kDepthFirst, apiType)
-                    dagPathData = {}
-                    for _ in dagIterator:
-                        item = dagIterator.currentItem()
-
-                        if dagIterator.isInstanced():
-                            handle = om2.MObjectHandle(item).hashCode()
-                            if handle not in dagPathData:
-                                dagPathData[handle] = [dagIterator.getAllPaths(), 0]
-                            dagPaths, instanceNum = dagPathData[handle]
-
-                            result.append(Node(dagPaths[instanceNum]))
-                            dagPathData[handle][1] += 1
-
-                        else:
-                            result.append(Node(item))
-
-                # Search through all dependency nodes of a particular type
-                else:
-                    iterator = om2.MItDependencyNodes(apiType)
-                    result.extend(Node(iterator.thisNode()) for _ in iterator)
-
+            result = cls._apiLs(**kwargs)
+            if result is not None:
                 return result
 
         # Fallback to standard `mc.ls`
         kwargs['objectsOnly'] = True
-        result = mc.ls(*args, **kwargs)
-        return [Node(node) for node in result]
+        return [Node(node) for node in mc.ls(*args, **kwargs)]
 
     @classmethod
     def create(cls, nodeType, **kwargs):
@@ -1040,7 +990,7 @@ class Node(utils.StrMixin):
 
         result = []
         for parent in map(self.api.dagNode.parent, range(self.api.dagNode.parentCount())):
-            if om2.MObjectHandle(parent) == _getWorldHandle():
+            if om2.MObjectHandle(parent) == utils.getWorldHandle():
                 continue
             result.append(Node(parent))
         return result
@@ -1056,7 +1006,7 @@ class Node(utils.StrMixin):
             return None
 
         parentDagPath = om2.MDagPath(dagPath).pop()
-        if parentDagPath == _getWorldDagPath():
+        if parentDagPath == utils.getWorldDagPath():
             return None
         return Node(parentDagPath)
 

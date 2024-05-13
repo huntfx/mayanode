@@ -30,6 +30,10 @@ MEL_API_TYPE = dict(
 # MEL types that are valid DAG objects
 DAG_TYPES = set(mc.nodeType('dagNode', derived=True, isTypeName=True))
 
+_WORLD_HANDLE = None
+
+_WORLD_DAG_PATH = None
+
 
 def raiseIfNodeNotFound(node):
     # type: (Node) -> None
@@ -166,6 +170,84 @@ def setTexelDensity(faces, density):
         mc.polyEditUV(uvs, pivotU=pU, pivotV=pV, scaleU=scale, scaleV=scale)
     mc.select(originalSelection)
 
+
+def getWorldHandle():
+    # type: () -> om2.MObjectHandle
+    """Get the handle to the world `MObject`.
+    This is needed as it's parented to everything, but not wanted when
+    querying DAG parents.
+    """
+    global _WORLD_HANDLE, _WORLD_DAG_PATH
+    if _WORLD_HANDLE is not None:
+        return _WORLD_HANDLE
+    iterator = om2.MItDependencyNodes(om2.MSpace.kWorld)
+    while not iterator.isDone():
+        mObject = iterator.thisNode()
+        if om2.MFnDependencyNode(mObject).name() == 'world':
+            _WORLD_HANDLE = om2.MObjectHandle(mObject)
+            _WORLD_DAG_PATH = om2.MDagPath.getAPathTo(mObject)
+            return _WORLD_HANDLE
+        iterator.next()
+
+
+def getWorldDagPath():
+    # type: () -> om2.MDagPath
+    """Get the world `MDagPath`."""
+    global _WORLD_DAG_PATH
+    if _WORLD_DAG_PATH is None:
+        getWorldHandle()
+    return _WORLD_DAG_PATH
+
+
+def iterAssemblies():
+    # type () -> Iterator[om2.MObject]
+    """Get all assembly objects (top level transforms) in the scene."""
+    worldDagPath = getWorldDagPath()
+    for item in map(worldDagPath.child, range(worldDagPath.childCount())):
+        if not item.hasFn(om2.MFn.kTransform):
+            continue
+        if om2.MFnDependencyNode(item).isDefaultNode:
+            continue
+        yield item
+
+
+def iterDG(apiType=om2.MFn.kInvalid):
+    # type (int) -> Iterator[om2.MObject]
+    """Get all DG objects in the scene."""
+    iterator = om2.MItDependencyNodes(apiType)
+
+    if apiType == om2.MFn.kInvalid:
+        world = getWorldHandle()
+        for _ in iterator:
+            item = iterator.thisNode()
+            handle = om2.MObjectHandle(item)
+            if handle != world:
+                yield item
+
+    else:
+        for _ in iterator:
+            yield iterator.thisNode()
+
+
+def iterDAG(apiType=om2.MFn.kInvalid):
+    # type (int) -> Iterator[om2.MDagPath]
+    """Get all DAG nodes (including instances) for an API type."""
+    dagIterator = om2.MItDag(om2.MItDag.kDepthFirst, apiType)
+    dagPathData = {}
+    for _ in dagIterator:
+        item = dagIterator.currentItem()
+
+        if dagIterator.isInstanced():
+            handle = om2.MObjectHandle(item).hashCode()
+            if handle not in dagPathData:
+                dagPathData[handle] = [dagIterator.getAllPaths(), 0]
+            dagPaths, instanceNum = dagPathData[handle]
+
+            yield dagPaths[instanceNum]
+            dagPathData[handle][1] += 1
+
+        else:
+            yield dagIterator.getPath()
 
 
 # Handle circular dependencies

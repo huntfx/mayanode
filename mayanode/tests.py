@@ -536,6 +536,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(nodeLs(type='animCurve'), mcLs(type='animCurve'))
         self.assertEqual(nodeLs(assemblies=True), mcLs(assemblies=True))
         self.assertEqual(nodeLs(assemblies=True, type='objectSet'), mcLs(assemblies=True, type='objectSet'))
+        self.assertEqual(nodeLs(assemblies=True, type='doesntexist'), mcLs(assemblies=True, type='doesntexist'))
 
         mc.delete(cube, cube2)
         mc.delete(insts)
