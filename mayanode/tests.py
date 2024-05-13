@@ -519,6 +519,27 @@ class TestNode(unittest.TestCase):
             shape.texelDensity = 1
         mc.delete(node)
 
+    def testLs(self):
+        cube = Node(mc.polyCube(name='lsTest')[0])
+        insts = [cube.instance() for _ in range(3)]
+        cube2 = Node(mc.polyCube(name='lsTest')[0])
+        cube2.parent = cube
+        insts[-1].parent = insts[0]
+
+        nodeLs = lambda **kwargs: set(node.longName for node in Node.ls(**kwargs))
+        mcLs = lambda **kwargs: set(mc.ls(long=True, **kwargs))
+
+        self.assertEqual(nodeLs(), mcLs())
+        self.assertEqual(nodeLs(type='transform'), mcLs(type='transform'))
+        self.assertEqual(nodeLs(type='mesh'), mcLs(type='mesh'))
+        self.assertEqual(nodeLs(type='mesh', allPaths=True), mcLs(type='mesh', allPaths=True))
+        self.assertEqual(nodeLs(type='animCurve'), mcLs(type='animCurve'))
+        self.assertEqual(nodeLs(assemblies=True), mcLs(assemblies=True))
+        self.assertEqual(nodeLs(assemblies=True, type='objectSet'), mcLs(assemblies=True, type='objectSet'))
+
+        mc.delete(cube, cube2)
+        mc.delete(insts)
+
     def testLsExactType(self):
         cube = mc.polyCube()[0]
         objSet = mc.sets(name='lsTypeTestObj', empty=True)

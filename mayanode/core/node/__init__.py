@@ -663,6 +663,69 @@ class Node(utils.StrMixin):
     def ls(self, *args, **kwargs):
         # type: (*Any, **Any) -> List[Node]
         """Shortcut to search the scene."""
+        result = []
+
+        # Get the parameters and discard ones with no effect
+        parameters = set(kwargs) - {'long', 'l', 'objectsOnly', 'o'}
+
+        # Only use the API if not searching for specific names
+        if not args:
+            # Get every node in the scene
+            if not parameters:
+                world = _getWorldHandle()
+                iterator = om2.MItDependencyNodes()
+                for _ in iterator:
+                    item = iterator.thisNode()
+                    handle = om2.MObjectHandle(item)
+                    if handle != world:
+                        result.append(Node(item))
+                return result
+
+            # Get the remaining important parameters
+            nodeType = kwargs.get('type', kwargs.get('typ'))
+            allPaths = kwargs.get('allPaths', kwargs.get('ap', False))
+            parameters -= {'type', 'typ', 'allPaths', 'ap'}
+
+            # Get top level transforms
+            if kwargs.get('assemblies'):
+                for child in map(_getWorldDagPath().child, range(_getWorldDagPath().childCount())):
+                    depNode = om2.MFnDependencyNode(child)
+                    if depNode.typeName == 'transform' and not depNode.isDefaultNode:
+                        result.append(Node(child))
+                parameters.remove('assemblies')
+
+            if nodeType in utils.MEL_API_TYPE:
+                apiType = utils.MEL_API_TYPE[nodeType]
+
+                # Search the DAG for nodes of a particular type
+                # In case of instances, all dag paths are loaded once and
+                # each instance number will be used sequentially
+                if allPaths and nodeType in utils.DAG_TYPES:
+                    dagIterator = om2.MItDag(om2.MItDag.kDepthFirst, apiType)
+                    dagPathData = {}
+                    for _ in dagIterator:
+                        item = dagIterator.currentItem()
+
+                        if dagIterator.isInstanced():
+                            handle = om2.MObjectHandle(item).hashCode()
+                            if handle not in dagPathData:
+                                dagPathData[handle] = [dagIterator.getAllPaths(), 0]
+                            dagPaths, instanceNum = dagPathData[handle]
+
+                            result.append(Node(dagPaths[instanceNum]))
+                            dagPathData[handle][1] += 1
+
+                        else:
+                            result.append(Node(item))
+
+                # Search through all dependency nodes of a particular type
+                else:
+                    iterator = om2.MItDependencyNodes(apiType)
+                    result.extend(Node(iterator.thisNode()) for _ in iterator)
+
+                return result
+
+        # Fallback to standard `mc.ls`
         kwargs['objectsOnly'] = True
         result = mc.ls(*args, **kwargs)
         return [Node(node) for node in result]

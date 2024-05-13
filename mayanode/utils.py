@@ -15,6 +15,21 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Mapping of MEL to API types
+MEL_API_TYPE = dict(
+    transform=om2.MFn.kTransform,
+    mesh=om2.MFn.kMesh,
+    objectSet=om2.MFn.kSet,
+    creaseSet=om2.MFn.kCreaseSet,
+    animCurve=om2.MFn.kAnimCurve,
+    shadingEngine=om2.MFn.kShadingEngine,
+    light=om2.MFn.kLight,
+    camera=om2.MFn.kCamera,
+)
+
+# MEL types that are valid DAG objects
+DAG_TYPES = set(mc.nodeType('dagNode', derived=True, isTypeName=True))
+
 
 def raiseIfNodeNotFound(node):
     # type: (Node) -> None
