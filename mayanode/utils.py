@@ -180,14 +180,11 @@ def getWorldHandle():
     global _WORLD_HANDLE, _WORLD_DAG_PATH
     if _WORLD_HANDLE is not None:
         return _WORLD_HANDLE
-    iterator = om2.MItDependencyNodes(om2.MSpace.kWorld)
-    while not iterator.isDone():
-        mObject = iterator.thisNode()
-        if om2.MFnDependencyNode(mObject).name() == 'world':
-            _WORLD_HANDLE = om2.MObjectHandle(mObject)
-            _WORLD_DAG_PATH = om2.MDagPath.getAPathTo(mObject)
-            return _WORLD_HANDLE
-        iterator.next()
+    iterator = om2.MItDag(om2.MItDag.kDepthFirst, om2.MFn.kInvalid)
+    world = iterator.currentItem()
+    _WORLD_HANDLE = om2.MObjectHandle(world)
+    _WORLD_DAG_PATH = om2.MDagPath.getAPathTo(world)
+    return _WORLD_HANDLE
 
 
 def getWorldDagPath():

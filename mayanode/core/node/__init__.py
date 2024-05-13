@@ -759,7 +759,9 @@ class Node(utils.StrMixin):
             return ''
         dagPath = api.dagPath
         if dagPath is not None and dagPath.isValid():
-            return dagPath.partialPathName()
+            partialName = dagPath.partialPathName()
+            if partialName:
+                return partialName
         return api.dependencyNode.name()
 
     @name.setter
@@ -793,7 +795,9 @@ class Node(utils.StrMixin):
         utils.raiseIfNodeNotFound(self)
         dagPath = self.api.dagPath
         if dagPath is not None:
-            return dagPath.fullPathName()
+            longName = dagPath.fullPathName()
+            if longName:
+                return longName
         return self.name
 
     @property
