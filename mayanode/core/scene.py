@@ -3,7 +3,7 @@ import os
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from .. import types
+from .. import types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -112,6 +112,11 @@ class _Scene(object):
             mc.file(force=True, save=True)
         else:
             mel.eval('saveChanges("")')
+
+    @property
+    def world(self):
+        """Get the "world" node."""
+        return Node(utils.getWorldHandle())
 
     @property
     def nodes(self):
