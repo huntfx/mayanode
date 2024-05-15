@@ -7,7 +7,7 @@ from .... import exceptions, types, utils
 from ....type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator, List, Optional, Tuple, Type, Union
+    from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union
     from typing import KeysView, ValuesView, ItemsView
 
 
@@ -348,7 +348,7 @@ class Attribute(types.StrMixin):
         __slots__ = ['_plug', '_attribute']
 
         def __init__(self, plug):
-            # type (om2.MPlug) -> None
+            # type: (om2.MPlug) -> None
             """Store the plug.
 
             If the plug is networked, then convert to non networked, as
@@ -360,7 +360,7 @@ class Attribute(types.StrMixin):
 
         @classmethod
         def fromNode(cls, node, attr):
-            # type (Node, str) -> Attribute
+            # type: (Node, str) -> Attribute.ApiData
             """Get an attribute from a Node instance.
 
             Raises:
@@ -373,7 +373,7 @@ class Attribute(types.StrMixin):
 
         @classmethod
         def fromAttr(cls, attr):
-            # type (str) -> Attribute
+            # type: (str) -> Attribute.ApiData
             """Get an attribute from an attribute string.
 
             Raises:
@@ -399,7 +399,7 @@ class Attribute(types.StrMixin):
 
         @property
         def plug(self):
-            # type () -> om2.MPlug
+            # type: () -> om2.MPlug
             """Get the `MPlug`.
 
             Notable methods:
@@ -410,7 +410,7 @@ class Attribute(types.StrMixin):
 
         @property
         def plugs(self):
-            # type () -> List[om2.MPlug]
+            # type: () -> List[om2.MPlug]
             """Get all the `MPlug` objects in the case of arrays."""
             plug = self.plug
             result = [plug]
@@ -420,7 +420,7 @@ class Attribute(types.StrMixin):
 
         @property
         def attribute(self):
-            # type () -> om2.MFnAttribute
+            # type: () -> om2.MFnAttribute
             """Get the `MFnAttribute`.
 
             Notable methods:
@@ -432,7 +432,7 @@ class Attribute(types.StrMixin):
             return self._attribute
 
     def __init__(self, node, attr):
-        # type (Node, Union[str, om2.MPlug]) -> None
+        # type: (Node, Union[str, om2.MPlug]) -> None
         """Create the attribute proxy.
 
         Parameters:
@@ -451,37 +451,37 @@ class Attribute(types.StrMixin):
             self.api = Attribute.ApiData.fromNode(self.node, attr)
 
         self._keyframes = AttributeKeyframes(self)
-        self._compoundChildren = None
+        self._compoundChildren = None  # type: Optional[Dict[str, Attribute]]
 
     @classmethod
     def ls(self, attr):
-        # type (str) -> List[Attribute]
+        # type: (str) -> List[Attribute]
         """Search the scene for an attribute."""
         result = mc.ls('*.' + attr)
         split = (item.split('.', 1) for item in result)
         return [Attribute(Node(node), attr) for node, attr in split]
 
     def __bool__(self):
-        # type () -> bool
+        # type: () -> bool
         return self.exists
     __nonzero__ = __bool__
 
     def __eq__(self, value):
-        # type (Any) -> bool
+        # type: (Any) -> bool
         if isinstance(value, Attribute):
             return self.node == value.node and self.attr == value.attr
         return value == self.attr or value == self.name
 
     def __float__(self):
-        # type () -> float
+        # type: () -> float
         return float(self.value)
 
     def __int__(self):
-        # type () -> int
+        # type: () -> int
         return int(self.value)
 
     def __add__(self, value):
-        # type (str) -> Attribute
+        # type: (str) -> Attribute
         """Allow attribute names to be added to.
 
         TODO:
@@ -759,7 +759,7 @@ class Attribute(types.StrMixin):
         return AttributeConnectionProxy(self)
 
     def create(self, attrType=None, **kwargs):
-        # type: (str, Optional[str], **Any) -> Attribute
+        # type: (Optional[str], **Any) -> None
         """Create the attribute."""
         try:
             if attrType is None:
@@ -843,6 +843,10 @@ class Attribute(types.StrMixin):
             # Load the child plugs if not already loaded
             if self._compoundChildren is None or value not in self._compoundChildren:
                 self._reloadCompoundChildren()
+
+            if TYPE_CHECKING:
+                assert self._compoundChildren is not None
+                assert isinstance(value, str)
 
             try:
                 return self._compoundChildren[value]

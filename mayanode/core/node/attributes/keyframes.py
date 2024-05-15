@@ -11,27 +11,27 @@ from .... import utils
 from ....type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator, Generator, List, Tuple
+    from typing import Any, Iterator, List, Optional, Tuple, Union
 
 
 class AttributeKeyframes(MutableMapping):
     """Dictionary interface to keyframes on a specific attribute."""
 
     def __init__(self, attr):
-        # type (Attribute) -> None
+        # type: (Attribute) -> None
         self.attr = attr
         super(AttributeKeyframes, self).__init__()
 
     def __repr__(self):
-        # type () -> str
+        # type: () -> str
         return '{}({!r})'.format(type(self).__name__, self.attr)
 
     def __str__(self):
-        # type () -> str
+        # type: () -> str
         return dict(self.items()).__str__()
 
     def __len__(self):
-        # type () -> int
+        # type: () -> int
         return len(self.keys())
 
     def __iter__(self):
@@ -39,29 +39,29 @@ class AttributeKeyframes(MutableMapping):
         return iter(self.keys())
 
     def __getitem__(self, frame):
-        # type (float) -> KeyframeProxy
+        # type: (float) -> KeyframeProxy
         return KeyframeProxy(self, frame)
 
     def __setitem__(self, frame, value):
-        # type (float) -> float
+        # type: (float, float) -> None
         KeyframeProxy(self, frame).set(value)
 
     def __delitem__(self, frame):
-        # type (float) -> None
+        # type: (float) -> None
         KeyframeProxy(self, frame).delete()
 
     def keys(self):
-        # type () -> List[float]
+        # type: () -> List[float]
         result = mc.keyframe(self.attr.node, attribute=self.attr.attr, query=True, timeChange=True)
         return result or []
 
     def values(self):
-        # type () -> List[float]
+        # type: () -> List[float]
         result = mc.keyframe(self.attr.node, attribute=self.attr.attr, query=True, valueChange=True)
         return result or []
 
     def items(self):
-        # type () -> Generator[Tuple[float, float]]
+        # type: () -> Iterator[Tuple[float, float]]
         result = mc.keyframe(self.attr.node, attribute=self.attr.attr, query=True, timeChange=True, valueChange=True)
         for i in range(0, len(result), 2):
             yield result[i], result[i+1]
@@ -73,7 +73,7 @@ class KeyframeProxy(object):
     __slots__ = ['kf', 'frame']
 
     def __init__(self, keyframe, frame=None):
-        # type (AttributeKeyframes, Optional[Union[int, slice]]) -> None
+        # type: (AttributeKeyframes, Optional[Union[float, slice]]) -> None
         self.kf = keyframe
 
         if frame is None:
@@ -82,12 +82,12 @@ class KeyframeProxy(object):
         self.frame = frame
 
     def __repr__(self):
-        # type () -> str
+        # type: () -> str
         return '{}({!r}, {})'.format(type(self).__name__, self.kf, self.frame)
 
     @property
     def value(self):
-        # type () -> Union[List[float], float]
+        # type: () -> Optional[Union[List[float], float]]
         if not isinstance(self.frame, slice):
             result = mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(self.frame, self.frame))
             if not result:
@@ -105,7 +105,7 @@ class KeyframeProxy(object):
         return mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(self.frame.start, self.frame.stop - 1))
 
     def set(self, value=None):
-        # type (Union[float, slice]) -> None
+        # type: (Union[float, slice]) -> None
         utils.logger.info('Setting keyframe on "%s" (frame %s, value %s)', self.kf.attr, self.frame, value)
 
         args = [self.kf.attr.node]
@@ -122,7 +122,7 @@ class KeyframeProxy(object):
         mc.setKeyframe(*args, **kwargs)
 
     def delete(self):
-        # type () -> None
+        # type: () -> None
         utils.logger.info('Deleting keyframe on "%s" (frame %s)', self.kf.attr, self.frame)
         if not isinstance(self.frame, slice):
             mc.cutKey(self.kf.attr.node, attribute=self.kf.attr.attr, time=(self.frame, self.frame))
@@ -133,3 +133,8 @@ class KeyframeProxy(object):
 
         else:
             mc.cutKey(self.kf.attr.node, attribute=self.kf.attr.attr, time=(self.frame.start, self.frame.stop))
+
+
+# Handle circular dependencies
+# pylint: disable=wrong-import-position
+from . import Attribute

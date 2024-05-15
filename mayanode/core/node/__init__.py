@@ -362,6 +362,8 @@ class _ApiData(object):
                 if self._instanceNumber < 0:
                     self._dagPaths = [om2.MDagPath.getAPathTo(self.object)]
                 else:
+                    if TYPE_CHECKING:
+                        assert self.dagNode is not None
                     self._dagPaths = self.dagNode.getAllPaths()
             else:
                 self._dagPaths = []
@@ -651,7 +653,7 @@ class Node(utils.StrMixin):
         allPaths = kwargs.get('allPaths', kwargs.get('ap', False))
         parameters -= {'type', 'typ', 'allPaths', 'ap'}
 
-        result = []
+        result = []  # type: List[Node]
 
         # Get top level transforms
         if kwargs.get('assemblies'):

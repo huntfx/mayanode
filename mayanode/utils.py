@@ -137,6 +137,7 @@ def calculateTexelDensity(faces):
 
 
 def setTexelDensity(faces, density):
+    # type: (Union[List[StrLike], StrLike], float) -> None
     """Set the texel density value for the current UV set.
 
     The map size used is 1, so divide the density by the map size if
@@ -151,7 +152,6 @@ def setTexelDensity(faces, density):
     Raises:
         ZeroTexelDensityError: If texel density is zero.
     """
-    # type: (Union[List[StrLike], StrLike], float) -> None
     originalSelection = mc.ls(selection=True)
     mc.select(faces)   # The `activeUVShells` flag doesn't work if node isn't selected
 
@@ -197,7 +197,7 @@ def getWorldDagPath():
 
 
 def iterAssemblies():
-    # type () -> Iterator[om2.MObject]
+    # type: () -> Iterator[om2.MObject]
     """Get all assembly objects (top level transforms) in the scene."""
     worldDagPath = getWorldDagPath()
     for item in map(worldDagPath.child, range(worldDagPath.childCount())):
@@ -209,7 +209,7 @@ def iterAssemblies():
 
 
 def iterDG(apiType=om2.MFn.kInvalid):
-    # type (int) -> Iterator[om2.MObject]
+    # type: (int) -> Iterator[om2.MObject]
     """Get all DG objects in the scene."""
     iterator = om2.MItDependencyNodes(apiType)
 
@@ -227,7 +227,7 @@ def iterDG(apiType=om2.MFn.kInvalid):
 
 
 def iterDAG(apiType=om2.MFn.kInvalid):
-    # type (int) -> Iterator[om2.MDagPath]
+    # type: (int) -> Iterator[om2.MDagPath]
     """Get all DAG nodes (including instances) for an API type."""
     dagIterator = om2.MItDag(om2.MItDag.kDepthFirst, apiType)
     dagPathData = {}
