@@ -205,7 +205,7 @@ class UVSet(utils.StrMixin):
         mesh = self.node.api.mesh
         if mesh is None:
             return False
-        return self.name == self.node.mesh.currentUVSetName()
+        return self.name == self.node.api.mesh.currentUVSetName()
 
     def delete(self):
         # type: () -> None

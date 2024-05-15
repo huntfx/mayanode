@@ -1107,6 +1107,11 @@ class TestUVSets(unittest.TestCase):
             self.assertEqual(attr.value, uvSet)
             self.assertEqual(attr, uvSet.attr)
 
+    def testCurrent(self):
+        map1, map2 = self.node.uvSets
+        self.assertTrue(map1.current)
+        self.assertFalse(map2.current)
+
 
 class TestColorSets(unittest.TestCase):
     def setUp(self):
