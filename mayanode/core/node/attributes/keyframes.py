@@ -98,9 +98,11 @@ class KeyframeProxy(object):
             results = []
             for frame in range(self.frame.start, self.frame.stop, self.frame.step):
                 result = mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(frame, frame))
+                if result:
+                    results.extend(result)
             return results
 
-        return mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(self.frame.start, self.frame.stop))
+        return mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(self.frame.start, self.frame.stop - 1))
 
     def set(self, value=None):
         # type (Union[float, slice]) -> None

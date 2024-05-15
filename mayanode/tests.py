@@ -991,7 +991,9 @@ class TestAttr(unittest.TestCase):
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
         self.oldX = mc.getAttr('persp.translateX')
-        mc.setKeyframe('persp.translateX', time=(1, 10), value=-10)
+        for i in range(3):
+            mc.setKeyframe('persp.translateX', time=(i, i), value=-i)
+        mc.setKeyframe('persp.translateX', time=(3, 5), value=10)
         self.keyframes = Node('persp').attrs['translateX'].keyframes
 
     def tearDown(self):
@@ -999,30 +1001,35 @@ class TestKeyframes(unittest.TestCase):
         mc.setAttr('persp.translateX', self.oldX)
 
     def testGet(self):
-        self.assertEqual(self.keyframes.keys(), [1.0, 10.0])
-        self.assertEqual(self.keyframes.values(), [-10, -10])
+        self.assertEqual(self.keyframes.keys(), [0.0, 1.0, 2.0, 3.0, 5.0])
+        self.assertEqual(self.keyframes.values(), [0.0, -1.0, -2.0, 10.0, 10.0])
         self.assertEqual(list(self.keyframes.items()), list(zip(self.keyframes.keys(), self.keyframes.values())))
-        self.assertEqual(self.keyframes, {1.0: -10, 10.0: -10})
-        self.assertEqual(self.keyframes[1].value, -10)
-        self.assertEqual(self.keyframes[1.0].value, -10)
-        self.assertIsNone(self.keyframes[2].value)
+        self.assertEqual(self.keyframes, {0.0: 0.0, 1.0: -1.0, 2.0: -2.0, 3.0: 10.0, 5.0: 10.0})
+
+        self.assertEqual(self.keyframes[1].value, -1)
+        self.assertEqual(self.keyframes[1.0].value, -1)
+        self.assertIsNone(self.keyframes[4].value)
+
+    def testGetSlice(self):
+        self.assertEqual(self.keyframes[1:3].value, [-1.0, -2.0])
+        self.assertEqual(self.keyframes[1:4:2].value, [-1.0, 10.0])
 
     def testSet(self):
         self.keyframes[2] = 10
         self.keyframes[3].set(20)
-        self.assertEqual(self.keyframes[1].value, -10)
+        self.assertEqual(self.keyframes[1].value, -1)
         self.assertEqual(self.keyframes[2].value, 10)
         self.assertEqual(self.keyframes[3].value, 20)
         self.assertIsNone(self.keyframes[4].value)
 
     def testDelete(self):
-        self.assertEqual(self.keyframes[1].value, -10)
+        self.assertEqual(self.keyframes[1].value, -1)
         del self.keyframes[1]
         self.assertIsNone(self.keyframes[1].value)
 
-        self.assertEqual(self.keyframes[10].value, -10)
-        self.keyframes[10].delete()
-        self.assertIsNone(self.keyframes[10].value)
+        self.assertEqual(self.keyframes[5].value, 10)
+        self.keyframes[5].delete()
+        self.assertIsNone(self.keyframes[5].value)
 
 
 class TestUVSets(unittest.TestCase):
