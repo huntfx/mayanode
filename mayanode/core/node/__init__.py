@@ -821,6 +821,16 @@ class Node(utils.StrMixin):
         utils.raiseIfNodeNotFound(self)
         return self._attrs
 
+    def select(self, add=False, remove=False):
+        # type(bool, bool) -> None
+        """Set, add or remove a node from the selection."""
+        if add:
+            mc.select(self, add=True)
+        elif remove:
+            mc.select(self, remove=True)
+        else:
+            mc.select(self)
+
     def translate(self, x, y, z):
         # type: (float, float, float) -> None
         """Translate the node with relative coordinates.
