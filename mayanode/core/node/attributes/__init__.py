@@ -480,18 +480,6 @@ class Attribute(types.StrMixin):
         # type: () -> int
         return int(self.value)
 
-    def __add__(self, value):
-        # type: (str) -> Attribute
-        """Allow attribute names to be added to.
-
-        TODO:
-            Return a string instead
-
-        >>> Attribute('node.val') + 'ue'
-        Attribute('node.value')
-        """
-        return Attribute(self.node, self.attr + value)
-
     def __rshift__(self, connection):
         # type: (Union[str, Attribute, om2.MPlug]) -> bool
         """Create an outgoing connection.

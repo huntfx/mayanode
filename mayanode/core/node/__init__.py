@@ -579,16 +579,6 @@ class Node(utils.StrMixin):
             return cls(node, *args, **kwargs).attrs[attr]
         return super(Node, cls).__new__(cls, name, *args, **kwargs)
 
-    def __add__(self, attr):
-        # type: (str) -> Union[Node, Attribute]
-        """Get a new object or attribute.
-
-        TODO: Use `str()` instead and don't construct a new class.
-        """
-        if attr[0] == '.':
-            return self.attrs[attr[1:]]
-        return Node(str(self) + attr)
-
     def __eq__(self, other):
         # type: (Any) -> bool
         """Determine if two nodes are equal.

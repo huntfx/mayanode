@@ -718,19 +718,6 @@ class TestAttr(unittest.TestCase):
         self.assertIsNotNone(self.node.attrs.get('diffuse'))
         self.assertIsNone(self.node.attrs.get('something'))
 
-    def testConcatenate(self):
-        self.assertEqual(self.node.attrs['color'], 'lambert1.color')
-        self.assertEqual(str(self.node + '.color'), 'lambert1.color')
-        self.assertEqual(self.node.attrs['color'] + 'R', 'lambert1.colorR')
-        with self.assertRaises(exceptions.AttributeNotFoundError):
-            self.node.attrs['color'] + 'Y'
-
-        with self.assertRaises(exceptions.NodeNotFoundError):
-            self.node + '0.color'
-        mc.createNode('lambert', name='lambert10')
-        self.assertEqual(self.node + '0.color', 'lambert10.color')
-        mc.delete('lambert10')
-
     def testGet(self):
         self.assertEqual(self.node.attrs['color'], 'lambert1.color')
         self.assertEqual(self.node.attrs['color'].value, (0.5, 0.5, 0.5))

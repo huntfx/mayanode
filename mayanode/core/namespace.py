@@ -34,10 +34,6 @@ class Namespace(classutilities.ClassPropertiesMixin, utils.StrMixin):
         return self.name not in (':', '')
     __nonzero__ = __bool__
 
-    def __add__(self, other):
-        # type: (StrLike) -> str
-        return self.name + str(other)
-
     def __radd__(self, other):
         # type: (StrLike) -> str
         return other.rstrip(':') + self.name
