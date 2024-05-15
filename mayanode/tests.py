@@ -181,8 +181,15 @@ class TestNode(unittest.TestCase):
 
         self.assertEqual(root.descendents, [parent, child1, child2])
         self.assertEqual(parent.descendents, [child1, child2])
-
         mc.delete(root)
+
+        cube = mc.polyCube(name='descendentTest1')[0]
+        cube2 = Node(cube).instance(name='descendentTest2')
+        group = mc.group(cube, cube2, name='descendentTest3')
+        group2 = Node(group).instance(name='descendentTest4')
+        overall = mc.group(group, group2, name='descendentTest5')
+        self.assertEqual(len(Node(overall).descendents), len(mc.listRelatives(overall, allDescendents=True)))
+        mc.delete(cube, cube2, group, group2, overall)
 
     def testTransformShape(self):
         node = Node(mc.polyCube(name='shapeTest')[0])
@@ -460,15 +467,6 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node, long)
         self.assertNotEqual(node, shape)
         mc.delete(transform)
-
-    def testDescendents(self):
-        cube = mc.polyCube(name='descendentTest1')[0]
-        cube2 = Node(cube).instance(name='descendentTest2')
-        group = mc.group(cube, cube2, name='descendentTest3')
-        group2 = Node(group).instance(name='descendentTest4')
-        overall = mc.group(group, group2, name='descendentTest5')
-        self.assertEqual(len(Node(overall).descendents), len(mc.listRelatives(overall, allDescendents=True)))
-        mc.delete(cube, cube2, group, group2, overall)
 
     def testNumVertices(self):
         node = Node(mc.polyCube(name='verticesTest')[0])
