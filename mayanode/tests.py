@@ -563,6 +563,23 @@ class TestNode(unittest.TestCase):
 
         mc.delete(cube, objSet, creaseSet)
 
+    def testSetMembers(self):
+        cube1 = mc.polyCube()[0]
+        cube2 = mc.polyCube()[0]
+        cube2Shape = mc.listRelatives(cube2, shapes=True, fullPath=True)[0]
+        inst = mc.instance(cube2)[0]
+        instShape = mc.listRelatives(inst, shapes=True, fullPath=True)[0]
+        set1 = mc.sets(empty=True)
+        set2 = mc.sets(empty=True)
+        mc.sets(cube1, edit=True, forceElement=set1)
+        mc.sets(cube2Shape, edit=True, forceElement=set1)
+        mc.sets(instShape, edit=True, forceElement=set2)
+        mc.sets(set2, edit=True, forceElement=set1)
+        self.assertEqual(Node(set1).members, [cube2Shape, cube1, set2])
+        self.assertEqual(Node(set2).members, [instShape])
+        self.assertEqual(Node(cube1).members, [])
+        mc.delete(cube1, cube2, inst, set1, set2)
+
 
 class TestDgModifier(unittest.TestCase):
     def setUp(self):

@@ -189,7 +189,7 @@ class _ApiData(object):
     """Hold the OpenMaya API objects for a node."""
 
     __slots__ = ['_object', '_handle', '_instanceNumber', 'dgModifier',
-                 '_dagPaths', '_dependencyNode', '_dagNode',
+                 '_dagPaths', '_dependencyNode', '_dagNode', '_set',
                  '_transform', '_hasGeometry', '_reference']
 
     def __init__(self, mObject, instanceNumber=-1):
@@ -207,6 +207,7 @@ class _ApiData(object):
         self._reference = None  # type: Optional[om2.MFnReference]
         self._dagNode = None  # type: Optional[om2.MFnDagNode]
         self._dagPaths = None  # type: Optional[List[om2.MDagPath]]
+        self._set = None  # type: Optional[om2.MFnSet]
 
     def __bool__(self):
         # type: () -> bool
@@ -286,6 +287,7 @@ class _ApiData(object):
         new._dagPaths = self._dagPaths
         new._hasGeometry = self._hasGeometry
         new._reference = self._reference
+        new._set = self._set
         return new
 
     @property
@@ -532,6 +534,24 @@ class _ApiData(object):
         if self._reference == -1:
             return None
         return self._reference
+
+    @property
+    def set(self):
+        # type: () -> Optional[om2.MFnSet]
+        """Get the `MFnSet`.
+
+        Notable methods:
+            getMembers(flatten: bool)
+        """
+        if self._set is None:
+            if self.object.hasFn(om2.MFn.kSet):
+                self._set = om2.MFnSet(self.object)
+            else:
+                self._set = -1
+
+        if self._set == -1:
+            return None
+        return self._set
 
 
 class Node(utils.StrMixin):
@@ -1642,6 +1662,26 @@ class Node(utils.StrMixin):
         """
         utils.logger.info('Setting texel density of %s to %s', self, density)
         utils.setTexelDensity(self.name + '.f[*]', density)
+
+    @property
+    def members(self):
+        # type: () -> List[Node]
+        """Get the members of the set if the object is a set.
+        In the case of instanced shapes, the correct instance will be
+        returned.
+        """
+        mfnSet = self.api.set
+        if mfnSet is None:
+            return []
+        members = mfnSet.getMembers(False)
+        result = []
+        for i in range(members.length()):
+            depNode = members.getDependNode(i)
+            if depNode.hasFn(om2.MFn.kDagNode):
+                result.append(Node(members.getDagPath(i)))
+            else:
+                result.append(Node(depNode))
+        return result
 
 
 # Handle circular dependencies
