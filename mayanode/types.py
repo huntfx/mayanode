@@ -7,6 +7,7 @@ from . import type_hints
 
 if type_hints.TYPE_CHECKING:
     from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Type, Union
+    from .type_hints import StrLike
     MappingKey = Any
     MappingKeyType = Type[MappingKey]
 
@@ -70,6 +71,14 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
     def __hash__(self):
         # type: () -> int
         return hash(self.name)
+
+    def __add__(self, value):
+        # type: (StrLike) -> str
+        return self.name + value
+
+    def __radd__(self, value):
+        # type: (StrLike) -> str
+        return value + self.name
 
     def split(self, *args, **kwargs):
         # type: (*Any, **Any) -> List[str]

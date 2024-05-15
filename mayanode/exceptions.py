@@ -99,3 +99,20 @@ class ZeroTexelDensityError(BaseError):
     def __init__(self, faces):
         super(ZeroTexelDensityError, self).__init__(faces=', '.join(faces))
 
+
+class NamespaceError(BaseError):
+    MESSAGE = 'Error: {namespace}'
+
+    def __init__(self, namespace, **kwargs):
+        super(NamespaceError, self).__init__(namespace=namespace, **kwargs)
+
+
+class NamespaceNotFoundError(NamespaceError):
+    MESSAGE = 'No namespace matches name: {namespace}'
+
+
+class NamespaceNotEmptyError(NamespaceError):
+    MESSAGE = 'The namespace "{namespace}" is not empty.'
+
+    def __init__(self, namespace, **kwargs):
+        super(NamespaceNotEmptyError, self).__init__(namespace=namespace, **kwargs)

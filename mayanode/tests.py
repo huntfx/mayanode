@@ -4,7 +4,7 @@ import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from mayanode import Node, exceptions
+from mayanode import Node, Namespace, exceptions
 
 
 class TestNode(unittest.TestCase):
@@ -1142,6 +1142,85 @@ class TestColorSets(unittest.TestCase):
         self.node.colorSet.delete()
         self.assertEqual(self.node.colorSet, 'colorSet2')
         self.assertEqual(self.node.colorSets, ['colorSet2'])
+
+
+class TestNamespace(unittest.TestCase):
+    def setUp(self):
+        mc.namespace(set=':')
+        self.ns1 = ':' + mc.namespace(add='namespaceTest1')
+        self.ns2 = ':' + mc.namespace(add='namespaceTest2', parent=self.ns1)
+        self.ns3 = ':' + mc.namespace(add='namespaceTest3', parent=self.ns2)
+
+    def tearDown(self):
+        if mc.namespace(exists=self.ns3):
+            mc.namespace(removeNamespace=self.ns3)
+        if mc.namespace(exists=self.ns2):
+            mc.namespace(removeNamespace=self.ns2)
+        if mc.namespace(exists=self.ns1):
+            mc.namespace(removeNamespace=self.ns1)
+
+    def testExists(self):
+        self.assertTrue(Namespace(self.ns1).exists)
+        ns3 = str(self.ns3).strip(':')
+        self.assertTrue(Namespace(ns3).exists)
+        self.assertTrue(Namespace(':' + ns3).exists)
+        self.assertFalse(Namespace(ns3.split(':')[-1]).exists)
+
+    def testCreate(self):
+        ns4 = Namespace('emptyLevel3')
+        self.assertFalse(ns4.exists)
+        self.assertTrue(ns4.create())
+        self.assertFalse(ns4.create())
+        self.assertTrue(ns4.exists)
+        self.assertTrue(ns4.delete())
+        self.assertFalse(ns4.delete())
+        self.assertFalse(ns4.exists)
+
+    def testReparent(self):
+        with self.assertRaises(AttributeError):
+            Namespace(self.ns3).parent = self.ns1
+
+    def testDelete(self):
+        with self.assertRaises(exceptions.NamespaceNotEmptyError):
+            Namespace(self.ns2).delete()
+        self.assertTrue(Namespace(self.ns3).delete())
+        self.assertTrue(Namespace(self.ns2).delete())
+
+    def testParent(self):
+        self.assertEqual(Namespace(self.ns3).parent, self.ns2)
+        self.assertEqual(Namespace(self.ns1).parent, ':')
+        self.assertIsNone(Namespace(':').parent)
+
+    def testChildren(self):
+        self.assertIn(self.ns3, Namespace(self.ns2).children)
+        self.assertEqual(Namespace(self.ns3).children, [])
+        self.assertIn(self.ns1, Namespace().children)
+
+    def testCurrent(self):
+        self.assertEqual(Namespace.current, ':')
+        ns3 = str(self.ns3).strip(':')
+        Namespace.current = ns3
+        self.assertEqual(Namespace.current, ns3)
+        Namespace.current = ':' + ns3
+        self.assertEqual(Namespace.current, ns3)
+        with self.assertRaises(exceptions.NamespaceNotFoundError):
+            Namespace.current = ns3.split(':')[-1]
+
+    def testRoot(self):
+        self.assertEqual(Namespace.root, ':')
+        self.assertIn(self.ns1, Namespace.root.children)
+        with self.assertRaises(AttributeError):
+            Namespace.root = ':'
+
+    def testDepth(self):
+        self.assertEqual(Namespace.root.depth, 0)
+        self.assertEqual(Namespace(self.ns3).depth, 3)
+
+    def testAncestors(self):
+        self.assertEqual(Namespace(self.ns2).ancestors, [self.ns1, ':'])
+
+    def testDescendents(self):
+        self.assertEqual(Namespace(self.ns1).descendents, [self.ns2, self.ns3])
 
 
 if __name__ == '__main__':

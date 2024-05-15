@@ -1,7 +1,8 @@
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
-from .. import utils
+from .. import exceptions, utils
+from ..ext import classutilities
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -9,14 +10,12 @@ if TYPE_CHECKING:
     from ..type_hints import StrLike
 
 
-class Namespace(utils.StrMixin):
-    """Handle namespaces.
-    TODO: Tests
-    """
+class Namespace(classutilities.ClassPropertiesMixin, utils.StrMixin):
+    """Handle namespaces."""
 
     __slots__ = ['_namespace']
 
-    def __init__(self, namespace):
+    def __init__(self, namespace=':'):  # pylint: disable=super-init-not-called
         # type: (str) -> None
         self._namespace = ':' + ':'.join(map(om2.MNamespace.validateName, namespace.lstrip(':').split(':')))
 
@@ -61,6 +60,33 @@ class Namespace(utils.StrMixin):
             return cls(node.api.dependencyNode.namespace)
         return cls(om2.MNamespace.getNamespaceFromName(str(node)))
 
+    @classutilities.classproperty
+    @classmethod
+    def root(cls):
+        """Get the root namespace."""
+        return cls(':')
+
+    @classutilities.classproperty
+    @classmethod
+    def current(cls):
+        # type: () -> Namespace
+        """Get the current namespace."""
+        return cls(mc.namespaceInfo(currentNamespace=True))
+
+    @current.setter
+    @classmethod
+    def _currentSet(cls, value):
+        # type: (Optional[StrLike]) -> None
+        """Set the current namespace."""
+        if not value:
+            value = ':'
+        elif not value.startswith(':'):
+            value = ':' + value
+        utils.logger.info('Setting current namespace: %s', value)
+        if not om2.MNamespace.namespaceExists(value):
+            raise exceptions.NamespaceNotFoundError(value)
+        mc.namespace(set=value)
+
     @property
     def exists(self):
         # type: () -> bool
@@ -68,24 +94,35 @@ class Namespace(utils.StrMixin):
         return om2.MNamespace.namespaceExists(self.name)
 
     def create(self):
-        # type: () -> None
+        # type: () -> bool
         """Create the namespace.
 
-        Raises:
-            RuntimeError: A namespace of the given name '<ns>' already exists.
+        Returns:
+            True if successful.
         """
         utils.logger.info('Creating namespace: %s', self)
+        if self.exists:
+            return False
         mc.namespace(add=self)
+        return True
 
     def delete(self):
-        # type: () -> None
+        # type: () -> bool
         """Delete the namespace.
 
         Raises:
-            RuntimeError: No namespace matches name: 'test'.
+            NamespaceNotEmptyError
+
+        Returns:
+            True if successful.
         """
         utils.logger.info('Deleting namespace: %s', self)
+        if not self.exists:
+            return False
+        if om2.MNamespace.getNamespaces(parentNamespace=self.name):
+            raise exceptions.NamespaceNotEmptyError(self)
         mc.namespace(removeNamespace=self)
+        return True
 
     @property
     def name(self):
@@ -114,10 +151,9 @@ class Namespace(utils.StrMixin):
     def parent(self):
         # type: () -> Optional[Namespace]
         """Get the namespace parent."""
-        ns = self.name
-        if ns == ':':
+        if self.name == ':':
             return None
-        return self.fromNode(ns)
+        return Namespace(om2.MNamespace.getNamespaceFromName(self.name))
 
     @property
     def children(self):
@@ -132,7 +168,7 @@ class Namespace(utils.StrMixin):
         result = []
         new = self
         for _ in range(self.depth):
-            new = self.fromNode(new.name)
+            new = Namespace(om2.MNamespace.getNamespaceFromName(new.name))
             result.append(new)
         return result
 
