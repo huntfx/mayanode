@@ -9,6 +9,7 @@ from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, List, Union, Optional
+    from ..type_hints import StrLike
 
 
 class Reference(Node):
@@ -17,13 +18,14 @@ class Reference(Node):
     """
 
     @classmethod
-    def ls(cls, loaded=None):
-        # type: (Optional[bool]) -> List[Reference]
+    def ls(cls, *args, **kwargs):
+        # type: (*StrLike, **Any)  -> List[Reference]
         """Get all references."""
         # Map to the class
-        refNodes = [cls(refNode) for refNode in mc.ls(references=True)]
+        refNodes = [cls(refNode) for refNode in mc.ls(*args, references=True)]
 
         # Filter by loaded refs
+        loaded = kwargs.get('loaded')  # type: Optional[bool]
         if loaded is not None:
             refNodes = [ref for ref in refNodes if ref.loaded == loaded]
 
