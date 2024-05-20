@@ -44,9 +44,7 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
 
     def __ne__(self, other):
         # type: (Any) -> bool
-        if isinstance(other, StrMixin):
-            return self.name != other.name
-        return self.name != other
+        return not self.__eq__(other)
 
     def __gt__(self, other):
         # type: (Any) -> bool
