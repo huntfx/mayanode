@@ -592,13 +592,6 @@ class Node(utils.StrMixin):
 
         self._attrs = NodeAttributes(self)
 
-    def __new__(cls, name, *args, **kwargs):
-        """Create a new class instance, or attribute proxy if an attribute was given."""
-        if not isinstance(name, (Node, om2.MObject, om2.MDagPath, om2.MObjectHandle, om2.MFnReference)) and name and '.' in name:
-            node, attr = name.split('.', 1)
-            return cls(node, *args, **kwargs).attrs[attr]
-        return super(Node, cls).__new__(cls, name, *args, **kwargs)
-
     def __eq__(self, other):
         # type: (Any) -> bool
         """Determine if two nodes are equal.
