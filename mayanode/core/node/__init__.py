@@ -218,7 +218,8 @@ class _ApiData(object):
     def __eq__(self, other):
         # type: (Any) -> bool
         if isinstance(other, _ApiData):
-            return self.handle == other.handle
+            if self.handle == other.handle:
+                return self.dagPath == other.dagPath
         return False
 
     def __hash__(self):
@@ -595,6 +596,7 @@ class Node(utils.StrMixin):
     def __eq__(self, other):
         # type: (Any) -> bool
         """Determine if two nodes are equal.
+        Instances are treated as equal, but their hashes are different.
 
         Examples:
             >>> nodes = Node('|cube'), Node('|sphere'), Node('|parent|cube')]
