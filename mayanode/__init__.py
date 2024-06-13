@@ -130,6 +130,7 @@ __all__ = [
     'Plugin',
     'Reference',
     'Scene',
+    'Undo',
 ]
 
 from . import exceptions
@@ -141,3 +142,4 @@ from .core.namespace import Namespace
 from .core.plugin import Plugin
 from .core.reference import Reference
 from .core.scene import Scene
+from .core.undo import Undo
