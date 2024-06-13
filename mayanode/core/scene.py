@@ -114,8 +114,8 @@ class _Scene(object):
             mel.eval('saveChanges("")')
 
     @property
-    def world(self):
-        """Get the "world" node."""
+    def root(self):
+        """Get the root "world" node."""
         return Node(utils.getWorldHandle())
 
     @property
