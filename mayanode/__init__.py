@@ -125,6 +125,7 @@ __all__ = [
     'Attribute',
     'Node',
     'BoundingBox',
+    'File',
     'Namespace',
     'Plugin',
     'Reference',
@@ -135,6 +136,7 @@ from . import exceptions
 from .core.node import Node
 from .core.node.attributes import Attribute
 from .core.bounding_box import BoundingBox
+from .core.file import File
 from .core.namespace import Namespace
 from .core.plugin import Plugin
 from .core.reference import Reference

@@ -1,3 +1,14 @@
+"""Custom exceptions for the module."""
+
+import sys
+
+
+if sys.version_info.major < 3:
+    # pylint: disable=redefined-builtin
+    class FileNotFoundError(OSError):
+        """File not found."""
+
+
 class BaseError(RuntimeError):
     MESSAGE = 'Error'
 

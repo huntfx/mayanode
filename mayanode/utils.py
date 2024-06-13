@@ -1,8 +1,10 @@
 import logging
 import math
+import os
 
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
+import maya.mel as mel  # type: ignore
 
 from . import exceptions
 from .type_hints import TYPE_CHECKING
@@ -42,6 +44,23 @@ def raiseIfNodeNotFound(node):
         if not node.api.object.isNull:
             raise exceptions.NullMObjectError
         raise exceptions.NodeDeletedError(node)
+
+
+def addToRecentFiles(path):
+    # type: (str) -> bool
+    """Add a path to the recent files list.
+    This could be done through the "RecentFilesList" optionVar,
+    but that doesn't support removing duplicates.
+    """
+    if path.endswith('.ma'):
+        fileType = 'mayaAscii'
+    elif path.endswith('.mb'):
+        fileType = 'mayaBinary'
+    else:
+        return False
+    path = os.path.normpath(path).replace('\\', '/')
+    mel.eval('addRecentFile("{}", "{}")'.format(path, fileType))
+    return True
 
 
 def unnetworkPlug(plug):

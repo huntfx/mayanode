@@ -106,6 +106,10 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
         # type: (str) -> str
         return self.name.rstrip(value)
 
+    def replace(self, old, new):
+        # type: (str, str) -> str
+        return self.name.replace(old, new)
+
 
 class MappedLazyList(object):
     """Lazy list-like object that supports dict item mapping.
