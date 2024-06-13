@@ -1678,6 +1678,26 @@ class Node(utils.StrMixin):
                 result.append(Node(depNode))
         return result
 
+    @property
+    def isDagNode(self):
+        # type: () -> bool
+        """Determine if the object is a DAG node.
+
+        Equivalent:
+            `'dagNode' in mc.nodeType(self, inherited=True)`
+        """
+        return self.api.object.hasFn(om2.MFn.kDagNode)
+
+    @property
+    def isShader(self):
+        # type: () -> bool
+        """Determine if the object is a shading node.
+
+        Equivalent:
+            `'shadingDependNode' in mc.nodeType(self, inherited=True)`
+        """
+        return self.type in NODE_TYPES['shader']
+
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
