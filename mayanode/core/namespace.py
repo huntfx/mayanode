@@ -1,13 +1,55 @@
+import itertools
+
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
-from .. import exceptions, utils
+from .. import exceptions, utils, types
 from ..ext import classutilities
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, List, Optional
+    from typing import Any, List, Optional, Union
     from ..type_hints import StrLike
+
+
+
+class NamespaceNodes(types.MappedLazyList):
+
+    __slots__ = ['_namespace']
+
+    def __init__(self, namespace):
+        # type: (Namespace) -> None
+        self._namespace = namespace
+        super(NamespaceNodes, self).__init__()
+
+    @property
+    def namespace(self):
+        # type: () -> Namespace
+        """Get the associated namespace."""
+        return self._namespace
+
+    def __contains__(self, node):
+        """If a particular node belongs to a reference."""
+        if isinstance(node, Node):
+            return self.reference.api.reference.containsNodeExactly(node.api.object)
+        if isinstance(node, om2.MObject):
+            return self.reference.api.reference.containsNodeExactly(node)
+        return super(NamespaceNodes, self).__contains__(node)
+
+    def generateKey(self, value):
+        # type: (Any) -> str
+        """Override this to get the dict keys for each item."""
+        return str(value).split(':')[-1]
+
+    def loadData(self, key=None):
+        # type: (Optional[Union[int, str]]) -> bool
+        """Get the node objects."""
+        self._set(map(Node, om2.MNamespace.getNamespaceObjects(self.namespace.name)))
+        return True
+
+    def reload(self):
+        # type: () -> None
+        super(NamespaceNodes, self).reload()
 
 
 class Namespace(classutilities.ClassPropertiesMixin, utils.StrMixin):
@@ -128,11 +170,9 @@ class Namespace(classutilities.ClassPropertiesMixin, utils.StrMixin):
 
     @property
     def nodes(self):
-        # type: () -> List[Node]
+        # type: () -> NamespaceNodes
         """Get all nodes in the namespace."""
-        if not self.name:
-            return []
-        return [Node(mobj) for mobj in om2.MNamespace.getNamespaceObjects(self.name)]
+        return NamespaceNodes(self)
 
     @property
     def depth(self):
