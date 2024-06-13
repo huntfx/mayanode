@@ -169,6 +169,15 @@ class _Scene(object):
         """Enable or disable autoKeyframe."""
         mc.autoKeyframe(edit=True, state=enabled)
 
+    @property
+    def framerate(self):
+        """Get the scene framerate.
+        If the framerate has a relative override, then the correct offset
+        can be calculated with "offset *= framerate/6000".
+        """
+        currentTime = mc.currentUnit(query=True, time=True)
+        return float(utils.TIME_UNITS.get(currentTime, currentTime)[:-3])
+
 
 class SceneNodes(types.MappedLazyList):
     """Hold a dict of all nodes currently in the scene."""

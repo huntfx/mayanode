@@ -32,6 +32,17 @@ MEL_API_TYPE = dict(
 # MEL types that are valid DAG objects
 DAG_TYPES = set(mc.nodeType('dagNode', derived=True, isTypeName=True))
 
+TIME_UNITS = {
+    'game': '15fps',
+    'film': '24fps',
+    'pal': '25fps',
+    '29.97df': '29.97fps',
+    'ntsc': '30fps',
+    'show': '48fps',
+    'palf': '50fps',
+    'ntscf': '60fps',
+}
+
 _WORLD_HANDLE = None
 
 _WORLD_DAG_PATH = None
