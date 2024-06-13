@@ -125,6 +125,18 @@ class Namespace(classutilities.ClassPropertiesMixin, utils.StrMixin):
             raise exceptions.NamespaceNotFoundError(value)
         mc.namespace(set=value)
 
+    @classmethod
+    def findUnique(cls, namespace):
+        # type: (StrLike) -> Namespace
+        """Find a unique namespace based on the input string."""
+        for i in itertools.count():
+            if i:
+                ns = Namespace('{}{}'.format(namespace, i))
+            else:
+                ns = Namespace(namespace)
+            if not ns.exists:
+                return ns
+
     @property
     def exists(self):
         # type: () -> bool
