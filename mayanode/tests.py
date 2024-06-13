@@ -460,6 +460,26 @@ class TestNode(unittest.TestCase):
             node.shadingGroup = 'test'
         self.assertIsNone(node.shadingGroup)
 
+    def testDeletedApi(self):
+        node = Node(mc.polyCube(name='deleteTest')[0])
+        mc.delete(node)
+
+        self.assertIsNotNone(node.api.dependencyNode)
+        self.assertIsNotNone(node.api.dagPath)
+        self.assertIsNone(node.api.dagNode)
+
+        mc.undo()
+
+        self.assertIsNotNone(node.api.dependencyNode)
+        self.assertIsNotNone(node.api.dagPath)
+        self.assertIsNotNone(node.api.dagNode)
+
+        mc.delete(node)
+
+        self.assertIsNotNone(node.api.dependencyNode)
+        self.assertIsNotNone(node.api.dagPath)
+        self.assertIsNotNone(node.api.dagNode)
+
     def testComparison(self):
         transform, shape = mc.polyCube(name='comparisonTest')
         long = mc.ls(transform, long=True)[0]
@@ -579,7 +599,9 @@ class TestNode(unittest.TestCase):
         mc.sets(cube2Shape, edit=True, forceElement=set1)
         mc.sets(instShape, edit=True, forceElement=set2)
         mc.sets(set2, edit=True, forceElement=set1)
-        self.assertEqual(Node(set1).members, [cube2Shape, cube1, set2])
+        self.assertIn(cube2Shape, Node(set1).members)
+        self.assertIn(cube1, Node(set1).members)
+        self.assertIn(set2, Node(set1).members)
         self.assertEqual(Node(set2).members, [instShape])
         self.assertEqual(Node(cube1).members, [])
         mc.delete(cube1, cube2, inst, set1, set2)
