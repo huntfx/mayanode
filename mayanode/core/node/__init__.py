@@ -188,7 +188,7 @@ class Ancestors(types.MappedLazyList):
 class _ApiData(object):
     """Hold the OpenMaya API objects for a node."""
 
-    __slots__ = ['_object', '_handle', '_instanceNumber', 'dgModifier',
+    __slots__ = ['_handle', '_instanceNumber', 'dgModifier',
                  '_dagPaths', '_dependencyNode', '_dagNode', '_set',
                  '_transform', '_hasGeometry', '_reference']
 
@@ -198,10 +198,12 @@ class _ApiData(object):
             raise exceptions.NullMObjectError
 
         self.dgModifier = None  # type: Optional[om2.MDGModifier]
-        self._object = mObject
         self._instanceNumber = instanceNumber
-        self._handle = None  # type: Optional[om2.MObjectHandle]
-        self._dependencyNode = None  # type: Optional[om2.MFnDependencyNode]
+
+        # The performance of constructing classes here is negligible
+        self._handle = om2.MObjectHandle(mObject)
+        self._dependencyNode = om2.MFnDependencyNode(mObject)
+
         self._transform = None  # type: Optional[om2.MFnTransform]
         self._hasGeometry = None  # type: Optional[bool]
         self._reference = None  # type: Optional[om2.MFnReference]
@@ -212,7 +214,7 @@ class _ApiData(object):
     def __bool__(self):
         # type: () -> bool
         """Determine if the node is valid."""
-        return not self.object.isNull()
+        return self.handle.isValid()
     __nonzero__ = __bool__
 
     def __eq__(self, other):
@@ -295,11 +297,13 @@ class _ApiData(object):
     def object(self):
         # type: () -> om2.MObject
         """Get the `MObject`.
+        It will be null if the node has been deleted, even if it is
+        still "alive".
 
         Notable methods:
             `isNull()`
         """
-        return self._object
+        return self.handle.object()
 
     @property
     def handle(self):
@@ -308,10 +312,9 @@ class _ApiData(object):
 
         Notable methods:
             `isValid()`
+            `isAlive()`
             `hashCode()`
         """
-        if self._handle is None:
-            self._handle = om2.MObjectHandle(self.object)
         return self._handle
 
     @property
@@ -323,8 +326,6 @@ class _ApiData(object):
             `name()`
             `findPlug(attrName, isNetworked)`
         """
-        if self._dependencyNode is None:
-            self._dependencyNode = om2.MFnDependencyNode(self.object)
         return self._dependencyNode
 
     @property
@@ -337,8 +338,14 @@ class _ApiData(object):
             `parent(idx)`
         """
         if self._dagNode is None:
-            if self.object.hasFn(om2.MFn.kDagNode):
-                self._dagNode = om2.MFnDagNode(self.object)
+            mobj = self.object
+
+            # Intercept when loading on deleted nodes
+            if mobj.isNull():
+                return None
+
+            if mobj.hasFn(om2.MFn.kDagNode):
+                self._dagNode = om2.MFnDagNode(mobj)
             else:
                 self._dagNode = -1
 
@@ -361,9 +368,15 @@ class _ApiData(object):
         """
         # Load for the first time
         if self._dagPaths is None or (self._instanceNumber > 0 and self._dagPaths[self._instanceNumber] is None):
-            if self.object.hasFn(om2.MFn.kDagNode):
+            mobj = self.object
+
+            # Intercept when loading on deleted nodes
+            if mobj.isNull():
+                return None
+
+            if mobj.hasFn(om2.MFn.kDagNode):
                 if self._instanceNumber < 0:
-                    self._dagPaths = [om2.MDagPath.getAPathTo(self.object)]
+                    self._dagPaths = [om2.MDagPath.getAPathTo(mobj)]
                 else:
                     if TYPE_CHECKING:
                         assert self.dagNode is not None
@@ -427,10 +440,11 @@ class _ApiData(object):
     def getTransformDagPath(self):
         # type: () -> Optional[om2.MDagPath]
         """Get the transform dag path from a shape node."""
-        if self.dagPath is None:
+        dagPath = self.dagPath
+        if dagPath is None:
             return None
 
-        transformDagPath = self.dagPath.transform()
+        transformDagPath = dagPath.transform()
         if self.handle == om2.MObjectHandle(transformDagPath):
             return None
         return transformDagPath
@@ -438,12 +452,13 @@ class _ApiData(object):
     def getShapeDagPath(self):
         # type: () -> Optional[om2.MDagPath]
         """Get the shape dag path from a transform node."""
-        if self.dagPath is None or not self.dagPath.numberOfShapesDirectlyBelow():
+        dagPath = self.dagPath
+        if dagPath is None or not dagPath.numberOfShapesDirectlyBelow():
             return None
 
-        shapeDagPath = om2.MDagPath(self.dagPath)
+        shapeDagPath = om2.MDagPath(dagPath)
         shapeDagPath.extendToShape()
-        if shapeDagPath == self.dagPath:
+        if shapeDagPath == dagPath:
             return None
         return shapeDagPath
 
@@ -454,6 +469,12 @@ class _ApiData(object):
         If not, then `MFnMesh` commands will fail.
         """
         if self._hasGeometry is None:
+            mobj = self.object
+
+            # Intercept when loading on deleted nodes
+            if mobj.isNull():
+                return False
+
             self._hasGeometry = self.object.hasFn(om2.MFn.kMesh) and om2.MItGeometry(self.object).index() != -1
         return self._hasGeometry
 
@@ -507,8 +528,15 @@ class _ApiData(object):
             `transformation()`
         """
         if self._transform is None:
-            if self.object.hasFn(om2.MFn.kTransform):
-                self._transform = om2.MFnTransform(self.object)
+            mobj = self.object
+
+            # Intercept when loading on deleted nodes
+            if mobj.isNull():
+                return []
+
+            # Load the MFnTransform if supported
+            if mobj.hasFn(om2.MFn.kTransform):
+                self._transform = om2.MFnTransform(mobj)
             else:
                 self._transform = -1
 
@@ -527,8 +555,15 @@ class _ApiData(object):
             filename(resolvedName: bool, includePath: bool, includeCopyNumber: bool)
         """
         if self._reference is None:
-            if self.object.hasFn(om2.MFn.kReference):
-                self._reference = om2.MFnReference(self.object)
+            mobj = self.object
+
+            # Intercept when loading on deleted nodes
+            if mobj.isNull():
+                return []
+
+            # Load the MFnReference if supported
+            if mobj.hasFn(om2.MFn.kReference):
+                self._reference = om2.MFnReference(mobj)
             else:
                 self._reference = -1
 
@@ -545,8 +580,15 @@ class _ApiData(object):
             getMembers(flatten: bool)
         """
         if self._set is None:
-            if self.object.hasFn(om2.MFn.kSet):
-                self._set = om2.MFnSet(self.object)
+            mobj = self.object
+
+            # Intercept when loading on deleted nodes
+            if mobj.isNull():
+                return []
+
+            # Load the MFnSet if supported
+            if mobj.hasFn(om2.MFn.kSet):
+                self._set = om2.MFnSet(mobj)
             else:
                 self._set = -1
 
@@ -747,10 +789,7 @@ class Node(utils.StrMixin):
         Returns:
             UUID as a string.
         """
-        api = self.api
-        if not api:
-            return ''
-        return api.dependencyNode.uuid().asString()
+        return self.api.dependencyNode.uuid().asString()
 
     @property
     def name(self):
@@ -762,14 +801,16 @@ class Node(utils.StrMixin):
             Node name as a string.
         """
         api = self.api
-        if not api:
-            return ''
+
+        # Even if the MObject is not valid (ie. the node was deleted),
+        # the dagPath may still work so check it first
         dagPath = api.dagPath
         if dagPath is not None and dagPath.isValid():
             partialName = dagPath.partialPathName()
             if partialName:
                 return partialName
-        return api.dependencyNode.name()
+
+        return self.api.dependencyNode.name()
 
     @name.setter
     def name(self, name):
@@ -1285,6 +1326,7 @@ class Node(utils.StrMixin):
         material = self._material
         if material is None:
             return None
+
         plug = material.api.dependencyNode.findPlug('color', False)
         connections = plug.connectedTo(True, False)
         if not connections:
@@ -1593,10 +1635,7 @@ class Node(utils.StrMixin):
         """
         if not self.exists:
             return False
-        depNode = self.api.dependencyNode
-        if depNode is None:
-            return False
-        return depNode.isFromReferencedFile
+        return self.api.dependencyNode.isFromReferencedFile
 
     @property
     def reference(self):
