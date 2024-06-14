@@ -547,6 +547,7 @@ class TestNode(unittest.TestCase):
         cube2 = Node(mc.polyCube(name='lsTest')[0])
         cube2.parent = cube
         insts[-1].parent = insts[0]
+        manip = mc.createNode('translateManip')
 
         nodeLs = lambda **kwargs: set(node.longName for node in Node.ls(**kwargs))
         mcLs = lambda **kwargs: set(mc.ls(long=True, **kwargs))
@@ -560,6 +561,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(nodeLs(assemblies=True, type='objectSet'), mcLs(assemblies=True, type='objectSet'))
         self.assertEqual(nodeLs(assemblies=True, type='doesntexist'), mcLs(assemblies=True, type='doesntexist'))
 
+        mc.undo()  # Only way to delete manip
         mc.delete(cube, cube2)
         mc.delete(insts)
 

@@ -247,7 +247,10 @@ def iterAssemblies():
     for item in map(worldDagPath.child, range(worldDagPath.childCount())):
         if not item.hasFn(om2.MFn.kTransform):
             continue
-        if om2.MFnDependencyNode(item).isDefaultNode:
+        depNode = om2.MFnDependencyNode(item)
+        if depNode.isDefaultNode:
+            continue
+        if depNode.typeName == 'translateManip':
             continue
         yield item
 

@@ -725,7 +725,7 @@ class Node(types.StrMixin):
 
         # Cancel if the node type is unknown
         nodeType = kwargs.get('type', kwargs.get('typ'))
-        if nodeType not in utils.MEL_API_TYPE:
+        if nodeType is not None and nodeType not in utils.MEL_API_TYPE:
             return None
 
         # Get the remaining important parameters
@@ -736,9 +736,14 @@ class Node(types.StrMixin):
         result = []  # type: List[Node]
 
         # Get top level transforms
-        if kwargs.get('assemblies'):
+        if kwargs.get('assemblies') and (nodeType is not None or parameters == {'assemblies'}):
             result.extend(cls(item) for item in utils.iterAssemblies())
             parameters.remove('assemblies')
+
+        if nodeType is None:
+            if parameters:
+                return None
+            return result
 
         # Only search DAG if allPaths was requested
         if allPaths and nodeType in utils.DAG_TYPES:
