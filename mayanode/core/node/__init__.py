@@ -500,13 +500,12 @@ class _ApiData(object):
         If not, then `MFnMesh` commands will fail.
         """
         if self._hasGeometry is None:
-            mobj = self.object
-
             # Intercept when loading on deleted nodes
-            if mobj.isNull():
+            if self.object.isNull():
                 return False
 
-            self._hasGeometry = self.object.hasFn(om2.MFn.kMesh) and om2.MItGeometry(self.object).index() != -1
+            dagPath = self.dagPath
+            self._hasGeometry = dagPath.hasFn(om2.MFn.kMesh) and om2.MItGeometry(dagPath).index() != -1
         return self._hasGeometry
 
     @property
@@ -527,7 +526,12 @@ class _ApiData(object):
             `currentUVSetName()`
         """
         if self.hasGeometry:
-            return om2.MFnMesh(self.object)
+            dagPath = self.getShapeDagPath()
+            if dagPath is None:
+                dagPath = self.dagPath
+            if dagPath is None:
+                return om2.MFnMesh(self.object)
+            return om2.MFnMesh(dagPath)
         return None
 
     def getShapeMesh(self):

@@ -494,7 +494,7 @@ class TestNode(unittest.TestCase):
 
     def testNumVertices(self):
         node = Node(mc.polyCube(name='verticesTest')[0])
-        self.assertIsNone(node.api.mesh)
+        self.assertIsNotNone(node.api.mesh)
         self.assertIsNotNone(node.shape.api.mesh)
         self.assertEqual(node.shape.api.mesh.numVertices, 8)
         mc.select('verticesTest.vtx[0:7]')
