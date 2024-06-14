@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from typing import Any, Iterator, List, Optional, Union
 
 
-class Connection(utils.StrMixin):
+class Connection(types.StrMixin):
     """Handle connections.
 
     TODO: Tests

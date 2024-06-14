@@ -111,7 +111,7 @@ class UVSetList(types.MappedLazyList):
         return uvSet
 
 
-class UVSet(utils.StrMixin):
+class UVSet(types.StrMixin):
     """Handle UV sets."""
 
     __slots__ = ['_node', '_name']

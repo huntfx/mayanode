@@ -3,7 +3,7 @@ import itertools
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
-from .. import exceptions, utils, types
+from .. import exceptions, types, utils
 from ..ext import classutilities
 from ..type_hints import TYPE_CHECKING
 
@@ -52,7 +52,7 @@ class NamespaceNodes(types.MappedLazyList):
         super(NamespaceNodes, self).reload()
 
 
-class Namespace(classutilities.ClassPropertiesMixin, utils.StrMixin):
+class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
     """Handle namespaces."""
 
     __slots__ = ['_namespace']

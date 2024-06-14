@@ -1,8 +1,9 @@
 from __future__ import absolute_import
 
-from ... import types, utils
+from ... import types
+from ...type_hints import TYPE_CHECKING
 
-if utils.TYPE_CHECKING:
+if TYPE_CHECKING:
     from typing import List, Optional, Union
 
 
@@ -58,7 +59,7 @@ class FaceList(types.MappedLazyList, types.StrMixin):
         return not isinstance(key, int)
 
 
-class Face(utils.StrMixin):
+class Face(types.StrMixin):
     """Handle a face of a mesh.
 
     TODO: Test

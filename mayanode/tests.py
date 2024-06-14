@@ -615,7 +615,9 @@ class TestDgModifier(unittest.TestCase):
 
         self.withoutMod = Node(cube)
         self.dgMod = om2.MDGModifier()
-        self.withMod = Node(cube, dgModifier=self.dgMod)
+        self.withDgMod = Node(cube, modifier=self.dgMod)
+        self.dagMod = om2.MDagModifier()
+        self.withDagMod = Node(cube, modifier=self.dagMod)
 
     def tearDown(self):
         mc.delete(self.withoutMod)
@@ -629,15 +631,14 @@ class TestDgModifier(unittest.TestCase):
         self.assertTrue(self.withoutMod.shape.uvSet, 'map1')
 
         mc.undoInfo(openChunk=True)
-        self.withMod.shape.uvSet = 'map2'
+        self.withDgMod.shape.uvSet = 'map2'
         mc.undoInfo(openChunk=False)
-        self.assertTrue(self.withMod.shape.uvSet, 'map2')
+        self.assertTrue(self.withDgMod.shape.uvSet, 'map2')
         with self.assertRaises(RuntimeError):
             mc.undo()
-        self.assertTrue(self.withMod.shape.uvSet, 'map2')
+        self.assertTrue(self.withDgMod.shape.uvSet, 'map2')
         self.dgMod.undoIt()
-        self.assertTrue(self.withMod.shape.uvSet, 'map1')
-
+        self.assertTrue(self.withDgMod.shape.uvSet, 'map1')
 
 
 class TestBoundingBox(unittest.TestCase):

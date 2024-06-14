@@ -3,11 +3,12 @@ import math
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
-from ... import exceptions, types, utils
+from ... import exceptions, types
 from ...type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Generator, List, Optional, Tuple, Union
+    ModifierType = Optional[Union['Modifiers', om2.MDGModifier, om2.MDagModifier]]
 
 
 NODE_TYPES = {
@@ -65,19 +66,26 @@ class Ancestors(types.MappedLazyList):
         use `node.longName.startswith('|topLevelNode|')`.
     """
 
-    __slots__ = ['_node', '_ancestors', '_loadedAllAncestors']
+    __slots__ = ['_node', '_ancestors', '_loadedAllAncestors', '_modifiers']
 
-    def __init__(self, node):
-        # type: (Node) -> None
+    def __init__(self, node, modifier=None):
+        # type: (Node, Optional[ModifierType]) -> None
         self._node = node
         self._ancestors = []  # type: List[om2.MDagPath]
         self._loadedAllAncestors = False
+        self._modifiers = Modifiers.fromValue(modifier)
         super(Ancestors, self).__init__([] if node.api.dagPath is None else None)
 
     @property
     def node(self):
         # type: () -> Node
         return self._node
+
+    @property
+    def modifiers(self):
+        # type: () -> Modifiers
+        """Get the DG/DAG modifiers."""
+        return self._modifiers
 
     def __bool__(self):
         # type: () -> bool
@@ -180,15 +188,40 @@ class Ancestors(types.MappedLazyList):
 
         # Map nodes to indexes
         for index in indexes:
-            self._setitem(index, Node(self._ancestors[index]))
+            self._setitem(index, Node(self._ancestors[index], modifier=self.modifiers))
 
         return not isinstance(key, int)
+
+
+class Modifiers(object):
+    """Hold the DG and DAG modifiers.
+    This can be passed to multiple Node instances.
+    """
+
+    __slots__ = ['dg', 'dag']
+
+    def __init__(self, dgModifier=None, dagModifier=None):
+        # type: (Optional[om2.MDGModifier], Optional[om2.MDagModifier]) -> None
+        self.dg = dgModifier
+        self.dag = dagModifier
+
+    @classmethod
+    def fromValue(cls, modifier):
+        # type: (Optional[ModifierType]) -> Modifiers
+        """Build the class from an input value."""
+        if isinstance(modifier, Modifiers):
+            return modifier
+        if isinstance(modifier, om2.MDGModifier):
+            return cls(dgModifier=modifier)
+        if isinstance(modifier, om2.MDagModifier):
+            return cls(dagModifier=modifier)
+        return cls()
 
 
 class _ApiData(object):
     """Hold the OpenMaya API objects for a node."""
 
-    __slots__ = ['_handle', '_instanceNumber', 'dgModifier',
+    __slots__ = ['_handle', '_instanceNumber',
                  '_dagPaths', '_dependencyNode', '_dagNode', '_set',
                  '_transform', '_hasGeometry', '_reference']
 
@@ -197,7 +230,6 @@ class _ApiData(object):
         if mObject.isNull():
             raise exceptions.NullMObjectError
 
-        self.dgModifier = None  # type: Optional[om2.MDGModifier]
         self._instanceNumber = instanceNumber
 
         # The performance of constructing classes here is negligible
@@ -283,7 +315,6 @@ class _ApiData(object):
         # pylint: disable=protected-access
         """Create a new copy of the object."""
         new = type(self)(self.object, instanceNumber)
-        new.dgModifier = self.dgModifier
         new._handle = self._handle
         new._dependencyNode = self._dependencyNode
         new._dagNode = self._dagNode
@@ -597,7 +628,7 @@ class _ApiData(object):
         return self._set
 
 
-class Node(utils.StrMixin):
+class Node(types.StrMixin):
     """Pointer to a Maya node.
 
     OpenMaya code inspired by https://www.toadstorm.com/blog/?p=628.
@@ -605,16 +636,18 @@ class Node(utils.StrMixin):
     then it will raise `TypeError: Object  is invalid`.
     """
 
-    __slots__ = ['api', '_attrs', '_dgModifier']
+    __slots__ = ['api', '_attrs', '_modifiers']
 
-    def __init__(self, name, dgModifier=None, _instanceNumber=-1):
-        # type: (Any, Optional[om2.MDGModifier], int) -> None
+    def __init__(self, name, modifier=None, _instanceNumber=-1):
+        # type: (Any, Optional[ModifierType], int) -> None
         """Setup the data.
 
         Parameters:
             name: Name of the node.
-            dgModifier: Optionally use an MDGModifier for efficiency.
-                Note that this does not work with undo commands.
+            modifier: Optionally use an MDGModifier or MDagModifier.
+                This is a lot more efficient, but does not work with
+                undo, so should be used with care.
+                Not all commands are supported.
             _instanceNumber: MObject instance number.
                 This should not be set manually. It only applies when
                 loading with an MObject.
@@ -631,9 +664,9 @@ class Node(utils.StrMixin):
             self.api = _ApiData.fromReference(name)
         else:
             self.api = _ApiData.fromName(name, instanceNumber=_instanceNumber)
-        self.api.dgModifier = dgModifier
 
         self._attrs = NodeAttributes(self)
+        self._modifiers = Modifiers.fromValue(modifier)
 
     def __eq__(self, other):
         # type: (Any) -> bool
@@ -820,8 +853,7 @@ class Node(utils.StrMixin):
         Warnings:
             New name contains invalid characters. Illegal characters were converted to "_".
 
-        Alternatives:  # Both don't work well with undo
-            `om2.MDagModifier().renameNode(self.api.object, self.namespace + ':' + name).doIt()`
+        Alternatives:
             `self.api.dependencyNode.setName(self.namespace + ':' + name)`
 
         Raises:
@@ -830,7 +862,17 @@ class Node(utils.StrMixin):
         """
         utils.logger.info('Renaming %r to %r', self, name)
         utils.raiseIfNodeNotFound(self)
-        mc.rename(self, self.namespace + ':' + name)
+
+        mod = self.modifiers.dg
+        if mod is None:
+            mod = self.modifiers.dag
+
+        newName = self.namespace + ':' + name
+        if mod is None:
+            mc.rename(self, newName)
+        else:
+            Namespace.fromNode(newName).create()
+            mod.renameNode(self.api.object, newName)
 
     @property
     def longName(self):
@@ -868,6 +910,12 @@ class Node(utils.StrMixin):
         """Get the attr dict."""
         utils.raiseIfNodeNotFound(self)
         return self._attrs
+
+    @property
+    def modifiers(self):
+        # type: () -> Modifiers
+        """Get the DG/DAG modifiers."""
+        return self._modifiers
 
     def select(self, add=False, remove=False):
         # type(bool, bool) -> None
@@ -1070,7 +1118,7 @@ class Node(utils.StrMixin):
         parentDagPath = om2.MDagPath(dagPath).pop()
         if parentDagPath == utils.getWorldDagPath():
             return None
-        return Node(parentDagPath)
+        return Node(parentDagPath, modifier=self.modifiers)
 
     @parent.setter
     def parent(self, parent):
@@ -1089,19 +1137,28 @@ class Node(utils.StrMixin):
         utils.raiseIfNodeNotFound(self)
         if self.api.dagNode is None:
             raise exceptions.NotADagNodeError(self)
-        try:
-            if parent:
-                mc.parent(self, parent)
-            else:
-                mc.parent(self, world=True)
-        except RuntimeError as e:
-            if str(e) == 'Maya command error':
-                raise exceptions.AlreadyIsChildError(self, parent or 'world')
-            raise
-        except ValueError:
-            if parent:
-                raise exceptions.NodeNotFoundError(parent)
-            raise
+
+        targetMObj = None
+        if self.modifiers.dag is not None:
+            targetMObj = utils.toMObject(parent)
+
+        if targetMObj is None:
+            try:
+                if parent:
+                    mc.parent(self, parent)
+                else:
+                    mc.parent(self, world=True)
+            except RuntimeError as e:
+                if str(e) == 'Maya command error':
+                    raise exceptions.AlreadyIsChildError(self, parent or 'world')
+                raise
+            except ValueError:
+                if parent:
+                    raise exceptions.NodeNotFoundError(parent)
+                raise
+
+        else:
+            self.modifiers.dag.reparentNode(self.api.object, om2.MObject.kNullObj)
 
     @property
     def children(self):
@@ -1109,6 +1166,7 @@ class Node(utils.StrMixin):
         """Get all node children.
 
         TODO: Test correct instance.
+        TODO: MFnDagNode.hasChild
         """
         if not self.exists or self.api.dagNode is None:
             return []
@@ -1160,7 +1218,7 @@ class Node(utils.StrMixin):
             ...         yield parent
             ...         parent = parent.parent
         """
-        return Ancestors(self)
+        return Ancestors(self, modifier=self.modifiers)
 
     @property
     def connections(self):
@@ -1182,7 +1240,7 @@ class Node(utils.StrMixin):
         shapeDagPath = self.api.getShapeDagPath()
         if shapeDagPath is None:
             return None
-        return Node(shapeDagPath, dgModifier=self.api.dgModifier)
+        return Node(shapeDagPath, modifier=self.modifiers)
 
     @property
     def transform(self):
@@ -1198,7 +1256,7 @@ class Node(utils.StrMixin):
         transformDagPath = self.api.getTransformDagPath()
         if transformDagPath is None:
             return None
-        return Node(transformDagPath, dgModifier=self.api.dgModifier)
+        return Node(transformDagPath, modifier=self.modifiers)
 
     def instance(self, **kwargs):
         # type: (**Any) -> Optional[Node]
@@ -1209,7 +1267,7 @@ class Node(utils.StrMixin):
         """
         utils.raiseIfNodeNotFound(self)
         inst = mc.instance(self, **kwargs)[0]
-        return Node(inst, dgModifier=self.api.dgModifier)
+        return Node(inst, modifier=self.modifiers)
 
     @property
     def instanced(self):
@@ -1229,7 +1287,7 @@ class Node(utils.StrMixin):
             return [self]
 
         instanceNumber = self.api.recalculateDagPaths()
-        return [self if instanceNumber == i else Node(self, _instanceNumber=i)
+        return [self if instanceNumber == i else Node(self, _instanceNumber=i, modifier=self.modifiers)
                 for i, dagPath in enumerate(self.api.dagPaths) if dagPath.isValid()]
 
     @property
@@ -1275,7 +1333,7 @@ class Node(utils.StrMixin):
         sg = _getShadingGroup(self.api.object, self.api.dagPath)
         if sg is None:
             return None
-        return Node(sg, dgModifier=self.api.dgModifier)
+        return Node(sg, modifier=self.modifiers)
 
     @shadingGroup.setter
     def shadingGroup(self, shadingEngine):
@@ -1312,7 +1370,7 @@ class Node(utils.StrMixin):
         connections = plug.connectedTo(True, False)
         if not connections:
             return None
-        return Node(connections[0].node(), dgModifier=self.api.dgModifier)
+        return Node(connections[0].node(), modifier=self.modifiers)
 
     @property
     def _texture(self):
@@ -1331,7 +1389,7 @@ class Node(utils.StrMixin):
         connections = plug.connectedTo(True, False)
         if not connections:
             return None
-        return Node(connections[0].node(), dgModifier=self.api.dgModifier)
+        return Node(connections[0].node(), modifier=self.modifiers)
 
     @property
     def visible(self):
@@ -1418,10 +1476,10 @@ class Node(utils.StrMixin):
             raise exceptions.UVSetNotFoundError(self, uvSet)
 
         # Set UV set
-        if self.api.dgModifier is None:
+        if self.modifiers.dg is None:
             mc.polyUVSet(self, currentUVSet=True, uvSet=uvSet)
         else:
-            mesh.setCurrentUVSetName(uvSet, self.api.dgModifier)
+            mesh.setCurrentUVSetName(uvSet, self.modifiers.dg)
 
     @property
     def uvSets(self):
@@ -1750,3 +1808,4 @@ from ..connection import NodeConnectionProxy
 from ..namespace import Namespace
 from ..scene import Scene, _Scene
 from ..uv_set import UVSet, UVSetList
+from ... import utils

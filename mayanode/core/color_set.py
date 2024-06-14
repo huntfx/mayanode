@@ -1,6 +1,6 @@
 import maya.cmds as mc  # type: ignore
 
-from .. import exceptions, utils
+from .. import exceptions, types, utils
 
 from ..type_hints import TYPE_CHECKING
 
@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from .node import Node
 
 
-class ColorSet(utils.StrMixin):
+class ColorSet(types.StrMixin):
     """Handle color sets."""
 
     __slots__ = ['_node', '_name']

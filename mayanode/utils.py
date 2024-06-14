@@ -10,9 +10,8 @@ from . import exceptions
 from .type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Iterator, List, Union
+    from typing import Any, Iterator, List, Optional, Union
     from .type_hints import StrLike
-    from .core.node import Node
 
 
 logger = logging.getLogger(__name__)
@@ -226,6 +225,21 @@ def getWorldDagPath():
     return _WORLD_DAG_PATH
 
 
+def toMObject(item):
+    # type: (Any) -> Optional[om2.MObject]
+    """Get the MObject from an input value if possible.
+    Does not automatically convert strings.
+    """
+    if item is None:
+        return om2.MObject.kNullObj
+    if isinstance(item, om2.MObject):
+        return item
+
+    if isinstance(item, Node):
+        return item.api.object
+    return None
+
+
 def iterAssemblies():
     # type: () -> Iterator[om2.MObject]
     """Get all assembly objects (top level transforms) in the scene."""
@@ -279,4 +293,4 @@ def iterDAG(apiType=om2.MFn.kInvalid):
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
-from .types import StrMixin
+from .core.node import Node
