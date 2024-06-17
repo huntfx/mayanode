@@ -427,26 +427,26 @@ class _ApiData(object):
         """Get all `MDagPath` objects to this node and instances.
         Because instances can be created and deleted, it is recommended
         to run `recalculateDagPaths()` first.
-
-        TODO:
-            Fix and test issue if `self._dagPaths` remains None.
         """
-        if self._dagPaths is None or any(dagPath is None for dagPath in self._dagPaths):
-            self.recalculateDagPaths()
+        dagPaths = self._dagPaths
+        if dagPaths is None or any(dagPath is None for dagPath in dagPaths):
+            dagPaths = self.recalculateDagPaths()
 
         # Get the correct instance number before populating the paths
-        if self._instanceNumber < 0:
+        if self.instanceNumber is None:
             return []
-        return self._dagPaths
+
+        return dagPaths
 
     def recalculateDagPaths(self):
-        # type: () -> int
+        # type: () -> List[om2.MDagPath]
         """Recalculate all the `MDagPath` nodes.
         This should only be used when checking for instances, since they
         can be created or deleted at any time.
 
         Returns:
-            The instance number of the current DAG path.
+            The instance number of the current MDagPath.
+            If -1 then there is no valid MDagPath.
         """
         if self._instanceNumber < 0:
             # If no paths have been loaded, then assume the class was
@@ -459,16 +459,25 @@ class _ApiData(object):
                 self._instanceNumber = self._dagPaths[0].instanceNumber()
 
         # Load all the DAG paths
-        # There are a few ways to get all the paths:
-        #     om2.MDagPath.getAllPathsTo(mObject): 3.8 seconds
-        #     om2.MFnDagNode(mObject).getAllPaths(): 4.9 seconds
-        #     om2.MFnDagNode(dagPath).getAllPaths(): 5.9 seconds
-        # Since `MFnDagNode` is already used to get parents, it's
-        # probably more efficient to use it here, despite being slower
-        # overall
-        if self.dagNode is not None:
-            self._dagPaths = self.dagNode.getAllPaths()
-        return self._instanceNumber
+        dagNode = self.dagNode
+        if dagNode is None:
+            dagPaths = self._dagPaths = []
+        else:
+            dagPaths = self._dagPaths = dagNode.getAllPaths()
+        return dagPaths
+
+    @property
+    def instanceNumber(self):
+        # type: () -> Optional[int]
+        """Get the current instance number."""
+        instNum = self._instanceNumber
+
+        if instNum < 0 or self._dagPaths is None or self._dagPaths[instNum] is None:
+            self.recalculateDagPaths()
+
+        if instNum == -1:
+            return None
+        return instNum
 
     def getTransformObject(self):
         # type: () -> Optional[om2.MObject]
@@ -1300,15 +1309,16 @@ class Node(types.StrMixin):
         if not self.instanced:
             return [self]
 
-        instanceNumber = self.api.recalculateDagPaths()
+        instanceNumber = self.instanceNumber
         return [self if instanceNumber == i else Node(self, _instanceNumber=i, modifier=self.modifiers)
                 for i, dagPath in enumerate(self.api.dagPaths) if dagPath.isValid()]
 
     @property
     def instanceNumber(self):
-        # type: () -> int
+        # type: () -> Optional[int]
         """Get the index of the current index."""
-        return self.api.recalculateDagPaths()
+        self.api.recalculateDagPaths()
+        return self.api.instanceNumber
 
     @property
     def intermediate(self):
