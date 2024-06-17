@@ -507,7 +507,11 @@ class _ApiData(object):
                 return False
 
             dagPath = self.dagPath
-            self._hasGeometry = dagPath.hasFn(om2.MFn.kMesh) and om2.MItGeometry(dagPath).index() != -1
+            self._hasGeometry = (
+                dagPath is not None
+                and dagPath.hasFn(om2.MFn.kMesh)
+                and om2.MItGeometry(dagPath).index() != -1
+            )
         return self._hasGeometry
 
     @property

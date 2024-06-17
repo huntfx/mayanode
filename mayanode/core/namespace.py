@@ -129,13 +129,15 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
     def findUnique(cls, namespace):
         # type: (StrLike) -> Namespace
         """Find a unique namespace based on the input string."""
+        namespace = str(namespace)
         for i in itertools.count():
             if i:
-                ns = Namespace('{}{}'.format(namespace, i))
+                ns = Namespace(namespace + str(i))
             else:
                 ns = Namespace(namespace)
             if not ns.exists:
-                return ns
+                break
+        return ns
 
     @property
     def exists(self):
