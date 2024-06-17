@@ -245,12 +245,10 @@ def iterAssemblies():
     """Get all assembly objects (top level transforms) in the scene."""
     worldDagPath = getWorldDagPath()
     for item in map(worldDagPath.child, range(worldDagPath.childCount())):
-        if not item.hasFn(om2.MFn.kTransform):
+        if not item.hasFn(om2.MFn.kTransform) or item.hasFn(om2.MFn.kManipulator3D):
             continue
         depNode = om2.MFnDependencyNode(item)
         if depNode.isDefaultNode:
-            continue
-        if depNode.typeName == 'translateManip':
             continue
         yield item
 
