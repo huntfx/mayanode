@@ -1803,6 +1803,15 @@ class Node(types.StrMixin):
         return self.api.object.hasFn(om2.MFn.kDagNode)
 
     @property
+    def isMesh(self):
+        """Determine if the object is a mesh.
+
+        Equivalent:
+            `'mesh' in mc.nodeType(self, inherited=True)`
+        """
+        return self.api.getShapeDagPath().hasFn(om2.MFn.kMesh)
+
+    @property
     def isShader(self):
         # type: () -> bool
         """Determine if the object is a shading node.
@@ -1811,6 +1820,42 @@ class Node(types.StrMixin):
             `'shadingDependNode' in mc.nodeType(self, inherited=True)`
         """
         return self.type in NODE_TYPES['shader']
+
+    @property
+    def isLight(self):
+        """Determine if the object is a light.
+
+        Equivalent:
+            `'light' in mc.nodeType(self, inherited=True)`
+        """
+        return self.api.getShapeDagPath().hasFn(om2.MFn.kLight)
+
+    @property
+    def isCamera(self):
+        """Determine if the object is a camera.
+
+        Equivalent:
+            `'camera' in mc.nodeType(self, inherited=True)`
+        """
+        return self.api.getShapeDagPath().hasFn(om2.MFn.kCamera)
+
+    @property
+    def isLocator(self):
+        """Determine if the object is a locator.
+
+        Equivalent:
+            `'locator' in mc.nodeType(self, inherited=True)`
+        """
+        return self.api.getShapeDagPath().hasFn(om2.MFn.kLocator)
+
+    @property
+    def isCurve(self):
+        """Determine if the object is a curve.
+
+        Equivalent:
+            `'curveShape' in mc.nodeType(self, inherited=True)`
+        """
+        return self.api.getShapeDagPath().hasFn(om2.MFn.kCurve)
 
 
 # Handle circular dependencies
