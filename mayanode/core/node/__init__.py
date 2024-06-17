@@ -223,7 +223,7 @@ class _ApiData(object):
 
     __slots__ = ['_handle', '_instanceNumber',
                  '_dagPaths', '_dependencyNode', '_dagNode', '_set',
-                 '_transform', '_hasGeometry', '_reference']
+                 '_transform', '_hasGeometry', '_reference', '_camera']
 
     def __init__(self, mObject, instanceNumber=-1):
         # type: (om2.MObject, int) -> None
@@ -242,6 +242,7 @@ class _ApiData(object):
         self._dagNode = None  # type: Optional[om2.MFnDagNode]
         self._dagPaths = None  # type: Optional[List[om2.MDagPath]]
         self._set = None  # type: Optional[om2.MFnSet]
+        self._camera = None  # type: Optional[om2.MFnCamera]
 
     def __bool__(self):
         # type: () -> bool
@@ -322,6 +323,7 @@ class _ApiData(object):
         new._hasGeometry = self._hasGeometry
         new._reference = self._reference
         new._set = self._set
+        new._camera = self._camera
         return new
 
     @property
@@ -630,6 +632,26 @@ class _ApiData(object):
         if self._set == -1:
             return None
         return self._set
+
+    @property
+    def camera(self):
+        # type: () -> Optional[om2.MFnCamera]
+        """Get the `MFnCamera`"""
+        if self._camera is None:
+            # Intercept when loading on deleted nodes
+            if self.object.isNull():
+                return []
+
+            # Load the MFnTransform if supported
+            dagPath = self.getShapeDagPath(allowCurrentPath=True)
+            if dagPath is not None and dagPath.hasFn(om2.MFn.kCamera):
+                self._camera = om2.MFnCamera(dagPath)
+            else:
+                self._camera = -1
+
+        if self._camera == -1:
+            return None
+        return self._camera
 
 
 class Node(types.StrMixin):
