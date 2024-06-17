@@ -1736,8 +1736,11 @@ class Node(types.StrMixin):
             NoBoundingBoxError: "{node}" has no bounding box
         """
         boundingBox = BoundingBox(self)
-        if boundingBox == (1e+20, 1e+20, 1e+20, -1e+20, -1e+20, -1e+20):
+
+        # Raise an error for the original mc.exactWorldBoundingBox result
+        if boundingBox in ((0, 0, 0, 0, 0, 0), (1e+20, 1e+20, 1e+20, -1e+20, -1e+20, -1e+20)):
             raise exceptions.NoBoundingBoxError(self)
+
         return boundingBox
 
     @property
