@@ -470,29 +470,28 @@ class _ApiData(object):
             self._dagPaths = self.dagNode.getAllPaths()
         return self._instanceNumber
 
-    def getTransformDagPath(self):
-        # type: () -> Optional[om2.MDagPath]
+    def getTransformObject(self):
+        # type: () -> Optional[om2.MObject]
         """Get the transform dag path from a shape node."""
         dagPath = self.dagPath
         if dagPath is None:
             return None
-
-        transformDagPath = dagPath.transform()
-        if self.handle == om2.MObjectHandle(transformDagPath):
+        transform = dagPath.transform()
+        if om2.MObjectHandle(transform) == self.handle:
             return None
-        return transformDagPath
+        return transform
 
     def getShapeDagPath(self):
         # type: () -> Optional[om2.MDagPath]
-        """Get the shape dag path from a transform node."""
+        """Get the shape dag path from a transform node.
+        If no shape then it will return the current DAG path.
+        """
         dagPath = self.dagPath
         if dagPath is None or not dagPath.numberOfShapesDirectlyBelow():
-            return None
+            return dagPath
 
         shapeDagPath = om2.MDagPath(dagPath)
         shapeDagPath.extendToShape()
-        if shapeDagPath == dagPath:
-            return None
         return shapeDagPath
 
     @property
@@ -534,30 +533,8 @@ class _ApiData(object):
         if self.hasGeometry:
             dagPath = self.getShapeDagPath()
             if dagPath is None:
-                dagPath = self.dagPath
-            if dagPath is None:
                 return om2.MFnMesh(self.object)
             return om2.MFnMesh(dagPath)
-        return None
-
-    def getShapeMesh(self):
-        # type: () -> Optional[om2.MFnMesh]
-        """Get the `MFnMesh` for a transform or shape.
-
-        Only shapes have support for it, so if a transform is given
-        then first get the shape and then get the mesh.
-        This is not as efficient when running on a transform.
-        """
-        if self.mesh is not None:
-            return self.mesh
-
-        shapeDagPath = self.getShapeDagPath()
-        if shapeDagPath is None:
-            return None
-
-        shapeObject = shapeDagPath.node()
-        if shapeObject.hasFn(om2.MFn.kMesh):
-            return om2.MFnMesh(shapeObject)
         return None
 
     @property
@@ -647,7 +624,7 @@ class _ApiData(object):
                 return []
 
             # Load the MFnTransform if supported
-            dagPath = self.getShapeDagPath(allowCurrentPath=True)
+            dagPath = self.getShapeDagPath()
             if dagPath is not None and dagPath.hasFn(om2.MFn.kCamera):
                 self._camera = om2.MFnCamera(dagPath)
             else:
@@ -1272,8 +1249,9 @@ class Node(types.StrMixin):
         if not self.exists:
             return None
 
-        shapeDagPath = self.api.getShapeDagPath()
-        if shapeDagPath is None:
+        api = self.api
+        shapeDagPath = api.getShapeDagPath()
+        if shapeDagPath == api.dagPath:
             return None
         return Node(shapeDagPath, modifier=self.modifiers)
 
@@ -1288,10 +1266,10 @@ class Node(types.StrMixin):
         if not self.exists:
             return None
 
-        transformDagPath = self.api.getTransformDagPath()
-        if transformDagPath is None:
+        transform = self.api.getTransformObject()
+        if transform is None:
             return None
-        return Node(transformDagPath, modifier=self.modifiers)
+        return Node(transform, modifier=self.modifiers)
 
     def instance(self, **kwargs):
         # type: (**Any) -> Optional[Node]
@@ -1310,7 +1288,8 @@ class Node(types.StrMixin):
         """Return if the node is instanced."""
         if not self.exists:
             return False
-        return self.api.dagNode is not None and self.api.dagNode.isInstanced()
+        dagNode = self.api.dagNode
+        return dagNode is not None and dagNode.isInstanced()
 
     @property
     def instances(self):
