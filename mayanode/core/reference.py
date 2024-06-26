@@ -150,6 +150,17 @@ class Reference(Node):
         utils.logger.info('Unloading reference: %s', self)
         mc.file(unloadReference=self)
 
+    def delete(self):
+        # type: () -> bool
+        """Delete the reference.
+        Returns if the reference was deleted.
+        """
+        if self.loaded:
+            filename = self.api.reference.fileName(resolvedName=True, includePath=True, includeCopyNumber=True)
+            mc.file(filename, removeReference=True)
+            return True
+        return False
+
     @property
     def nodes(self):
         # type: () -> ReferenceNodes
