@@ -121,8 +121,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(child.longName, '|parent2|{}'.format(child))
         child.parent = None
         self.assertEqual(child.longName, '|{}'.format(child))
-        with self.assertRaises(exceptions.AlreadyIsChildError):
-            child.parent = ''
+        child.parent = ''
 
         child.parent = 'parent2'
         mc.delete('parent2')

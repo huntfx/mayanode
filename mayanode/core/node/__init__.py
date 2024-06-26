@@ -1148,12 +1148,11 @@ class Node(types.StrMixin):
         Note that Maya will error if setting the parent to the current parent.
 
         Warnings:
-            Object, '{node}', skipped. It is already a child of the parent, '{parent}'.
+            "{node}" is already a child of "{parent}"
 
         Raises:
             NodeDeletedError
             NodeNotFoundError
-            AlreadyIsChildError: "{node}" is already a child of "{parent}"
         """
         utils.raiseIfNodeNotFound(self)
         if self.api.dagNode is None:
@@ -1171,7 +1170,8 @@ class Node(types.StrMixin):
                     mc.parent(self, world=True)
             except RuntimeError as e:
                 if str(e) == 'Maya command error':
-                    raise exceptions.AlreadyIsChildError(self, parent or 'world')
+                    utils.logger.warning('"%s" is already a child of "%s"', self, parent or 'world')
+                    return
                 raise
             except ValueError:
                 if parent:

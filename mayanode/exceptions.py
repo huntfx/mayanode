@@ -67,13 +67,6 @@ class ConnectToSelfError(NodeAttributeError):
     MESSAGE = 'Cannot connect attribute "{node}.{attr}" to itself.'
 
 
-class AlreadyIsChildError(NodeError):
-    MESSAGE = '"{node}" is already a child of "{parent}"'
-
-    def __init__(self, node, parent):
-        super(AlreadyIsChildError, self).__init__(node, parent=parent)
-
-
 class NoBoundingBoxError(NodeError):
     MESSAGE = '"{node}" has no bounding box'
 
