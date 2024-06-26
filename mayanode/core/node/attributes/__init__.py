@@ -489,7 +489,7 @@ class Attribute(types.StrMixin):
             # If node matches then continue past here
             elif '|' in value:
                 node, value = value.split('.', 1)
-                if not self.node.endwith(node):
+                if not self.node.endswith(node):
                     return False
 
             # Check node short name (`n2.t.tx`)

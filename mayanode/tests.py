@@ -750,11 +750,13 @@ class TestAttr(unittest.TestCase):
         self.assertNotEqual(attr1, attr2)
 
         self.assertEqual(attr1, node1.attrs['tx'])
-        self.assertEqual(attr1, node1.attrs['t'].children['tx'])
+        self.assertEqual(attr1, node1.attrs['translate'].children['translateX'])
         self.assertEqual(attr1, node1 + '.tx')
         self.assertEqual(attr1, node1 + '.t.tx')
+        self.assertEqual(attr1, node1.longName + '.tx')
+        self.assertEqual(attr1, node1.longName + '.t.tx')
         self.assertNotEqual(attr1, node2.attrs['tx'])
-        self.assertNotEqual(attr1, node2.attrs['t'].children['tx'])
+        self.assertNotEqual(attr1, node2.attrs['translate'].children['translateX'])
         self.assertNotEqual(attr1, node2 + '.tx')
         self.assertNotEqual(attr1, node2 + '.t.tx')
 
