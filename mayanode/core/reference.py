@@ -31,6 +31,14 @@ class Reference(Node):
 
         return refNodes
 
+    @classmethod
+    def fromFile(self, filepath):
+        # type: (StrLike) -> List[Reference]
+        """Get all references matching a file path."""
+        refNodes = mc.ls(references=True)
+        filepath = os.path.normpath(str(filepath))
+        return [ref for ref in map(Reference, refNodes) if ref.filepath == filepath]
+
     @property
     def refNode(self):
         # type: () -> Reference

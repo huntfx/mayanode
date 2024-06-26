@@ -151,6 +151,12 @@ class File(StrMixin):
         refNode = mc.referenceQuery(refFile, referenceNode=True)
         return Reference(refNode)
 
+    @property
+    def references(self):
+        # type: () -> List[Reference]
+        """Get all references matching a file path."""
+        return Reference.fromFile(self)
+
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
