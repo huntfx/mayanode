@@ -11,7 +11,7 @@ from .... import utils
 from ....type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator, List, Optional, Tuple, Union
+    from typing import Any, Iterable, Iterator, List, Optional, Tuple, Union
 
 
 class AttributeKeyframes(MutableMapping):
@@ -32,7 +32,7 @@ class AttributeKeyframes(MutableMapping):
 
     def __len__(self):
         # type: () -> int
-        return len(self.keys())
+        return mc.keyframe(self.attr.node, attribute=self.attr.attr, query=True, keyframeCount=True)
 
     def __iter__(self):
         # type: () -> Iterator[Any]
@@ -85,6 +85,31 @@ class KeyframeProxy(object):
         # type: () -> str
         return '{}({!r}, {})'.format(type(self).__name__, self.kf, self.frame)
 
+    def __bool__(self):
+        # type: () -> bool
+        """Determine if any keyframes are set."""
+        return bool(self.__len__())
+    __nonzero__ = __bool__
+
+    def __len__(self):
+        # type: () -> Union[List[int], int]
+        """Get the number of keyframes."""
+        if not isinstance(self.frame, slice):
+            result = mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, keyframeCount=True, time=(self.frame, self.frame))
+            if not result:
+                return 0
+            return result
+
+        if (self.frame.step or 1) != 1:
+            results = []
+            for frame in range(self.frame.start, self.frame.stop, self.frame.step):
+                result = mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, keyframeCount=True, time=(frame, frame))
+                if result:
+                    results.append(result)
+            return results
+
+        return mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, keyframeCount=True, time=(self.frame.start, self.frame.stop - 1))
+
     @property
     def value(self):
         # type: () -> Optional[Union[List[float], float]]
@@ -104,12 +129,13 @@ class KeyframeProxy(object):
 
         return mc.keyframe(self.kf.attr.node, attribute=self.kf.attr.attr, query=True, valueChange=True, time=(self.frame.start, self.frame.stop - 1))
 
-    def set(self, value=None):
-        # type: (Union[float, slice]) -> None
+    def set(self, value=None, **kwargs):
+        # type: (Optional[Union[float, Iterable[float]]], **Any) -> None
         utils.logger.info('Setting keyframe on "%s" (frame %s, value %s)', self.kf.attr, self.frame, value)
 
         args = [self.kf.attr.node]
-        kwargs = dict(attribute=self.kf.attr.attr, time=self.frame)
+        kwargs['attribute'] = self.kf.attr.attr
+        kwargs['time'] = self.frame
 
         if isinstance(self.frame, slice):
             kwargs['time'] = list(range(self.frame.start, self.frame.stop, self.frame.step or 1))
