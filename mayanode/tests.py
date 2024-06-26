@@ -27,6 +27,12 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.name, 'transform2')
         node.name = 'transform-3'
         self.assertEqual(node.name, 'transform_3')
+
+        class StrLikeCls(object):
+            def __str__(self): return 'renamedNode'
+        node.name = StrLikeCls()
+        self.assertEqual(node.name, 'renamedNode')
+
         mc.delete(node.name)
 
     def testEquality(self):

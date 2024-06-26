@@ -868,14 +868,14 @@ class Node(types.StrMixin):
 
     @name.setter
     def name(self, name):
-        # type: (str) -> None
+        # type: (Any) -> None
         """Set a new node name.
 
         Warnings:
             New name contains invalid characters. Illegal characters were converted to "_".
 
         Alternatives:
-            `self.api.dependencyNode.setName(self.namespace + ':' + name)`
+            `self.api.dependencyNode.setName('{}:{}'.format(self.namespace, name)`
 
         Raises:
             RuntimeError: New name has no legal characters.
@@ -888,7 +888,7 @@ class Node(types.StrMixin):
         if mod is None:
             mod = self.modifiers.dag
 
-        newName = self.namespace + ':' + name
+        newName = '{}:{}'.format(self.namespace, name)
         if mod is None:
             mc.rename(self, newName)
         else:
