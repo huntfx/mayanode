@@ -738,6 +738,28 @@ class TestAttr(unittest.TestCase):
 
         mc.delete(cube)
 
+    def testEquality(self):
+        node1 = Node(mc.polyCube(name='attrLongNameTest1')[0])
+        group1 = mc.group(node1, name='attrNameTest1')
+        node2 = Node(mc.polyCube(name='attrLongNameTest1')[0])
+        group2 = mc.group(node2, name='attrNameTest2')
+        attr1 = node1.attrs['translateX']
+        attr2 = node2.attrs['translateX']
+        self.assertEqual(attr1.api.plug.name(), attr2.api.plug.name())
+        self.assertNotEqual(attr1.name, attr2.name)
+        self.assertNotEqual(attr1, attr2)
+
+        self.assertEqual(attr1, node1.attrs['tx'])
+        self.assertEqual(attr1, node1.attrs['t'].children['tx'])
+        self.assertEqual(attr1, node1 + '.tx')
+        self.assertEqual(attr1, node1 + '.t.tx')
+        self.assertNotEqual(attr1, node2.attrs['tx'])
+        self.assertNotEqual(attr1, node2.attrs['t'].children['tx'])
+        self.assertNotEqual(attr1, node2 + '.tx')
+        self.assertNotEqual(attr1, node2 + '.t.tx')
+
+        mc.delete(group1, group2)
+
     def testCompoundIndex(self):
         cube = mc.polyCube(name='compoundExistsTest')[0]
 

@@ -469,8 +469,46 @@ class Attribute(types.StrMixin):
     def __eq__(self, value):
         # type: (Any) -> bool
         if isinstance(value, Attribute):
-            return self.node == value.node and self.attr == value.attr
-        return value == self.attr or value == self.name
+            return self.api.plug == value.api.plug
+        if isinstance(value, Connection):
+            return self.api.plug == value._dstPlug
+
+        value = str(value)
+        if not value:
+            return False
+
+        if '.' in value:
+            # Check full attribute path (`|n1|n2.t.tx`)
+            # If node matches then continue past here
+            if value[0] == '|':
+                node, value = value.split('.', 1)
+                if self.node != node:
+                    return False
+
+            # Check partial attribute path (`|n1|n2.t.tx`)
+            # If node matches then continue past here
+            elif '|' in value:
+                node, value = value.split('.', 1)
+                if not self.node.endwith(node):
+                    return False
+
+            # Check node short name (`n2.t.tx`)
+            else:
+                node, possibleValue = value.split('.', 1)
+                if not self.node.endswith(node):
+                    return False
+                value = possibleValue
+
+        # If no plug then keep it simple
+        plug = self.api.plug
+        if plug is None:
+            return value == self.attr
+
+        useFullAttributePath = '.' in value
+        partialName = plug.partialName(useFullAttributePath=useFullAttributePath)
+        longName = plug.partialName(useFullAttributePath=useFullAttributePath, useLongNames=True)
+
+        return value in (partialName, longName)
 
     def __float__(self):
         # type: () -> float
@@ -610,8 +648,6 @@ class Attribute(types.StrMixin):
     def name(self):
         # type: () -> str
         """Get the full node and attribute name for Maya to use."""
-        if not self.api.plug.isNull:
-            return self.api.plug.name()
         return '{}.{}'.format(self.node, self.attr)
 
     @property
