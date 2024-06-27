@@ -880,9 +880,13 @@ class Node(types.StrMixin):
         Raises:
             RuntimeError: New name has no legal characters.
             NodeDeletedError
+            RenameReadOnlyNodeError
         """
         utils.logger.info('Renaming %r to %r', self, name)
         utils.raiseIfNodeNotFound(self)
+
+        if self.referenced:
+            raise exceptions.RenameReadOnlyNodeError(self)
 
         mod = self.modifiers.dg
         if mod is None:

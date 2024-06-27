@@ -44,6 +44,14 @@ class NotADagNodeError(NodeError):
     MESSAGE = '"{node}" is not a DAG node'
 
 
+class ReadOnlyNodeError(NodeError):
+    MESSAGE = '"{node}" is read only'
+
+
+class RenameReadOnlyNodeError(ReadOnlyNodeError):
+    MESSAGE = 'Cannot rename "{node}" as it is read only'
+
+
 class NodeAttributeError(NodeError):
     MESSAGE = 'Error: {node}.{attr}'
 
