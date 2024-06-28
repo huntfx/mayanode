@@ -128,6 +128,7 @@ __all__ = [
     'File',
     'Namespace',
     'Plugin',
+    'Profiler',
     'Reference',
     'Scene',
     'Undo',
@@ -140,6 +141,7 @@ from .core.bounding_box import BoundingBox
 from .core.file import File
 from .core.namespace import Namespace
 from .core.plugin import Plugin
+from .core.profiler import Profiler
 from .core.reference import Reference
 from .core.scene import Scene
 from .core.undo import Undo
