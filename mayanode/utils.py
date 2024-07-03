@@ -47,6 +47,17 @@ _WORLD_HANDLE = None
 _WORLD_DAG_PATH = None
 
 
+class NotSet(object):  # pylint: disable=too-few-public-methods
+    """Create a sentinel object for when a value isn't given.
+
+    This is similar to using `NOT_SET = object()` but works with type
+    checking.
+    """
+
+
+NOT_SET = NotSet()
+
+
 def raiseIfNodeNotFound(node):
     # type: (Node) -> None
     """Raise an error if the node doesn't exist."""

@@ -9,7 +9,7 @@ from ..types import StrMixin
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Optional
+    from typing import List, Optional, Union
     from ..type_hints import StrLike
 
 
@@ -91,7 +91,7 @@ class File(StrMixin):
             utils.addToRecentFiles(self.filepath)
 
     def import_(self, namespace=None):
-        # type: (StrLike) -> Optional[Namespace]
+        # type: (Optional[StrLike]) -> Optional[Namespace]
         """Import a file into the scene.
 
         A namespace will be returned which can be used to get a list of
@@ -107,7 +107,6 @@ class File(StrMixin):
             namespace = os.path.splitext(self.filename)[0]
         namespace = Namespace.findUnique(namespace)
 
-        # Import the file
         params = {
             'i': True,
             'ignoreVersion': True,
@@ -116,12 +115,14 @@ class File(StrMixin):
             'namespace': namespace,
             'mergeNamespacesOnClash': True,
         }
+
+        # Import the file
         utils.logger.info('Importing file "%s" to namespace "%s"', self, namespace)
         mc.file(self, **params)
         return namespace
 
-    def reference(self, namespace=None, group=None, defer=False):
-        # type: (StrLike, str, bool) -> Optional[Reference]
+    def reference(self, namespace=utils.NOT_SET, group=None, defer=False):
+        # type: (Union[None, StrLike, utils.NotSet], Optional[str], bool) -> Optional[Reference]
         """Reference a file into the scene.
 
         Raises:
@@ -129,24 +130,29 @@ class File(StrMixin):
         """
         self.checkExists()
 
-        # Find unique namespace
-        if namespace is None:
-            namespace = os.path.splitext(self.filename)[0]
-        namespace = Namespace.findUnique(namespace)
-
-        # Reference the file
         params = {
             'reference': True,
             'ignoreVersion': True,
-            'namespace': namespace,
             'mergeNamespacesOnClash': True,
             'force': True,
         }
+
+        # Find unique namespace
+        if namespace is not None:
+            if namespace is utils.NOT_SET:
+                namespace = os.path.splitext(self.filename)[0]
+            if TYPE_CHECKING:
+                assert isinstance(namespace, str)
+            params['namespace'] = Namespace.findUnique(namespace)
+
         if group:
             params['groupReference'] = True
             params['groupName'] = True
+
         if defer:
             params['deferReference'] = True
+
+        # Reference the file
         refFile = mc.file(self, **params)
         refNode = mc.referenceQuery(refFile, referenceNode=True)
         return Reference(refNode)
