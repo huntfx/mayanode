@@ -1,4 +1,35 @@
-"""Wrapper to safely use the Maya profiler."""
+"""Wrapper to safely use the Maya profiler.
+
+Example:
+    # To wrap blocks of code in the profiler
+    >>> profiler = Profiler('mayanode')
+    >>> with profiler('createCube') as event:
+    ...     mc.polyCube()
+    >>> profiler.signal('scriptFinished')
+
+
+    # To automatically start and stop the profiler
+    >>> with Profiler('mayanode') as profiler:
+    ...     with profiler('createCube') as event
+    ...         mc.polyCube()
+    ...      profiler.signal('scriptFinished')
+
+    # Class methods
+    >>> Profiler.running
+    False
+    >>> Profiler.ls()
+    [Profiler('Main'), Profiler('Evaluation'), Profiler('Qt'), ...]
+
+    # Access data (WARNING: events must be in scope or it'll crash)
+    >>> profiler.name
+    'mayanode'
+    >>> Profiler('Main').info
+    'Catch-all for main thread events'
+    >>> event.name
+    'createCube'
+    >>> event.description
+    ''
+"""
 
 import maya.cmds as mc  # type: ignore
 import maya.OpenMaya as om  # type: ignore
@@ -16,36 +47,71 @@ if TYPE_CHECKING:
 class Profiler(types.StrMixin):
     """Safe way to handle profilers."""
 
-    __slots__ = ['_id', '_category', '_info', '_color']
+    __slots__ = ['_id', '_category', '_info', '_color', '_wasRunning']
+
+    _RUNNING = False
 
     def __init__(self, category, color=om.MProfiler.kColorE_L2, _info=None):
         # type: (StrLike, int, Optional[str]) -> None
-        self._id = None  # type: Optional[int]
+        self._id = -1
         self._category = str(category)
         self._info = _info
         self._color = color
+        self._wasRunning = False
         self.create()
 
     @classmethod
-    def ls(self):
+    def ls(cls):
         # type: () -> List[Profiler]
         """Get all profilers/categories."""
         categoryNames = []  # type: List[str]
         categoryInfo = []  # type: List[str]
         om.MProfiler.getAllCategories(categoryNames, categoryInfo)
-        return [Profiler(name, _info=info) for name, info in zip(categoryNames, categoryInfo)]
+        return [cls(name, _info=info) for name, info in zip(categoryNames, categoryInfo)]
 
     @classutilities.classproperty
-    def start(self):
+    @classmethod
+    def running(cls):
+        # type: () -> bool
+        """Determine if the profiler is running."""
+        return mc.profiler(query=True, sampling=True)
+
+    @running.setter
+    @classmethod
+    def _runningSet(cls, value):
+        # type: (bool) -> None
+        """Set a new profiler running state."""
+        if value:
+            cls.start()
+        else:
+            cls.stop()
+
+    @classmethod
+    def start(cls):
         # type: () -> None
         """Start the profiler."""
         mc.profiler(sampling=True)
 
-    @classutilities.classproperty
-    def stop(self):
+    @classmethod
+    def stop(cls):
         # type: () -> None
         """Stop the profiler."""
         mc.profiler(sampling=False)
+
+    def __enter__(self):
+        # type: () -> Profiler
+        """Start the context profiling."""
+        self._wasRunning = self.running
+        if not self._wasRunning:
+            self.start()
+        return self
+
+    def __exit__(self, excType, excVal, excTraceback):
+        # type: (Optional[Type[Exception]], Optional[Exception], Optional[TracebackType]) -> bool
+        """End the context profiling."""
+        if not self._wasRunning:
+            self.stop()
+        return excType is excVal is excTraceback is None
 
     def __call__(self, name, description=None):
         # type: (str, Optional[str]) -> Event
