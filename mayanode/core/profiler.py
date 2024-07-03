@@ -1,4 +1,8 @@
+# pylint: disable=useless-object-inheritance
 """Wrapper to safely use the Maya profiler.
+
+The access is provided through the `Profiler` singleton, rather than
+the `Category` and `Event` classes.
 
 Example:
     # To wrap blocks of code in the profiler
@@ -7,10 +11,14 @@ Example:
     ...     mc.polyCube()
     >>> profiler.signal('scriptFinished')
 
+    To wrap a function
+    >>> @profiler.attach
+    ... def createCube():
+    ...     mc.polyCube()
 
     # To automatically start and stop the profiler
-    >>> with Profiler('mayanode') as profiler:
-    ...     with profiler('createCube') as event
+    >>> with Profiler.category('mayanode') as profiler:
+    ...     with profiler.event('createCube') as event
     ...         mc.polyCube()
     ...      profiler.signal('scriptFinished')
 
@@ -18,110 +26,114 @@ Example:
     >>> Profiler.running
     False
     >>> Profiler.ls()
-    [Profiler('Main'), Profiler('Evaluation'), Profiler('Qt'), ...]
+    [Category('Main'), Category('Evaluation'), Category('Qt'), ...]
 
     # Access data (WARNING: events must be in scope or it'll crash)
     >>> profiler.name
     'mayanode'
-    >>> Profiler('Main').info
+    >>> Profiler.category('Main').info
     'Catch-all for main thread events'
     >>> event.name
     'createCube'
     >>> event.description
     ''
+
+TODO:
+    Change `Profiler.category(name)` to `Profiler.categories[name]`
 """
+
+from contextlib import contextmanager
+from functools import wraps
 
 import maya.cmds as mc  # type: ignore
 import maya.OpenMaya as om  # type: ignore
 
 from .. import types
-from ..ext import classutilities
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from types import TracebackType
-    from typing import List, Optional, Type
+    from typing import Callable, Iterator, List, Optional, Type
     from ..type_hints import StrLike
 
 
-class Profiler(types.StrMixin):
-    """Safe way to handle profilers."""
+class _Profiler(object):
+    # pylint: disable=no-self-use
+    """Singleton base class for the profiler."""
 
-    __slots__ = ['_id', '_category', '_info', '_color', '_wasRunning']
+    __slots__ = ['profiler']
 
-    _RUNNING = False
-
-    def __init__(self, category, color=om.MProfiler.kColorE_L2, _info=None):
-        # type: (StrLike, int, Optional[str]) -> None
-        self._id = -1
-        self._category = str(category)
-        self._info = _info
-        self._color = color
-        self._wasRunning = False
-        self.create()
-
-    @classmethod
-    def ls(cls):
-        # type: () -> List[Profiler]
+    def ls(self):
+        # type: () -> List[Category]
         """Get all profilers/categories."""
         categoryNames = []  # type: List[str]
         categoryInfo = []  # type: List[str]
         om.MProfiler.getAllCategories(categoryNames, categoryInfo)
-        return [cls(name, _info=info) for name, info in zip(categoryNames, categoryInfo)]
+        return [Category(name, _info=info) for name, info in zip(categoryNames, categoryInfo)]
 
-    @classutilities.classproperty
-    @classmethod
-    def running(cls):
+    @property
+    def running(self):
         # type: () -> bool
         """Determine if the profiler is running."""
         return mc.profiler(query=True, sampling=True)
 
     @running.setter
-    @classmethod
-    def _runningSet(cls, value):
+    def running(self, value):
         # type: (bool) -> None
         """Set a new profiler running state."""
         if value:
-            cls.start()
+            self.start()
         else:
-            cls.stop()
+            self.stop()
 
-    @classmethod
-    def start(cls):
+    def start(self):
         # type: () -> None
         """Start the profiler."""
         mc.profiler(sampling=True)
 
-    @classmethod
-    def stop(cls):
+    def stop(self):
         # type: () -> None
         """Stop the profiler."""
         mc.profiler(sampling=False)
 
-    def __enter__(self):
-        # type: () -> Profiler
-        """Start the context profiling."""
-        self._wasRunning = self.running
-        if not self._wasRunning:
-            self.start()
-        return self
-
-    def __exit__(self, excType, excVal, excTraceback):
-        # type: (Optional[Type[Exception]], Optional[Exception], Optional[TracebackType]) -> bool
-        """End the context profiling."""
-        if not self._wasRunning:
-            self.stop()
-        return excType is excVal is excTraceback is None
-
-    def __call__(self, name, description=None):
-        # type: (str, Optional[str]) -> Event
-        """Create a profile event in a context manager.
-
-        From a quick test, constructing a class is roughly twice as
-        fast as using `contextlib.contextmanager`, with 800k calls per
-        second. It is still about 5x slower than directly calling the
-        `eventBegin` and `eventEnd` methods.
+    @contextmanager
+    def record(self):
+        # type: () -> Iterator[None]
+        """Run the profiler on a block of code.
+        If the profiler is already running then nothing will happen.
         """
+        running = self.running
+        if not running:
+            self.running = True
+        try:
+            yield
+        finally:
+            if not running:
+                self.running = False
+
+    def category(self, name, color=om.MProfiler.kColorE_L2):
+        # type: (str, int) -> Category
+        return Category(name, color)
+
+
+class Category(types.StrMixin):
+    """Safe way to handle profilers."""
+
+    __slots__ = ['_id', '_category', '_info', '_color']
+
+    _RUNNING = False
+
+    def __init__(self, name, color=om.MProfiler.kColorE_L2, _info=None):
+        # type: (StrLike, int, Optional[str]) -> None
+        self._id = -1
+        self._category = str(name)
+        self._info = _info
+        self._color = color
+        self.create()
+
+    def event(self, name, description=None):
+        # type: (str, Optional[str]) -> Event
+        """Create a profile event."""
         return Event(self._id, self._color, name, description)
 
     def signal(self, name, description=None):
@@ -166,6 +178,15 @@ class Profiler(types.StrMixin):
         Note that this does not do anything for me.
         """
         return om.MProfiler.removeCategory(self._id) > 0
+
+    def attach(self, func):
+        # type: (Callable) -> Callable
+        """Attach the profiler to a function."""
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            with self.event('{}::{}'.format(func.__module__, func.__name__)):
+                return func(*args, **kwargs)
+        return wrapper
 
 
 class Event(types.StrMixin):
@@ -242,4 +263,6 @@ class Event(types.StrMixin):
             om.MProfiler.eventEnd(eventID)
 
 
-profiler = Profiler('mayanode')
+Profiler = _Profiler()
+
+profiler = Profiler.category('mayanode')
