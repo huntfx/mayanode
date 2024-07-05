@@ -17,11 +17,11 @@ class _CameraAPI(object):
 
     __slots__ = ['_parent', '_dagPath', '_camera']
 
-    def __init__(self, parent):
-        # type: (Camera) -> None
+    def __init__(self, parent, dagPath=None, camera=None):
+        # type: (Camera, Optional[om2.MDagPath], Optional[om2.MFnCamera]) -> None
         self._parent = parent
-        self._dagPath = None  # type: Optional[om2.MDagPath]
-        self._camera = None  # type: Optional[om2.MFnCamera]
+        self._dagPath = dagPath
+        self._camera = camera
 
     def __bool__(self):
         # type: () -> bool
@@ -96,10 +96,10 @@ class Camera(types.StrMixin):
 
     __slots__ = ['_api', '_node']
 
-    def __init__(self, node):
-        # type: (StrLike) -> None
+    def __init__(self, node, _dagPath=None, _camera=None):
+        # type: (StrLike, Optional[om2.MDagPath], Optional[om2.MFnCamera]) -> None
         self._node = Node(node)
-        self._api = _CameraAPI(self)
+        self._api = _CameraAPI(self, dagPath=_dagPath, camera=_camera)
 
     @classmethod
     def ls(cls, *args, **kwargs):

@@ -1745,9 +1745,10 @@ class Node(types.StrMixin):
     def camera(self):
         # type: () -> Optional[Camera]
         """Get the camera class if the current node is a camera."""
-        if not self.isCamera():
-            return None
-        return Camera(self)
+        dagPath = self.api.getShapeDagPath()
+        if dagPath.hasFn(om2.MFn.kCamera):
+            return Camera(self, _dagPath=dagPath)
+        return None
 
     @property
     def boundingBox(self):
