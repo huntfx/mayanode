@@ -125,6 +125,7 @@ __all__ = [
     'Attribute',
     'Node',
     'BoundingBox',
+    'Camera',
     'File',
     'Namespace',
     'Plugin',
@@ -138,6 +139,7 @@ from . import exceptions
 from .core.node import Node
 from .core.node.attributes import Attribute
 from .core.bounding_box import BoundingBox
+from .core.camera import Camera
 from .core.file import File
 from .core.namespace import Namespace
 from .core.plugin import Plugin

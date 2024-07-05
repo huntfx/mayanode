@@ -1742,6 +1742,14 @@ class Node(types.StrMixin):
         return None
 
     @property
+    def camera(self):
+        # type: () -> Optional[Camera]
+        """Get the camera class if the current node is a camera."""
+        if not self.isCamera():
+            return None
+        return Camera(self)
+
+    @property
     def boundingBox(self):
         # type: () -> BoundingBox
         """Get the bounding box of the node.
@@ -1879,6 +1887,7 @@ from .construction_history import ConstructionHistory
 from .face import FaceList
 from ..reference import Reference
 from ..bounding_box import BoundingBox
+from ..camera import Camera
 from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
 from ..namespace import Namespace

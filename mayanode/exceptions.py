@@ -18,7 +18,7 @@ class BaseError(RuntimeError):
 
 
 class NullMObjectError(BaseError, TypeError):
-    MESSAGE = 'MObject is null'
+    MESSAGE = 'This object is null'
 
 
 class NodeError(BaseError):
@@ -42,6 +42,10 @@ class InvalidNodeError(NodeError):
 
 class NotADagNodeError(NodeError):
     MESSAGE = '"{node}" is not a DAG node'
+
+
+class NotACameraError(NodeError):
+    MESSAGE = '"{node}" is not a camera'
 
 
 class ReadOnlyNodeError(NodeError):
