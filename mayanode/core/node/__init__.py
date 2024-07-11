@@ -8,6 +8,7 @@ from ...type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Generator, List, Optional, Tuple, Union
+    from ...types import StrLike
     ModifierType = Optional[Union['Modifiers', om2.MDGModifier, om2.MDagModifier]]
 
 
@@ -1147,7 +1148,7 @@ class Node(types.StrMixin):
 
     @parent.setter
     def parent(self, parent):
-        # type: (Union[Node, str]) -> None
+        # type: (StrLike) -> None
         """Set a new node parent.
         Note that Maya will error if setting the parent to the current parent.
 
@@ -1285,7 +1286,7 @@ class Node(types.StrMixin):
         return Node(transform, modifier=self.modifiers)
 
     def instance(self, **kwargs):
-        # type: (**Any) -> Optional[Node]
+        # type: (**Any) -> Node
         """Create an instance of the object.
 
         Raises:

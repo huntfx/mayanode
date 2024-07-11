@@ -122,7 +122,7 @@ class File(StrMixin):
         return namespace
 
     def reference(self, namespace=utils.NOT_SET, group=None, defer=False):
-        # type: (Union[None, StrLike, utils.NotSet], Optional[str], bool) -> Optional[Reference]
+        # type: (Union[None, StrLike, utils.NotSet], Optional[str], bool) -> Reference
         """Reference a file into the scene.
 
         Raises:

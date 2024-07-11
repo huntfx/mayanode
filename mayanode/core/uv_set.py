@@ -123,7 +123,7 @@ class UVSet(types.StrMixin):
 
     def __repr__(self):
         # type: () -> str
-        return "<{}('{}.{}')>".format(type(self).__name__, self.node, self.name)
+        return '{}({!r})'.format(type(self).__name__, '{}.{}'.format(self.node, self.name))
 
     @property
     def name(self):
@@ -209,7 +209,7 @@ class UVSet(types.StrMixin):
 
     def delete(self):
         # type: () -> None
-        """Delete a color set.
+        """Delete a UV set.
 
         Raises:
             UVSetNotFoundError(UVSetError): If deleting one that doesn't exist.
