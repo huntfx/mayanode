@@ -130,6 +130,7 @@ __all__ = [
     'Namespace',
     'Plugin',
     'Profiler',
+    'ProgressBar',
     'Reference',
     'Scene',
     'Undo',
@@ -144,6 +145,7 @@ from .core.file import File
 from .core.namespace import Namespace
 from .core.plugin import Plugin
 from .core.profiler import Profiler
+from .core.progress_bar import ProgressBar
 from .core.reference import Reference
 from .core.scene import Scene
 from .core.undo import Undo
