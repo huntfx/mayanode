@@ -8,6 +8,7 @@ from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Dict, Optional, Union
+    from ..types import StrLike
 
 
 class _Scene(object):
@@ -208,6 +209,31 @@ class _Scene(object):
         """
         utils.logger.info('Setting scene end frame to %s', endFrame)
         mc.playbackOptions(maxTime=endFrame, animationEndTime=endFrame)
+
+    @property
+    def audio(self):
+        # type: () -> Optional[Node]
+        """Get the current scene audio node."""
+        gPlayBackSlider = mel.eval('$tmp = $gPlayBackSlider')
+        audio = mc.timeControl(gPlayBackSlider, query=True, sound=True)
+        if not audio:
+            return None
+        return Node(audio)
+
+    @audio.setter
+    def audio(self, audio):
+        # type: (Optional[StrLike]) -> None
+        """Set new audio for the scene.
+        If a path is given, then a new node will be created.
+        """
+        utils.logger.info('Setting scene audio: %s', audio)
+        if not audio:
+            audio = ''
+        elif not isinstance(audio, Node) and '.' in audio:
+            audio = mc.sound(file=audio, name=os.path.splitext(os.path.basename(audio))[0])
+        gPlayBackSlider = mel.eval('$tmp = $gPlayBackSlider')
+        mc.timeControl(gPlayBackSlider, edit=True, sound=audio, displaySound=bool(audio))
+
 
 class SceneNodes(types.MappedLazyList):
     """Hold a dict of all nodes currently in the scene."""
