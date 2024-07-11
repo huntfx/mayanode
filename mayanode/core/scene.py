@@ -146,13 +146,13 @@ class _Scene(object):
         return {plugin.name: plugin for plugin in Plugin.ls()}
 
     @property
-    def currentFrame(self):
+    def frame(self):
         # type: () -> float
         """Get the current frame of the scene."""
         return mc.currentTime(query=True)
 
-    @currentFrame.setter
-    def currentFrame(self, frame):
+    @frame.setter
+    def frame(self, frame):
         # type: (float) -> None
         """Set the current frame of the scene."""
         mc.currentTime(frame)
@@ -171,6 +171,7 @@ class _Scene(object):
 
     @property
     def framerate(self):
+        # type: () -> float
         """Get the scene framerate.
         If the framerate has a relative override, then the correct offset
         can be calculated with "offset *= framerate/6000".
@@ -178,6 +179,35 @@ class _Scene(object):
         currentTime = mc.currentUnit(query=True, time=True)
         return float(utils.TIME_UNITS.get(currentTime, currentTime)[:-3])
 
+    @property
+    def startFrame(self):
+        # type: () -> float
+        """Get the scene start frame."""
+        return mc.playbackOptions(query=True, minTime=True)
+
+    @startFrame.setter
+    def startFrame(self, startFrame):
+        # type: (float) -> None
+        """Set the scene start frame.
+        Also sets the animation start frame.
+        """
+        utils.logger.info('Setting scene start frame to %s', startFrame)
+        mc.playbackOptions(minTime=startFrame, animationStartTime=startFrame)
+
+    @property
+    def endFrame(self):
+        # type: () -> float
+        """Get the scene end frame."""
+        return mc.playbackOptions(query=True, maxTime=True)
+
+    @endFrame.setter
+    def endFrame(self, endFrame):
+        # type: (float) -> None
+        """Set the scene end frame.
+        Also sets the animation start frame.
+        """
+        utils.logger.info('Setting scene end frame to %s', endFrame)
+        mc.playbackOptions(maxTime=endFrame, animationEndTime=endFrame)
 
 class SceneNodes(types.MappedLazyList):
     """Hold a dict of all nodes currently in the scene."""
