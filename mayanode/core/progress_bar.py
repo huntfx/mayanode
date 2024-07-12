@@ -150,14 +150,17 @@ class _ProgressBar(types.StrMixin):
         """Set a new progress value."""
         mc.progressBar(self, edit=True, progress=value)
 
-    def step(self, value):
+    def step(self, value=1):
         # type: (int) -> None
         """Move the progress value by a step."""
         self.value += value
 
-    def range(self, start, end, step=1):
-        # type: (int, int, int) -> Iterator[int]
+    def range(self, start, end=None, step=1):
+        # type: (int, Optional[int], int) -> Iterator[int]
         """Wrap the progress bar with a `range()` call."""
+        if end is None:
+            start, end = 0, start
+
         old = self.value, self.min, self.max
 
         try:
@@ -165,14 +168,14 @@ class _ProgressBar(types.StrMixin):
             self.value = start
             with self:
                 for i in range(start, end, step):
-                    yield i
                     self.value = i
+                    yield i
 
         finally:
             self.value, self.min, self.max = old
 
-    def enumerate(self, iterator):
-        # type: (Iterator[T]) -> Iterator[Tuple[int, T]]
+    def enumerate(self, iterator, start=0):
+        # type: (Iterator[T], int) -> Iterator[Tuple[int, T]]
         """Wrap the progress bar with an `enumerate()` call."""
         old = self.value, self.min, self.max
         data = tuple(iterator)
@@ -180,12 +183,12 @@ class _ProgressBar(types.StrMixin):
             return
 
         try:
-            self.limits = (0, len(data))
+            self.limits = (start, len(data) + start)
             self.value = 0
             with self:
-                for i, val in enumerate(data):
-                    yield i, val
+                for i, val in enumerate(data, start):
                     self.value = i
+                    yield i, val
 
         finally:
             self.value, self.min, self.max = old

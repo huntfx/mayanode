@@ -4,7 +4,7 @@ import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from mayanode import Node, Namespace, exceptions
+from mayanode import Node, Namespace, ProgressBar, exceptions
 
 
 class TestNode(unittest.TestCase):
@@ -1293,6 +1293,73 @@ class TestNamespace(unittest.TestCase):
 
     def testDescendents(self):
         self.assertEqual(Namespace(self.ns1).descendents, [self.ns2, self.ns3])
+
+
+class TestProgressBar(unittest.TestCase):
+    def setUp(self):
+        self.gMainProgressBar = mel.eval('$tmp = $gMainProgressBar;')
+
+    def tearDown(self):
+        mc.progressBar(self.gMainProgressBar, edit=True, progress=0, status='',
+                       minValue=0, maxValue=100, isInterruptable=False)
+
+    def testLimits(self):
+        ProgressBar.min = -1000
+        ProgressBar.max = 1000
+        self.assertEqual(ProgressBar.limits, (-1000, 1000))
+        ProgressBar.limits = (50, 150)
+        self.assertEqual(ProgressBar.min, 50)
+        self.assertEqual(ProgressBar.max, 150)
+
+        with self.assertRaises(RuntimeError):
+            ProgressBar.min = 1000
+
+    def testValue(self):
+        ProgressBar.show()
+        self.assertEqual(ProgressBar.value, 0)
+        ProgressBar.value += 1
+        self.assertEqual(ProgressBar.value, 1)
+        ProgressBar.step(1)
+        self.assertEqual(ProgressBar.value, 2)
+        ProgressBar.hide()
+
+    def testWhile(self):
+        with ProgressBar:
+            while not ProgressBar.interrupted and ProgressBar.value < ProgressBar.max:
+                ProgressBar.step(1)
+
+    def testRange(self):
+        x = 0
+        for i in ProgressBar.range(10):
+            self.assertEqual(ProgressBar.value, i)
+            x += i
+        for i in ProgressBar.range(16, 72):
+            self.assertEqual(ProgressBar.value, i)
+            x += i
+        for i in ProgressBar.range(16, 72, 3):
+            self.assertEqual(ProgressBar.value, i)
+            x += i
+        self.assertEqual(x, sum(range(10)) + sum(range(16, 72)) + sum(range(16, 72, 3)))
+
+    def testEnumerate(self):
+        for i, val in ProgressBar.enumerate('abc'):
+            self.assertEqual(ProgressBar.value, i)
+            self.assertEqual(val, 'abc'[i])
+
+        for i, val in ProgressBar.enumerate('abc', 10):
+            self.assertEqual(ProgressBar.value, i)
+            self.assertEqual(val, 'abc'[i - 10])
+
+    def testMisc(self):
+        with ProgressBar:
+            self.assertEqual(ProgressBar.status, '')
+            ProgressBar.status = 'test'
+            self.assertEqual(ProgressBar.status, 'test')
+
+            self.assertFalse(ProgressBar.interruptable)
+            ProgressBar.interruptable = True
+            self.assertTrue(ProgressBar.interruptable)
+            self.assertFalse(ProgressBar.interrupted)
 
 
 if __name__ == '__main__':
