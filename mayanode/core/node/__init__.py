@@ -1345,6 +1345,12 @@ class Node(types.StrMixin):
         self.api.recalculateDagPaths()
         return self.api.instanceNumber
 
+    def duplicate(self, **kwargs):
+        # type: (**Any) -> Node
+        """Duplicate the node."""
+        kwargs['returnRootsOnly'] = True
+        return Node(mc.duplicate(self, **kwargs)[0])
+
     @property
     def intermediate(self):
         # type: () -> bool

@@ -709,6 +709,52 @@ class TestBoundingBox(unittest.TestCase):
 
         mc.delete(pCube, bbCube1, bbCube2)
 
+    def testTypes(self):
+        nodes = []
+
+        locator = Node(mc.spaceLocator(name='boundingBoxTestLocator')[0])
+        nodes.append((locator, [locator.shape]))
+
+        light = Node(mc.ambientLight(name='bbTestLight'))
+        nodes.append((light.parent, [light]))
+
+        camTransform, camShape = mc.camera(name='bbTestCamera')
+        nodes.append((Node(camTransform), [Node(camShape)]))
+
+        plane = Node(mc.plane(name='bbTestPlane'))
+        nodes.append((plane, [plane.shape]))
+
+        geo = Node(mc.polyTorus(name='bbTestGeo')[0])
+        nodes.append((geo, [geo.shape]))
+
+        inst = geo.instance(name='bbTestInstance')
+        nodes.append((inst, [inst.shape]))
+
+        nurbs = Node(mc.nurbsSquare(name='bbTestNurbs')[0])
+        nodes.append((nurbs, [nurbs.children[0], nurbs.children[0].shape]))
+
+        volume = Node(mc.createNode('renderCone', name='bbTestVolume'))
+        nodes.append((volume.parent, [volume]))
+
+        group = Node(mc.group(geo.duplicate(), plane.duplicate(), name='bbTestGroup'))
+        nodes.append((group, [group.children[0], group.children[1].shape]))
+
+        for i, (transform, shapes) in enumerate(nodes):
+            transform.attrs['translate'] = [i + 5.13] * 3
+            transform.attrs['rotate'] = [i + 72.6] * 3
+            transform.attrs['scale'] = [i + 0.53] * 3
+            self.assertEqual(transform.boundingBox, tuple(mc.exactWorldBoundingBox(transform)))
+            for shape in shapes:
+                self.assertEqual(shape.boundingBox, tuple(mc.exactWorldBoundingBox(shape)))
+            mc.delete(transform)
+
+        # Doesn't fully work with more complex nurbs curves
+        # The CV positions are outside the shape, which is what the API reads
+        curve = Node(mc.circle()[0])
+        self.assertEqual(curve.boundingBox, curve.shape.boundingBox)
+        self.assertNotEqual(curve.boundingBox, tuple(mc.exactWorldBoundingBox(curve)))
+        mc.delete(curve)
+
 
 class TestAttr(unittest.TestCase):
     def setUp(self):

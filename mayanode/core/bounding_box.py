@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from collections import deque
+
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
@@ -21,44 +23,17 @@ class BoundingBox(tuple):
     def __new__(cls, *nodes):
         # type: (*StrLike) -> BoundingBox
         boundingBox = om2.MBoundingBox()
+
+        def expand(node):
+            if node.api.object.hasFn(om2.MFn.kShape):
+                boundingBox.expand(node.api.dagNode.boundingBox.transformUsing(node.api.dagPath.inclusiveMatrix()))
+            deque(map(expand, node.children))
+
         for node in nodes:
             if not isinstance(node, Node):
                 node = Node(node)
-
-            apiObj = None
             if node.isDagNode:
-                # If a mesh, use the bounding box from MFnMesh
-                if node.isMesh:
-                    apiObj = node.api.mesh
-
-                # If a camera, use the bounding box from MFnCamera
-                elif node.isCamera:
-                    apiObj = node.api.camera
-
-                # Anything then use the bounding box from MFnDagNode
-                else:
-                    # Flag types that don't require a shape
-                    noShapeRequired = node.isLocator or node.isCurve
-
-                    # Get the shape from any other type
-                    # Known: light, sketchPlane
-                    if noShapeRequired and node.type == 'transform':
-                        shape = node.shape
-                        if shape is not None:
-                            node = shape
-                    apiObj = node.api.dagNode
-
-            if apiObj is None:
-                continue
-
-            dagPath = node.api.dagPath
-            # Not sure if possible that a DAG node can be missing a
-            # path, so raise an error if it happens
-            if dagPath is None:
-                raise NotImplementedError('DAG node without a DAG path')
-
-            worldMatrix = dagPath.inclusiveMatrix()
-            boundingBox.expand(apiObj.boundingBox.transformUsing(worldMatrix))
+                expand(node)
 
         return tuple.__new__(cls, (boundingBox.min.x, boundingBox.min.y, boundingBox.min.z,
                                    boundingBox.max.x, boundingBox.max.y, boundingBox.max.z))
@@ -144,7 +119,7 @@ class BoundingBox(tuple):
     def drawCube(self, name='BoundingBox'):
         # type: (str) -> Node
         """Draw a cube representation of the bounding box."""
-        transform, shape = mc.polyCube(width=self.width, height=self.height, depth=self.depth, name=name)
+        transform = mc.polyCube(width=self.width, height=self.height, depth=self.depth, name=name)[0]
         cube = Node(transform)
         cube.translation = self.origin
         return cube
