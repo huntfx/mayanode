@@ -1285,6 +1285,12 @@ class Node(types.StrMixin):
             return None
         return Node(transform, modifier=self.modifiers)
 
+    @property
+    def keyframes(self):
+        # type: () -> NodeKeyframes
+        """Get the keyframes on the node."""
+        return NodeKeyframes(self)
+
     def instance(self, **kwargs):
         # type: (**Any) -> Node
         """Create an instance of the object.
@@ -1892,6 +1898,7 @@ from ..bounding_box import BoundingBox
 from ..camera import Camera
 from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
+from ..keyframes import NodeKeyframes
 from ..namespace import Namespace
 from ..scene import Scene, _Scene
 from ..uv_set import UVSet, UVSetList

@@ -916,6 +916,6 @@ class Attribute(types.StrMixin):
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
-from .keyframes import AttributeKeyframes
 from ...connection import AttributeConnectionProxy, Connection
+from ...keyframes import AttributeKeyframes
 from ...node import Node
