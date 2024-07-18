@@ -1191,13 +1191,27 @@ class Node(types.StrMixin):
         # type: () -> List[Node]
         """Get all node children.
 
-        TODO: Test correct instance.
-        TODO: MFnDagNode.hasChild
+        TODO:
+            Use `MFnDagNode.hasChild` for `__contains__`.
         """
         if not self.exists or self.api.dagNode is None:
             return []
-        apiChildren = map(self.api.dagNode.child, range(self.api.dagNode.childCount()))
-        return list(map(Node, apiChildren))
+
+        dagNode = self.api.dagNode
+        children = []
+        for child in map(dagNode.child, range(dagNode.childCount())):
+
+            # Get the correct instance if required
+            if om2.MFnDagNode(child).isInstanced():
+                for dagPath in om2.MDagPath.getAllPathsTo(child):
+                    instNum = dagPath.instanceNumber()
+                    if dagPath.pop().node() == self.api.object:
+                        children.append(Node(child, _instanceNumber=instNum))
+
+            else:
+                children.append(Node(child))
+
+        return children
 
     @property
     def descendents(self):

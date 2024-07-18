@@ -228,6 +228,15 @@ class TestNode(unittest.TestCase):
         self.assertNotEqual(inst.name, cube)
         mc.delete(node, inst)
 
+    def testInstanceChildren(self):
+        cube = mc.polyCube(name='instChildTest1')[0]
+        node = Node(cube)
+        inst = node.instance(name='instChildTest2')
+        self.assertEqual(node.children, [str(node.shape)])
+        self.assertNotEqual(inst.children, [str(node.shape)])
+        self.assertEqual(inst.children, [str(inst.shape)])
+        mc.delete(node, inst)
+
     def testInstanceHash(self):
         cube = mc.polyCube(name='instHashTest')[0]
         node = Node(cube)
