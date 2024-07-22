@@ -17,7 +17,10 @@ class File(StrMixin):
     """Handle individual filepaths."""
 
     def __init__(self, path):
-        self._path = os.path.normpath(path)
+        if path:
+            self._path = os.path.normpath(path)
+        else:
+            self._path = ''
 
     @property
     def name(self):
