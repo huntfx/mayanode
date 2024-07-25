@@ -2,14 +2,10 @@ from __future__ import absolute_import, division
 
 import sys
 from collections import namedtuple
-try:
-    from collections.abc import MutableMapping
-except ImportError:
-    from collections import MutableMapping
 from types import GeneratorType
 
-import imath
-import maya.api.OpenMaya as om2
+import imath  # type: ignore
+import maya.api.OpenMaya as om2  # type: ignore
 
 from .type_hints import TYPE_CHECKING
 
@@ -18,14 +14,14 @@ if TYPE_CHECKING:
     from .type_hints import StrLike
     MappingKey = Any
     MappingKeyType = Type[MappingKey]
-    Matrix16x1Type = Iterator[float, float, float, float,
-                              float, float, float, float,
-                              float, float, float, float,
-                              float, float, float, float]
-    Matrix4x4Type = Iterator[Iterator[float, float, float, float],
-                             Iterator[float, float, float, float],
-                             Iterator[float, float, float, float],
-                             Iterator[float, float, float, float]]
+    Matrix16x1Type = Tuple[float, float, float, float,
+                           float, float, float, float,
+                           float, float, float, float,
+                           float, float, float, float]
+    Matrix4x4Type = Tuple[Tuple[float, float, float, float],
+                          Tuple[float, float, float, float],
+                          Tuple[float, float, float, float],
+                          Tuple[float, float, float, float]]
 
 if sys.version_info.major != 2:
     unicode = str  # pylint: disable=invalid-name
@@ -49,9 +45,7 @@ class Matrix4D(object):
         elif isinstance(matrix, om2.MMatrix):
             self._matrix = imath.M44d(*matrix)
         else:
-            if isinstance(matrix, GeneratorType):
-                matrix = tuple(matrix)
-            if isinstance(matrix, (list, tuple)) and len(matrix) == 4:
+            if len(matrix) == 4:
                 matrix = map(tuple, matrix)
             self._matrix = imath.M44d(*matrix)
 
@@ -76,7 +70,15 @@ class Matrix4D(object):
     def rows(self):
         # type: () -> Matrix4x4Type
         """Iterate over each row of the matrix."""
-        return [tuple(row) for row in self._matrix]
+        # Well this was a right pain to keep mypy happy
+        if TYPE_CHECKING:
+            rows = ((self._matrix[0][1], self._matrix[0][2], self._matrix[0][3], self._matrix[0][4]),
+                    (self._matrix[1][1], self._matrix[1][2], self._matrix[1][3], self._matrix[1][4]),
+                    (self._matrix[2][1], self._matrix[2][2], self._matrix[2][3], self._matrix[2][4]),
+                    (self._matrix[3][1], self._matrix[3][2], self._matrix[3][3], self._matrix[3][4]))
+        else:
+            rows = tuple(map(tuple, self._matrix))
+        return rows
 
 
 class StrMixin(object):  # pylint: disable=useless-object-inheritance

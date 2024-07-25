@@ -45,8 +45,8 @@ class KeyframeList(MutableMapping):
 
     @property
     def node(self):
-        """Get the node."""
         # type: () -> Node
+        """Get the node."""
         raise NotImplementedError
 
     @property
