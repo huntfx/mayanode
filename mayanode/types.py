@@ -1,21 +1,82 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 
-from collections import namedtuple
 import sys
+from collections import namedtuple
+try:
+    from collections.abc import MutableMapping
+except ImportError:
+    from collections import MutableMapping
+from types import GeneratorType
 
-from . import type_hints
+import imath
+import maya.api.OpenMaya as om2
 
-if type_hints.TYPE_CHECKING:
+from .type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
     from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Type, Union
     from .type_hints import StrLike
     MappingKey = Any
     MappingKeyType = Type[MappingKey]
+    Matrix16x1Type = Iterator[float, float, float, float,
+                              float, float, float, float,
+                              float, float, float, float,
+                              float, float, float, float]
+    Matrix4x4Type = Iterator[Iterator[float, float, float, float],
+                             Iterator[float, float, float, float],
+                             Iterator[float, float, float, float],
+                             Iterator[float, float, float, float]]
 
 if sys.version_info.major != 2:
     unicode = str  # pylint: disable=invalid-name
 
 
 Coordinate = namedtuple('Coordinate', ['x', 'y', 'z'])
+
+
+class Matrix4D(object):
+    """Hold a 4D matrix."""
+
+    Identity = (1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1)
+
+    def __init__(self, matrix=Identity):
+        # type: (Union[om2.MMatrix, Matrix16x1Type, Matrix4x4Type]) -> None
+        if isinstance(matrix, imath.M44d):
+            self._matrix = imath.M44d(matrix)
+        elif isinstance(matrix, om2.MMatrix):
+            self._matrix = imath.M44d(*matrix)
+        else:
+            if isinstance(matrix, GeneratorType):
+                matrix = tuple(matrix)
+            if isinstance(matrix, (list, tuple)) and len(matrix) == 4:
+                matrix = map(tuple, matrix)
+            self._matrix = imath.M44d(*matrix)
+
+    def __repr__(self):
+        return '{}(({}, {}, {}, {}))'.format(type(self).__name__, *self.rows)
+
+    def __getitem__(self, item):
+        # type: (int) -> None
+        return self._matrix[item // 4][item % 4]
+
+    def invert(self):
+        # type: () -> None
+        """In-place invert."""
+        self._matrix.invert()
+
+    def inverse(self):
+        # type: () -> Matrix4D
+        """Create new inverted list."""
+        return Matrix4D(self._matrix.inverse())
+
+    @property
+    def rows(self):
+        # type: () -> Matrix4x4Type
+        """Iterate over each row of the matrix."""
+        return [tuple(row) for row in self._matrix]
 
 
 class StrMixin(object):  # pylint: disable=useless-object-inheritance

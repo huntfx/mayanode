@@ -1080,6 +1080,24 @@ class Node(types.StrMixin):
         mc.xform(self, scale=value, worldSpace=True)
 
     @property
+    def matrix(self):
+        # type: () -> types.Matrix4D
+        """Get the matrix of the node.
+
+        Equivalent:
+            `mc.xform(self, query=True, matrix=True, worldSpace=True)`
+        """
+        utils.raiseIfNodeNotFound(self)
+        if self.api.dagPath is None:
+            return None
+        return types.Matrix4D(self.api.dagPath.inclusiveMatrix())
+
+    @matrix.setter
+    def matrix(self, matrix):
+        """Set a new node matrix."""
+        mc.xform(self, matrix=matrix, worldSpace=True)
+
+    @property
     def namespace(self):
         # type: () -> Namespace
         """Get the node namespace.

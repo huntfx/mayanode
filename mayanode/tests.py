@@ -406,6 +406,20 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.scaling.x, 0.5)
         mc.delete(node)
 
+    def testMatrix(self):
+        node = Node(mc.polyCube(name='matrixTest1')[0])
+        node.translate(1.531, -6.42, 3.134)
+        node.rotate(35.1, 75.1, -45.953)
+        node.scale(1.52, 3.5, -6.3)
+        group1 = Node(mc.group(node, name='matrixTest2'))
+        group1.translate(13.5, -53.953, 1.95)
+        group1.rotate(0.03, -0.135, 53.39853)
+        group1.scale(0.31, 0.68, 0.41)
+        group2 = Node(mc.group(group1, name='matrixTest3'))
+        group2.translate(-5.13, 60.531, -5.1)
+        self.assertEqual(node.matrix, mc.xform(node, query=True, matrix=True, worldSpace=True))
+        mc.delete(group2)
+
     def testNamespace(self):
         node = Node(mc.polyCube(name='namespaceTest')[0])
         self.assertEqual(node.namespace, '')
