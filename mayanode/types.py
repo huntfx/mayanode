@@ -33,14 +33,11 @@ Coordinate = namedtuple('Coordinate', ['x', 'y', 'z'])
 class Matrix4D(object):
     """Hold a 4D matrix."""
 
-    Identity = (1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1)
-
-    def __init__(self, matrix=Identity):
-        # type: (Union[om2.MMatrix, Matrix16x1Type, Matrix4x4Type]) -> None
-        if isinstance(matrix, imath.M44d):
+    def __init__(self, matrix=None):
+        # type: (Optional[Union[om2.MMatrix, Matrix16x1Type, Matrix4x4Type]]) -> None
+        if matrix is None:
+            self._matrix = imath.M44d()
+        elif isinstance(matrix, imath.M44d):
             self._matrix = imath.M44d(matrix)
         elif isinstance(matrix, om2.MMatrix):
             self._matrix = imath.M44d(*matrix)
