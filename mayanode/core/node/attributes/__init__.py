@@ -141,7 +141,10 @@ def _setPlugValue(plug, value):
 
 
 class AttributeChildren(types.MappedLazyList):
-    """Access the child attributes."""
+    """Access the child attributes.
+
+    TODO: Short attribute names
+    """
 
     def __init__(self, node, plug):
         # type: (Node, om2.MPlug) -> None
@@ -161,7 +164,7 @@ class AttributeChildren(types.MappedLazyList):
             plug = value.api.plug
             if plug.isChild:
                 return value.name.rsplit('.', 1)[-1]
-            if plug.isCompound:
+            if plug.isCompound or plug.isElement:
                 return value.api.plug.logicalIndex()
         raise NotImplementedError(type(value).__name__)
 
@@ -495,9 +498,8 @@ class Attribute(types.StrMixin):
             # Check node short name (`n2.t.tx`)
             else:
                 node, possibleValue = value.split('.', 1)
-                if not self.node.endswith(node):
-                    return False
-                value = possibleValue
+                if self.node.endswith(node):
+                    value = possibleValue
 
         # If no plug then keep it simple
         plug = self.api.plug
@@ -508,7 +510,7 @@ class Attribute(types.StrMixin):
         partialName = plug.partialName(useFullAttributePath=useFullAttributePath)
         longName = plug.partialName(useFullAttributePath=useFullAttributePath, useLongNames=True)
 
-        return value in (partialName, longName)
+        return value in (partialName, longName) or partialName.endswith(value) or longName.endswith(value)
 
     def __float__(self):
         # type: () -> float

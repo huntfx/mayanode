@@ -1118,6 +1118,47 @@ class TestAttr(unittest.TestCase):
 
         mc.delete(cube)
 
+    def testChildrenPlugElement(self):
+        attr = Node('renderLayerManager').attrs['renderLayerId']
+        self.assertEqual(len(attr.children), 1)
+        self.assertEqual(attr.children[0], 'renderLayerId[0]')
+        self.assertEqual(attr.children[0], 'renderLayerManager.renderLayerId[0]')
+        with self.assertRaises(KeyError):
+            attr.children[1]
+        self.assertEqual(attr.children[0].connections[0].attr, 'defaultRenderLayer.identification')
+
+    def testChildrenPlugChild(self):
+        attr = Node('persp').attrs['translate']
+        self.assertEqual(len(attr.children), 3)
+        self.assertEqual(attr.children[0], 'translateX')
+        self.assertEqual(attr.children[0], 'translate.translateX')
+        self.assertEqual(attr.children[0], 'persp.translate.translateX')
+        self.assertEqual(attr.children[0], 'persp.translateX')
+        self.assertEqual(attr.children[0], 'persp.t.tx')
+        self.assertEqual(attr.children[0], 'persp.tx')
+        self.assertNotEqual(attr.children[0], 'persp.translate.tx')
+        self.assertEqual(attr.children['translateY'], 'translateY')
+        with self.assertRaises(KeyError):
+            attr.children['ty']
+
+    def testChildrenPlugCompound(self):
+        cube = mc.polyCube(name='compoundChildTest')[0]
+
+        mc.addAttr(cube, longName='test', attributeType='compound', numberOfChildren=1, multi=True)
+        mc.addAttr(cube, longName='testA', attributeType='float', parent='test')
+        mc.setAttr(cube + '.test[2].testA', 2)
+        mc.setAttr(cube + '.test[0].testA', 0)
+        mc.setAttr(cube + '.test[1].testA', 1)
+
+        attr = Node(cube).attrs['test']
+        self.assertEqual(len(attr.children), 3)
+        self.assertEqual(attr.children[1], 'test[1]')
+        self.assertEqual(attr.children[1].children[0], attr.children[1].children['testA'])
+        self.assertEqual(attr.children[1].children[0], cube + '.test[1].testA')
+        self.assertEqual(attr.children[1].children[0], 'test[1].testA')
+        self.assertEqual(attr.children[1].children[0], 'testA')
+
+        mc.delete(cube)
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
