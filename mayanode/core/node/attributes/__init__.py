@@ -675,11 +675,18 @@ class Attribute(types.StrMixin):
         """
         utils.logger.info('Setting %s value: %r', self, value)
         utils.raiseIfNodeNotFound(self.node)
-        if not self.api.plug.isNull:
-            if self.api.plug.isLocked:
+        plug = self.api.plug
+        if not plug.isNull:
+            if plug.isLocked:
                 raise exceptions.AttributeLockedError(self.node, self.attr)
-            if self.api.plug.isConnected:
-                raise exceptions.AttributeConnectedError(self.node, self.attr)
+
+            if plug.isConnected:
+                if plug.isKeyable:
+                    for otherPlug in self.api.plug.connectedTo(True, True):
+                        if not otherPlug.node().hasFn(om2.MFn.kAnimCurve):
+                            raise exceptions.AttributeConnectedError(self.node, self.attr)
+                else:
+                    raise exceptions.AttributeConnectedError(self.node, self.attr)
 
         if isinstance(value, (str, unicode, types.StrMixin)):
             mc.setAttr(self, value, type='string')

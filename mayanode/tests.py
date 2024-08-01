@@ -1160,6 +1160,16 @@ class TestAttr(unittest.TestCase):
 
         mc.delete(cube)
 
+    def testConnected(self):
+        node = Node(mc.polyCube(name='connectedAttrTest')[0])
+        'persp.tx' >> node.attrs['tx']
+        with self.assertRaises(exceptions.AttributeConnectedError):
+            node.attrs['tx'] = 5
+        node.attrs['ty'].keyframes[1].set()
+        self.assertTrue(node.attrs['ty'].api.plug.isConnected)
+        node.attrs['ty'] = 5
+        node.delete()
+
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
         self.node = Node(mc.polyCube(name='keyframeTest')[0])
