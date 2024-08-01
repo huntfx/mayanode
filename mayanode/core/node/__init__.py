@@ -1,4 +1,5 @@
 import math
+from uuid import UUID
 
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
@@ -846,6 +847,36 @@ class Node(types.StrMixin):
         """
         return self.api.dependencyNode.uuid().asString()
 
+    @uuid.setter
+    def uuid(self, uuid):
+        # type: (Union[str, UUID]) -> None
+        """Set a new UUID.
+
+        Raises:
+            RuntimeError: New name has no legal characters.
+            NodeDeletedError
+            RenameReadOnlyNodeError
+        """
+        utils.logger.info('Renaming %r UUID to %r', self, uuid)
+        utils.raiseIfNodeNotFound(self)
+
+        if self.referenced:
+            raise exceptions.RenameReadOnlyNodeError(self)
+
+        try:
+            uuid = UUID(uuid)
+        except ValueError:
+            raise exceptions.InvalidUuidError(uuid)
+
+        try:
+            mc.rename(self, uuid, uuid=True)
+
+        # Handle case for nodes like persp which are locked
+        except RuntimeError as e:
+            if 'Cannot rename a read only node.' in str(e):
+                raise exceptions.RenameReadOnlyNodeError(self)
+            raise
+
     @property
     def name(self):
         # type: () -> str
@@ -895,7 +926,14 @@ class Node(types.StrMixin):
 
         newName = '{}:{}'.format(self.namespace, name)
         if mod is None:
-            mc.rename(self, newName)
+            try:
+                mc.rename(self, newName)
+
+            # Handle case for nodes like persp which are locked
+            except RuntimeError as e:
+                if 'Cannot rename a read only node.' in str(e):
+                    raise exceptions.RenameReadOnlyNodeError(self)
+                raise
         else:
             Namespace.fromNode(newName).create()
             mod.renameNode(self.api.object, newName)

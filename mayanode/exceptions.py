@@ -132,3 +132,10 @@ class NamespaceNotEmptyError(NamespaceError):
 
     def __init__(self, namespace, **kwargs):
         super(NamespaceNotEmptyError, self).__init__(namespace=namespace, **kwargs)
+
+
+class InvalidUuidError(BaseError):
+    MESSAGE = '"{uuid}" is not a valid UUID'
+
+    def __init__(self, uuid, **kwargs):
+        super(NamespaceNotEmptyError, self).__init__(uuid=uuid, **kwargs)

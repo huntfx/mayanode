@@ -35,6 +35,10 @@ class TestNode(unittest.TestCase):
 
         mc.delete(node.name)
 
+    def testRenameLocked(self):
+        with self.assertRaises(exceptions.RenameReadOnlyNodeError):
+            Node('persp').name = 'persp2'
+
     def testEquality(self):
         self.assertEqual(Node('lambert1'), Node('lambert1'))
         self.assertEqual(Node('lambert1'), 'lambert1')
