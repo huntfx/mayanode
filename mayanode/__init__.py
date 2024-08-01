@@ -127,6 +127,7 @@ __all__ = [
     'BoundingBox',
     'Camera',
     'File',
+    'Maya',
     'Namespace',
     'Plugin',
     'Profiler',
@@ -137,6 +138,7 @@ __all__ = [
 ]
 
 from . import exceptions
+from .core.app import Maya
 from .core.node import Node
 from .core.node.attributes import Attribute
 from .core.bounding_box import BoundingBox

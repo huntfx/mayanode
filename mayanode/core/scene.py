@@ -7,7 +7,7 @@ from .. import types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Dict, Optional, Union
+    from typing import Dict, Optional, Tuple, Union
     from ..types import StrLike
 
 
@@ -159,6 +159,14 @@ class _Scene(object):
         mc.currentTime(frame)
 
     @property
+    def selectedFrames(self):
+        # type: () -> Optional[Tuple[float, float]]
+        """Get the selected time slider range."""
+        if mc.timeControl(utils.gPlayBackSlider, rangeVisible=True, query=True):
+            return mc.timeControl(utils.gPlayBackSlider, rangeArray=True, query=True)
+        return None
+
+    @property
     def autoKeyframe(self):
         # type: () -> bool
         """Get if autoKeyframe is enabled."""
@@ -214,8 +222,7 @@ class _Scene(object):
     def audio(self):
         # type: () -> Optional[Node]
         """Get the current scene audio node."""
-        gPlayBackSlider = mel.eval('$tmp = $gPlayBackSlider')
-        audio = mc.timeControl(gPlayBackSlider, query=True, sound=True)
+        audio = mc.timeControl(utils.gPlayBackSlider, query=True, sound=True)
         if not audio:
             return None
         return Node(audio)
@@ -231,8 +238,7 @@ class _Scene(object):
             audio = ''
         elif not isinstance(audio, Node) and '.' in audio:
             audio = mc.sound(file=audio, name=os.path.splitext(os.path.basename(audio))[0])
-        gPlayBackSlider = mel.eval('$tmp = $gPlayBackSlider')
-        mc.timeControl(gPlayBackSlider, edit=True, sound=audio, displaySound=bool(audio))
+        mc.timeControl(utils.gPlayBackSlider, edit=True, sound=audio, displaySound=bool(audio))
 
 
 class SceneNodes(types.MappedLazyList):

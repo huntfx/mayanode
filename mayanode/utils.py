@@ -46,6 +46,8 @@ _WORLD_HANDLE = None
 
 _WORLD_DAG_PATH = None
 
+gPlayBackSlider = mel.eval('$tmp = $gPlayBackSlider')
+
 
 class NotSet(object):  # pylint: disable=too-few-public-methods
     """Create a sentinel object for when a value isn't given.
