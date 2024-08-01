@@ -860,7 +860,7 @@ class Node(types.StrMixin):
         utils.logger.info('Renaming %r UUID to %r', self, uuid)
         utils.raiseIfNodeNotFound(self)
 
-        if self.referenced:
+        if self.referenced or self.default or self.name in utils.STARTUP_CAMERAS:
             raise exceptions.RenameReadOnlyNodeError(self)
 
         try:
@@ -868,14 +868,8 @@ class Node(types.StrMixin):
         except ValueError:
             raise exceptions.InvalidUuidError(uuid)
 
-        try:
-            mc.rename(self, uuid, uuid=True)
+        mc.rename(self, uuid, uuid=True)
 
-        # Handle case for nodes like persp which are locked
-        except RuntimeError as e:
-            if 'Cannot rename a read only node.' in str(e):
-                raise exceptions.RenameReadOnlyNodeError(self)
-            raise
 
     @property
     def name(self):
@@ -917,7 +911,7 @@ class Node(types.StrMixin):
         utils.logger.info('Renaming %r to %r', self, name)
         utils.raiseIfNodeNotFound(self)
 
-        if self.referenced:
+        if self.referenced or self.default or self.name in utils.STARTUP_CAMERAS:
             raise exceptions.RenameReadOnlyNodeError(self)
 
         mod = self.modifiers.dg
@@ -926,14 +920,8 @@ class Node(types.StrMixin):
 
         newName = '{}:{}'.format(self.namespace, name)
         if mod is None:
-            try:
-                mc.rename(self, newName)
+            mc.rename(self, newName)
 
-            # Handle case for nodes like persp which are locked
-            except RuntimeError as e:
-                if 'Cannot rename a read only node.' in str(e):
-                    raise exceptions.RenameReadOnlyNodeError(self)
-                raise
         else:
             Namespace.fromNode(newName).create()
             mod.renameNode(self.api.object, newName)

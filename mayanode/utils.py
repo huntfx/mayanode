@@ -31,6 +31,10 @@ MEL_API_TYPE = dict(
 # MEL types that are valid DAG objects
 DAG_TYPES = set(mc.nodeType('dagNode', derived=True, isTypeName=True))
 
+# Startup cameras can't be renamed so just grab them once
+STARTUP_CAMERAS = [cam for cam in mc.ls(type='camera') if mc.camera(cam, query=True, startupCamera=True)]
+STARTUP_CAMERAS.extend(mc.listRelatives(STARTUP_CAMERAS, parent=True))
+
 TIME_UNITS = {
     'game': '15fps',
     'film': '24fps',
