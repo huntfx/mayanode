@@ -28,13 +28,18 @@ class NamespaceNodes(types.MappedLazyList):
         """Get the associated namespace."""
         return self._namespace
 
-    def __contains__(self, node):
+    def __contains__(self, node, useMapping=None):
+        # type: (StrLike, bool) -> bool
         """If a particular node belongs to a reference."""
         if isinstance(node, Node):
             return self.reference.api.reference.containsNodeExactly(node.api.object)
         if isinstance(node, om2.MObject):
             return self.reference.api.reference.containsNodeExactly(node)
-        return super(NamespaceNodes, self).__contains__(node)
+        if not node:
+            return False
+
+        useMapping = '|' not in node and ':' not in node
+        return super(NamespaceNodes, self).__contains__(node, useMapping=useMapping)  # type: ignore
 
     def generateKey(self, value):
         # type: (Any) -> str

@@ -433,6 +433,10 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.name, 'new:namespace:namespaceTest')
         self.assertEqual(node.longName, '|new:namespace:namespaceTest')
 
+        self.assertIn('namespaceTest', node.namespace.nodes)
+        self.assertIn('new:namespace:namespaceTest', node.namespace.nodes)
+        self.assertIn('|new:namespace:namespaceTest', node.namespace.nodes)
+
         node.namespace = None
         self.assertEqual(node.namespace, '')
         self.assertEqual(node.name, 'namespaceTest')
