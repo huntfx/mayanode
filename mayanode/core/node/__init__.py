@@ -692,63 +692,56 @@ class Node(types.StrMixin):
         Instances are treated as equal, but their hashes are different.
 
         Examples:
-            >>> nodes = Node('|cube'), Node('|sphere'), Node('|parent|cube')]
+            >>> node = Node('|root|group|name')
 
-            # Short name
-            >>> 'sphere' in nodes
-            True
+            >>> assert node == 'name'  # Short name
+            >>> assert node == 'group|name'  # Partial long name
+            >>> assert node == '|root|group|name'  # Long name
+            >>> assert node != '|group|name'  # Invalid long name
 
-            # Non-unique short name (the short name is actually "|cube")
-            >>> 'cube' in nodes
-            True
-
-            # Long name
-            >>> '|parent|cube' in nodes:
-            True
-
-            # Partial paths
-            >>> 'parent|cube' in nodes:
-            True
+            >>> node = Node('|ns:root|ns:group|ns:name')
+            >>> assert node == 'name'  # Namespace not required for short name
+            >>> assert node == 'ns:name'
+            >>> assert node == 'ns:group|ns:name'
+            >>> assert node == ':ns:root|:ns:group|:ns:name'
+            >>> assert node != 'group|name'
         """
         if isinstance(other, Node):
             return self.api.handle == other.api.handle
-        other = str(other)
+        other = str(other).rstrip('|')
         if not other:
             return False
 
-        # Comparing against a long name
-        # Namespaces matter
-        # eg. Node('|ns:pCube1') != '|pCube1'
-        if '|' in other:
-            fullPath = other[0] == '|'
-            other = other.lstrip('|:')
-            longName = self.longName.lstrip('|:')
+        isLong = '|' in other
+        isNamespace = ':' in other
+        hasNamespace = self.api.dependencyNode.namespace
 
-            if fullPath:
-                return longName == other
-            return longName.endswith(other)
+        # Use the Maya API when namespaces + long names are involved
+        # It's a little slower than string operations
+        if isLong and (isNamespace or hasNamespace):
+            selection = om2.MSelectionList()
+            try:
+                selection.add(other)
+            except RuntimeError:
+                return False
+            return om2.MObjectHandle(selection.getDependNode(0)) == self.api.handle
+
+        # Comparing against a long name
+        if isLong:
+            # Matching `mc.ls` behaviour
+            # It only works with `||` and not `|||` so presumably it does this
+            other = other.replace('||', '|')
+
+            if other[0] == '|':
+                return self.longName == other
+            return self.longName.endswith(other)
 
         partialName = self.name.rsplit('|', 1)[-1]
-
-        # Comparing against no namespace
-        # eg. Node('ns:pCube1') == 'pCube1'
-        if ':' not in other:
-            return partialName.split(':')[-1] == other
-
-        isNsRoot = partialName[0] == ':'
-        otherIsNsRoot = other[0] == ':'
-
-        # If a namespace is present, ensure `other` is matched
-        # eg. Node(':ns:pCube1') == 'ns:pCube1'
-        if isNsRoot and not otherIsNsRoot:
-            other = ':' + other
-
-        # If namespace given, then ensure `self` is matched
-        # eg. Node('pCube1') == ':pCube1'
-        elif otherIsNsRoot and not isNsRoot:
-            partialName = ':' + partialName
-
-        return partialName == other
+        if isNamespace:
+            if other[0] == ':':
+                return ':' + partialName == other
+            return partialName == other
+        return partialName.rsplit(':', 1)[-1] == other
 
     def __hash__(self):
         # type: () -> int
@@ -1186,7 +1179,8 @@ class Node(types.StrMixin):
             namespaceObj = Namespace(namespace)
             if not namespaceObj.exists:
                 namespaceObj.create()
-            mc.rename(self.name, namespaceObj + ':' + self.name.rsplit(':', 1)[-1])
+            stripped = self.name.rsplit('|', 1)[-1].split(':', 1)[-1]
+            mc.rename(self.name, namespaceObj + ':' + stripped)
 
     @property
     def parents(self):

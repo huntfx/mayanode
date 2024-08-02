@@ -47,16 +47,6 @@ class TestNode(unittest.TestCase):
 
         self.assertEqual(node, 'equalityTest1')
         self.assertEqual(node, '|equalityTest1')
-        self.assertEqual(node, '||equalityTest1')
-        self.assertEqual(node, ':equalityTest1')
-        self.assertEqual(node, '|:equalityTest1')
-        self.assertEqual(node, '||:|:equalityTest1')
-        self.assertNotEqual(node, '|parent|equalityTest1')
-        self.assertNotEqual(node, '|:parent|equalityTest1')
-        self.assertNotEqual(node, '|:parent:|equalityTest1')
-        self.assertNotEqual(node, 'equalityTest1:')
-        self.assertNotEqual(node, ':equalityTest1:')
-        self.assertNotEqual(node, '|:equalityTest1:')
 
         parent = mc.createNode('transform', name='equalityGroup1')
         node.parent = parent
@@ -73,7 +63,29 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node, '|equalityGroup1|equalityTest1')
         self.assertEqual(node, 'equalityGroup1|equalityTest1')
 
-        mc.delete(node, node2, parent)
+        node.namespace = 'test:namespace'
+        node.parent.namespace = 'test:namespace'
+        self.assertEqual(node, 'equalityTest1')
+        self.assertEqual(node, 'equalityTest1|')
+        self.assertNotEqual(node, '|equalityTest1')
+        self.assertNotEqual(node, '|equalityTest1|')
+        self.assertNotEqual(node, 'equalityGroup1|equalityTest1')
+        self.assertNotEqual(node, '|equalityGroup1|equalityTest1')
+        self.assertEqual(node, 'test:namespace:equalityTest1')
+        self.assertEqual(node, 'test:namespace:equalityTest1|')
+        self.assertNotEqual(node, '|test:namespace:equalityTest1|')
+        self.assertEqual(node, 'test:namespace:equalityGroup1|test:namespace:equalityTest1')
+        self.assertEqual(node, 'test:namespace:equalityGroup1|test:namespace:equalityTest1|')
+        self.assertEqual(node, '|test:namespace:equalityGroup1|test:namespace:equalityTest1')
+        self.assertEqual(node, '|test:namespace:equalityGroup1|test:namespace:equalityTest1|')
+        self.assertEqual(node, ':test:namespace:equalityGroup1|:test:namespace:equalityTest1')
+        self.assertEqual(node, ':test:namespace:equalityGroup1|:test:namespace:equalityTest1|')
+        self.assertEqual(node, '|:test:namespace:equalityGroup1|:test:namespace:equalityTest1')
+        self.assertEqual(node, '|:test:namespace:equalityGroup1|:test:namespace:equalityTest1|')
+
+        mc.delete(node, node2, node.parent)
+        mc.namespace(removeNamespace='test:namespace')
+        mc.namespace(removeNamespace='test')
 
     def testUniqueShortName(self):
         transform = mc.polyCube()[0]
