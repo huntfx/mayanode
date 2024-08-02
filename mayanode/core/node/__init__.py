@@ -1183,6 +1183,13 @@ class Node(types.StrMixin):
             mc.rename(self.name, namespaceObj + ':' + stripped)
 
     @property
+    def plugin(self):
+        # type: () -> Optional[Plugin]
+        """Get the plugin this node is from."""
+        nodeClass = om2.MNodeClass(self.api.dependencyNode.typeId)
+        return Plugin.fromPath(nodeClass.pluginName)
+
+    @property
     def parents(self):
         # type: () -> List[Node]
         """Get the node parents."""
