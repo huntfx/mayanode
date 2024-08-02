@@ -47,6 +47,16 @@ class TestNode(unittest.TestCase):
 
         self.assertEqual(node, 'equalityTest1')
         self.assertEqual(node, '|equalityTest1')
+        self.assertEqual(node, '||equalityTest1')
+        self.assertEqual(node, ':equalityTest1')
+        self.assertEqual(node, '|:equalityTest1')
+        self.assertEqual(node, '||:|:equalityTest1')
+        self.assertNotEqual(node, '|parent|equalityTest1')
+        self.assertNotEqual(node, '|:parent|equalityTest1')
+        self.assertNotEqual(node, '|:parent:|equalityTest1')
+        self.assertNotEqual(node, 'equalityTest1:')
+        self.assertNotEqual(node, ':equalityTest1:')
+        self.assertNotEqual(node, '|:equalityTest1:')
 
         parent = mc.createNode('transform', name='equalityGroup1')
         node.parent = parent
@@ -433,9 +443,9 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.name, 'new:namespace:namespaceTest')
         self.assertEqual(node.longName, '|new:namespace:namespaceTest')
 
-        self.assertIn('namespaceTest', node.namespace.nodes)
-        self.assertIn('new:namespace:namespaceTest', node.namespace.nodes)
-        self.assertIn('|new:namespace:namespaceTest', node.namespace.nodes)
+        self.assertEqual(node, 'new:namespace:namespaceTest')
+        self.assertEqual(node, ':new:namespace:namespaceTest')
+        self.assertEqual(node, '|new:namespace:namespaceTest')
 
         node.namespace = None
         self.assertEqual(node.namespace, '')
@@ -1466,6 +1476,16 @@ class TestNamespace(unittest.TestCase):
 
     def testDescendents(self):
         self.assertEqual(Namespace(self.ns1).descendents, [self.ns2, self.ns3])
+
+    def testContains(self):
+        cube = mc.polyCube(name='namespaceContainsText')[0]
+        node = Node(cube)
+        namespace = node.namespace = self.ns2
+
+        self.assertIn(cube, namespace.nodes)
+        self.assertIn('{}:{}'.format(self.ns2, cube), namespace.nodes)
+        self.assertIn('{}:{}'.format(self.ns2[1:], cube), namespace.nodes)
+        self.assertIn('|{}:{}'.format(self.ns2, cube), namespace.nodes)
 
 
 class TestProgressBar(unittest.TestCase):

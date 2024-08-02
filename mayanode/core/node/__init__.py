@@ -713,15 +713,42 @@ class Node(types.StrMixin):
         if isinstance(other, Node):
             return self.api.handle == other.api.handle
         other = str(other)
+        if not other:
+            return False
 
-        # Comparing against a unique name
+        # Comparing against a long name
+        # Namespaces matter
+        # eg. Node('|ns:pCube1') != '|pCube1'
         if '|' in other:
-            if other[0] == '|':
-                return self.longName == other
-            return self.longName.endswith(other)
+            fullPath = other[0] == '|'
+            other = other.lstrip('|:')
+            longName = self.longName.lstrip('|:')
 
-        # Comparing against a potentially none unique name
-        return self.name.rsplit('|', 1)[-1] == other
+            if fullPath:
+                return longName == other
+            return longName.endswith(other)
+
+        partialName = self.name.rsplit('|', 1)[-1]
+
+        # Comparing against no namespace
+        # eg. Node('ns:pCube1') == 'pCube1'
+        if ':' not in other:
+            return partialName.split(':')[-1] == other
+
+        isNsRoot = partialName[0] == ':'
+        otherIsNsRoot = other[0] == ':'
+
+        # If a namespace is present, ensure `other` is matched
+        # eg. Node(':ns:pCube1') == 'ns:pCube1'
+        if isNsRoot and not otherIsNsRoot:
+            other = ':' + other
+
+        # If namespace given, then ensure `self` is matched
+        # eg. Node('pCube1') == ':pCube1'
+        elif otherIsNsRoot and not isNsRoot:
+            partialName = ':' + partialName
+
+        return partialName == other
 
     def __hash__(self):
         # type: () -> int
