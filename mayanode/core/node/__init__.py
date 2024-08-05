@@ -13,11 +13,6 @@ if TYPE_CHECKING:
     ModifierType = Optional[Union['Modifiers', om2.MDGModifier, om2.MDagModifier]]
 
 
-NODE_TYPES = {
-    'shader': set(mc.listNodeTypes('shader')),
-}
-
-
 def _getShadingGroups(mobj):
     # type: (om2.MObject) -> Generator[om2.MObject, None, None]
     """Get all the shading group nodes for a given node.
@@ -826,7 +821,7 @@ class Node(types.StrMixin):
             utils.logger.info('Creating "%s" node', nodeType)
 
         # Create shading node
-        if nodeType in NODE_TYPES['shader']:
+        if nodeType in NodeType.ls('shader'):
             result = mc.shadingNode(nodeType, asShader=True, **kwargs)
 
         # Create shading engine
@@ -1916,65 +1911,12 @@ class Node(types.StrMixin):
         return result
 
 
-
-class NodeType(str):
-    """Get the current node type or what it inherits."""
-
-    _REGISTRY = {}  # type: Dict[str, NodeType]
-
-    def __new__(cls, name):
-        # type: (Union[int, om2.MTypeId, str]) -> NodeType
-        if isinstance(name, int):
-            name = om2.MTypeId(name)
-        if isinstance(name, om2.MTypeId):
-            name = om2.MNodeClass(name).typeName
-        if name not in cls._REGISTRY:
-            cls._REGISTRY[name] = str.__new__(cls, name)
-        return cls._REGISTRY[name]
-
-    def __init__(self, name):
-        # type: (str) -> None
-        self._id = None  # type: Optional[int]
-        self._inherited = None  # type: Optional[List[str]]
-        self._derived = None  # type: Optional[List[str]]
-
-    @classmethod
-    def ls(self, includeAbstract=False):
-        # type: (bool) -> List[NodeType]
-        """Get all node types."""
-        return [NodeType(nt) for nt in mc.allNodeTypes(includeAbstract=includeAbstract)]
-
-    @property
-    def inherited(self):
-        # type: () -> List[str]
-        """All base node types inherited by this type."""
-        if self._inherited is None:
-            # This is the same speed as `om2.MGlobal.getFunctionSetList()`
-            self._inherited = mc.nodeType(self, isTypeName=True, inherited=True)
-        return self._inherited
-
-    @property
-    def derived(self):
-        # type: () -> List[str]
-        """All currently known node types deriving from this type."""
-        if self._derived is None:
-            self._derived = mc.nodeType(self, isTypeName=True, derived=True)
-        return self._derived
-
-    @property
-    def id(self):
-        # type: () -> int
-        """Get the type ID."""
-        if self._id is None:
-            self._id = om2.MNodeClass(self).typeId.id()
-        return self._id
-
-
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .attributes import Attribute, NodeAttributes
 from .construction_history import ConstructionHistory
 from .face import FaceList
+from .type import NodeType
 from ..reference import Reference
 from ..bounding_box import BoundingBox
 from ..camera import Camera
