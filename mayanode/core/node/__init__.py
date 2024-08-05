@@ -883,10 +883,11 @@ class Node(types.StrMixin):
         if self.referenced or self.default or self.name in utils.STARTUP_CAMERAS:
             raise exceptions.RenameReadOnlyNodeError(self)
 
-        try:
-            uuid = UUID(uuid)
-        except ValueError:
-            raise exceptions.InvalidUuidError(uuid)
+        if not isinstance(uuid, UUID):
+            try:
+                uuid = UUID(uuid)
+            except ValueError:
+                raise exceptions.InvalidUuidError(uuid)
 
         mc.rename(self, uuid, uuid=True)
 
