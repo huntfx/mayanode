@@ -8,7 +8,7 @@ from ... import exceptions, types
 from ...type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Generator, List, Optional, Tuple, Union
+    from typing import Any, Dict, Generator, List, Optional, Tuple, Union
     from ...types import StrLike
     ModifierType = Optional[Union['Modifiers', om2.MDGModifier, om2.MDagModifier]]
 
@@ -964,7 +964,7 @@ class Node(types.StrMixin):
 
     @property
     def type(self):
-        # type: () -> str
+        # type: () -> NodeType
         """Get the node type.
 
         Alternatives:
@@ -974,7 +974,7 @@ class Node(types.StrMixin):
             NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
-        return self.api.dependencyNode.typeName
+        return NodeType(self.api.dependencyNode.typeName)
 
     @property
     def attrs(self):
@@ -1914,70 +1914,59 @@ class Node(types.StrMixin):
                 result.append(Node(depNode))
         return result
 
-    @property
-    def isDagNode(self):
-        # type: () -> bool
-        """Determine if the object is a DAG node.
 
-        Equivalent:
-            `'dagNode' in mc.nodeType(self, inherited=True)`
-        """
-        return self.api.object.hasFn(om2.MFn.kDagNode)
 
-    @property
-    def isMesh(self):
-        """Determine if the object is a mesh.
+class NodeType(str):
+    """Get the current node type or what it inherits."""
 
-        Equivalent:
-            `'mesh' in mc.nodeType(self, inherited=True)`
-        """
-        return self.api.getShapeDagPath().hasFn(om2.MFn.kMesh)
+    _REGISTRY = {}  # type: Dict[str, NodeType]
 
-    @property
-    def isShader(self):
-        # type: () -> bool
-        """Determine if the object is a shading node.
+    def __new__(cls, name):
+        # type: (Union[int, om2.MTypeId, str]) -> NodeType
+        if isinstance(name, int):
+            name = om2.MTypeId(name)
+        if isinstance(name, om2.MTypeId):
+            name = om2.MNodeClass(name).typeName
+        if name not in cls._REGISTRY:
+            cls._REGISTRY[name] = str.__new__(cls, name)
+        return cls._REGISTRY[name]
 
-        Equivalent:
-            `'shadingDependNode' in mc.nodeType(self, inherited=True)`
-        """
-        return self.type in NODE_TYPES['shader']
+    def __init__(self, name):
+        # type: (str) -> None
+        self._id = None  # type: Optional[int]
+        self._inherited = None  # type: Optional[List[str]]
+        self._derived = None  # type: Optional[List[str]]
 
-    @property
-    def isLight(self):
-        """Determine if the object is a light.
-
-        Equivalent:
-            `'light' in mc.nodeType(self, inherited=True)`
-        """
-        return self.api.getShapeDagPath().hasFn(om2.MFn.kLight)
+    @classmethod
+    def ls(self, includeAbstract=False):
+        # type: (bool) -> List[NodeType]
+        """Get all node types."""
+        return [NodeType(nt) for nt in mc.allNodeTypes(includeAbstract=includeAbstract)]
 
     @property
-    def isCamera(self):
-        """Determine if the object is a camera.
-
-        Equivalent:
-            `'camera' in mc.nodeType(self, inherited=True)`
-        """
-        return self.api.getShapeDagPath().hasFn(om2.MFn.kCamera)
-
-    @property
-    def isLocator(self):
-        """Determine if the object is a locator.
-
-        Equivalent:
-            `'locator' in mc.nodeType(self, inherited=True)`
-        """
-        return self.api.getShapeDagPath().hasFn(om2.MFn.kLocator)
+    def inherited(self):
+        # type: () -> List[str]
+        """All base node types inherited by this type."""
+        if self._inherited is None:
+            # This is the same speed as `om2.MGlobal.getFunctionSetList()`
+            self._inherited = mc.nodeType(self, isTypeName=True, inherited=True)
+        return self._inherited
 
     @property
-    def isCurve(self):
-        """Determine if the object is a curve.
+    def derived(self):
+        # type: () -> List[str]
+        """All currently known node types deriving from this type."""
+        if self._derived is None:
+            self._derived = mc.nodeType(self, isTypeName=True, derived=True)
+        return self._derived
 
-        Equivalent:
-            `'curveShape' in mc.nodeType(self, inherited=True)`
-        """
-        return self.api.getShapeDagPath().hasFn(om2.MFn.kCurve)
+    @property
+    def id(self):
+        # type: () -> int
+        """Get the type ID."""
+        if self._id is None:
+            self._id = om2.MNodeClass(self).typeId.id()
+        return self._id
 
 
 # Handle circular dependencies
@@ -1992,6 +1981,7 @@ from ..color_set import ColorSet
 from ..connection import NodeConnectionProxy
 from ..keyframes import NodeKeyframes
 from ..namespace import Namespace
+from ..plugin import Plugin
 from ..scene import Scene, _Scene
 from ..uv_set import UVSet, UVSetList
 from ... import utils

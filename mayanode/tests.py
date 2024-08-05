@@ -100,9 +100,16 @@ class TestNode(unittest.TestCase):
         self.assertEqual(Node('lambert1').name, Node(Node('lambert1')).name)
 
     def testType(self):
-        self.assertEqual(Node('lambert1').type, 'lambert')
-        new = mc.createNode('transform')
-        self.assertEqual(Node(new).type, 'transform')
+        lambert = Node('lambert1')
+        self.assertEqual(lambert.type, 'lambert')
+        new = Node(mc.createNode('transform', name='nodeTypeTest'))
+        self.assertEqual(new.type, 'transform')
+
+        self.assertIn('shadingDependNode', lambert.type.inherited)
+        self.assertNotIn('dagNode', lambert.type.inherited)
+
+        self.assertIn('transform', new.type.inherited)
+        self.assertIn('dagNode', new.type.inherited)
         mc.delete(new)
 
     def testCreate(self):

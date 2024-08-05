@@ -32,7 +32,7 @@ class BoundingBox(tuple):
         for node in nodes:
             if not isinstance(node, Node):
                 node = Node(node)
-            if node.isDagNode:
+            if 'dagNode' in node.type.inherited:
                 expand(node)
 
         return tuple.__new__(cls, (boundingBox.min.x, boundingBox.min.y, boundingBox.min.z,
