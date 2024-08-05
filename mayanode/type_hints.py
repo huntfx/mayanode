@@ -5,7 +5,10 @@
 TYPE_CHECKING = False  # Used for compatibility with the typing module
 
 if TYPE_CHECKING:
-    from typing import Union
+    from typing import overload, Union
     from . import types
 
     StrLike = Union[types.StrMixin, str]
+
+else:
+    overload = lambda fn: fn  # pylint: disable=unnecessary-lambda-assignment
