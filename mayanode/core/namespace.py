@@ -30,13 +30,9 @@ class NamespaceNodes(types.MappedLazyList):
 
     def __contains__(self, node):
         # type: (StrLike) -> bool
-        """If a particular node belongs to a reference."""
+        """If a particular node belongs to a namespace."""
         if isinstance(node, Node):
-            return self.reference.api.reference.containsNodeExactly(node.api.object)
-        if isinstance(node, om2.MObject):
-            return self.reference.api.reference.containsNodeExactly(node)
-        if not node:
-            return False
+            return node.namespace == self.namespace
         return super(NamespaceNodes, self).__contains__(node)
 
     def generateKey(self, value):
@@ -47,7 +43,7 @@ class NamespaceNodes(types.MappedLazyList):
     def loadData(self, key=None):
         # type: (Optional[Union[int, str]]) -> bool
         """Get the node objects."""
-        self._set(map(Node, om2.MNamespace.getNamespaceObjects(self.namespace.name)))
+        self._set(map(Node, om2.MNamespace.getNamespaceObjects(str(self.namespace))))
         return True
 
     def reload(self):
