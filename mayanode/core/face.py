@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
-from ... import types
-from ...type_hints import TYPE_CHECKING
+from .. import types
+from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import List, Optional, Union
@@ -116,5 +116,5 @@ class Face(types.StrMixin):
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
-from ..uv_set import UVSet, UVSetList
-from . import Node
+from .node import Node
+from .uv_set import UVSet, UVSetList

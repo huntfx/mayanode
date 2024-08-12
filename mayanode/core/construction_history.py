@@ -7,8 +7,8 @@ implementation. Future changes may be made if I dig more into it.
 
 import maya.cmds as mc  # type: ignore
 
-from ... import types, utils
-from ...type_hints import TYPE_CHECKING
+from .. import types, utils
+from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Optional, Union
@@ -66,4 +66,4 @@ class ConstructionHistory(types.MappedLazyList):
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
-from . import Node
+from .node import Node

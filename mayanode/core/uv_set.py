@@ -249,5 +249,5 @@ class UVSet(types.StrMixin):
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
+from .attribute import Attribute
 from .node import Node
-from .node.attributes import Attribute

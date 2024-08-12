@@ -6,11 +6,10 @@ except ImportError:
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
-from ...type_hints import TYPE_CHECKING, overload
+from ..type_hints import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, List, Optional, Tuple, Union
-    from ...types import StrLike
+    from typing import Any, Dict, List, Optional, Union
 
 
 class NodeTypes(MutableSequence):

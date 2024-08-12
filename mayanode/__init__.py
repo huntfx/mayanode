@@ -152,7 +152,7 @@ __all__ = [
 from . import exceptions
 from .core.app import Maya
 from .core.node import Node
-from .core.node.attributes import Attribute
+from .core.attribute import Attribute
 from .core.bounding_box import BoundingBox
 from .core.camera import Camera
 from .core.file import File

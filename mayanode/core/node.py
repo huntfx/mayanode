@@ -4,12 +4,12 @@ from uuid import UUID
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
-from ... import constants, exceptions, types, utils
-from ...type_hints import TYPE_CHECKING
+from .. import constants, exceptions, types, utils
+from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Generator, List, Optional, Tuple, Union
-    from ...types import StrLike
+    from ..types import StrLike
     ModifierType = Optional[Union['Modifiers', om2.MDGModifier, om2.MDagModifier]]
 
 
@@ -1913,17 +1913,17 @@ class Node(types._NodeType):
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
-from .attributes import Attribute, NodeAttributes
+from .attribute import Attribute, NodeAttributes
 from .construction_history import ConstructionHistory
+from .bounding_box import BoundingBox
+from .camera import Camera
+from .color_set import ColorSet
+from .connection import NodeConnectionProxy
 from .face import FaceList
-from .type import NodeType
-from ..reference import Reference
-from ..bounding_box import BoundingBox
-from ..camera import Camera
-from ..color_set import ColorSet
-from ..connection import NodeConnectionProxy
-from ..keyframes import NodeKeyframes
-from ..namespace import Namespace
-from ..plugin import Plugin
-from ..scene import Scene, _Scene
-from ..uv_set import UVSet, UVSetList
+from .keyframes import NodeKeyframes
+from .namespace import Namespace
+from .node_type import NodeType
+from .plugin import Plugin
+from .reference import Reference
+from .scene import Scene, _Scene
+from .uv_set import UVSet, UVSetList

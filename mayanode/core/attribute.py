@@ -3,8 +3,8 @@ from __future__ import absolute_import
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
-from .... import exceptions, types, utils
-from ....type_hints import TYPE_CHECKING
+from .. import exceptions, types, utils
+from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union
@@ -925,6 +925,6 @@ class Attribute(types.StrMixin):
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
-from ...connection import AttributeConnectionProxy, Connection
-from ...keyframes import AttributeKeyframes
-from ...node import Node
+from .connection import AttributeConnectionProxy, Connection
+from .keyframes import AttributeKeyframes
+from .node import Node
