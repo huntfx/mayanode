@@ -5,7 +5,7 @@ import maya.cmds as mc  # type: ignore
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from typing import Any, Callable, Type
 
 
 class UndoChunk(object):
@@ -43,7 +43,7 @@ class _Undo(object):
 
     @property
     def chunk(self):
-        # type: () -> Callable
+        # type: () -> Type[UndoChunk]
         """Open an undo chunk or wrap a function."""
         return UndoChunk
 
@@ -94,14 +94,25 @@ class _Undo(object):
             mc.undoInfo(infinity=False, length=length)
 
     def undo(self):
-        # type: () -> None
+        # type: () -> bool
         """Undo the last command."""
+        if mc.undoInfo(undoQueueEmpty=True):
+            return False
         mc.undo()
+        return True
 
     def redo(self):
-        # type: () -> None
+        # type: () -> bool
         """Redo the last command."""
+        if mc.undoInfo(redoQueueEmpty=True):
+            return False
         mc.redo()
+        return True
+
+    def clear(self):
+        # type: () -> None
+        """Clear the undo queue."""
+        mc.flushUndo()
 
 
 Undo = _Undo()
