@@ -4,7 +4,7 @@ from uuid import UUID
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
-from ... import exceptions, types
+from ... import constants, exceptions, types, utils
 from ...type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -641,7 +641,7 @@ class _ApiData(object):
         return self._camera
 
 
-class Node(types.StrMixin):
+class Node(types._NodeType):
     """Pointer to a Maya node.
 
     OpenMaya code inspired by https://www.toadstorm.com/blog/?p=628.
@@ -758,7 +758,7 @@ class Node(types.StrMixin):
 
         # Cancel if the node type is unknown
         nodeType = kwargs.get('type', kwargs.get('typ'))
-        if nodeType is not None and nodeType not in utils.MEL_API_TYPE:
+        if nodeType is not None and nodeType not in constants.MEL_API_TYPE:
             return None
 
         # Get the remaining important parameters
@@ -779,12 +779,12 @@ class Node(types.StrMixin):
             return result
 
         # Only search DAG if allPaths was requested
-        if allPaths and nodeType in utils.DAG_TYPES:
+        if allPaths and nodeType in constants.DAG_TYPES:
             fn = utils.iterDAG
         else:
             fn = utils.iterDG
 
-        result.extend(cls(item) for item in fn(utils.MEL_API_TYPE[nodeType]))
+        result.extend(cls(item) for item in fn(constants.MEL_API_TYPE[nodeType]))
         return result
 
     @classmethod
@@ -875,7 +875,7 @@ class Node(types.StrMixin):
         utils.logger.info('Renaming %r UUID to %r', self, uuid)
         utils.raiseIfNodeNotFound(self)
 
-        if self.referenced or self.default or self.name in utils.STARTUP_CAMERAS:
+        if self.referenced or self.default or self.name in constants.STARTUP_CAMERAS:
             raise exceptions.RenameReadOnlyNodeError(self)
 
         if not isinstance(uuid, UUID):
@@ -927,7 +927,7 @@ class Node(types.StrMixin):
         utils.logger.info('Renaming %r to %r', self, name)
         utils.raiseIfNodeNotFound(self)
 
-        if self.referenced or self.default or self.name in utils.STARTUP_CAMERAS:
+        if self.referenced or self.default or self.name in constants.STARTUP_CAMERAS:
             raise exceptions.RenameReadOnlyNodeError(self)
 
         mod = self.modifiers.dg
@@ -1927,4 +1927,3 @@ from ..namespace import Namespace
 from ..plugin import Plugin
 from ..scene import Scene, _Scene
 from ..uv_set import UVSet, UVSetList
-from ... import utils

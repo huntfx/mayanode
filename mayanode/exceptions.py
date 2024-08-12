@@ -2,6 +2,12 @@
 
 import sys
 
+from . import constants
+from .type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import List
+
 
 if sys.version_info.major < 3:
     # pylint: disable=redefined-builtin
@@ -139,3 +145,16 @@ class InvalidUuidError(BaseError):
 
     def __init__(self, uuid, **kwargs):
         super(NamespaceNotEmptyError, self).__init__(uuid=uuid, **kwargs)
+
+
+class InvalidTimeUnitError(BaseError):
+    MESSAGE = '"{unit}" is not a valid time unit'
+
+    def __init__(self, unit, **kwargs):
+        super(InvalidTimeUnitError, self).__init__(unit=unit, **kwargs)
+
+    @property
+    def allowed(self):
+        # type: () -> List[str]
+        """Get the allowed time units.."""
+        return list(constants.TIME_UNITS)

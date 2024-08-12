@@ -6,51 +6,21 @@ import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from . import exceptions
+from . import exceptions, types
 from .type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Iterator, List, Optional, Union
     from .type_hints import StrLike
+    from .core.node import Node
 
 
 logger = logging.getLogger(__name__)
 
-# Mapping of MEL to API types
-MEL_API_TYPE = dict(
-    transform=om2.MFn.kTransform,
-    mesh=om2.MFn.kMesh,
-    objectSet=om2.MFn.kSet,
-    creaseSet=om2.MFn.kCreaseSet,
-    animCurve=om2.MFn.kAnimCurve,
-    shadingEngine=om2.MFn.kShadingEngine,
-    light=om2.MFn.kLight,
-    camera=om2.MFn.kCamera,
-)
-
-# MEL types that are valid DAG objects
-DAG_TYPES = set(mc.nodeType('dagNode', derived=True, isTypeName=True))
-
-# Startup cameras can't be renamed so just grab them once
-STARTUP_CAMERAS = [cam for cam in mc.ls(type='camera') if mc.camera(cam, query=True, startupCamera=True)]
-STARTUP_CAMERAS.extend(mc.listRelatives(STARTUP_CAMERAS, parent=True))
-
-TIME_UNITS = {
-    'game': '15fps',
-    'film': '24fps',
-    'pal': '25fps',
-    '29.97df': '29.97fps',
-    'ntsc': '30fps',
-    'show': '48fps',
-    'palf': '50fps',
-    'ntscf': '60fps',
-}
 
 _WORLD_HANDLE = None
 
 _WORLD_DAG_PATH = None
-
-gPlayBackSlider = mel.eval('$tmp = $gPlayBackSlider')
 
 
 class NotSet(object):  # pylint: disable=too-few-public-methods
@@ -244,17 +214,19 @@ def getWorldDagPath():
 
 def toMObject(item):
     # type: (Any) -> Optional[om2.MObject]
-    """Get the MObject from an input value if possible.
-    Does not automatically convert strings.
-    """
+    """Get the MObject from an input value if possible."""
     if item is None:
         return om2.MObject.kNullObj
     if isinstance(item, om2.MObject):
         return item
-
-    if isinstance(item, Node):
+    if isinstance(item, types._NodeType):
         return item.api.object
-    return None
+    selected = om2.MSelectionList()
+    try:
+        selected.add(str(item))
+    except RuntimeError:
+        return None
+    return selected.getDependNode(0)
 
 
 def iterAssemblies():
@@ -307,8 +279,3 @@ def iterDAG(apiType=om2.MFn.kInvalid):
 
         else:
             yield dagIterator.getPath()
-
-
-# Handle circular dependencies
-# pylint: disable=wrong-import-position
-from .core.node import Node

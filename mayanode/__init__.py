@@ -118,6 +118,17 @@ Examples:
     >>> map2.name = 'bumpSet'
     >>> cube.shape.uvSets
     [UVSet('pCubeShape1.map1'), UVSet('pCubeShape1.bumpSet')]
+
+    # Time
+    >>> Time.current
+    1000
+    >>> Time.start = 100
+    >>> Time.play()
+    >>> Time.playing
+    True
+    >>> Time.stop()
+    >>> Time.fps
+    25.0
 """
 
 __all__ = [
@@ -134,6 +145,7 @@ __all__ = [
     'ProgressBar',
     'Reference',
     'Scene',
+    'Time',
     'Undo',
 ]
 
@@ -150,4 +162,5 @@ from .core.profiler import Profiler
 from .core.progress_bar import ProgressBar
 from .core.reference import Reference
 from .core.scene import Scene
+from .core.time import Time
 from .core.undo import Undo

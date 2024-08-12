@@ -24,5 +24,16 @@ class _Maya(object):
         """
         return om2.MGlobal.mayaState() == om2.MGlobal.kInteractive
 
+    @property
+    def time(self):
+        # type: () -> _Time
+        """Get the value of time."""
+        return Time
+
 
 Maya = _Maya()
+
+
+# Handle circular dependencies
+# pylint: disable=wrong-import-position
+from .time import Time, _Time

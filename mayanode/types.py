@@ -431,3 +431,7 @@ class MappedLazyList(object):
         else:
             self._data[:] = [None for _ in range(self.__len__())]
         self._isDataLoaded = False
+
+
+class _NodeType(StrMixin):
+    """Base Node type for internal inheritance checks."""
