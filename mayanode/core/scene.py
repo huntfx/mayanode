@@ -4,7 +4,7 @@ import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from .. import types, utils
+from .. import constants, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -148,14 +148,6 @@ class _Scene(object):
         return {plugin.name: plugin for plugin in Plugin.ls()}
 
     @property
-    def selectedFrames(self):
-        # type: () -> Optional[Tuple[float, float]]
-        """Get the selected time slider range."""
-        if mc.timeControl(utils.gPlayBackSlider, rangeVisible=True, query=True):
-            return mc.timeControl(utils.gPlayBackSlider, rangeArray=True, query=True)
-        return None
-
-    @property
     def autoKeyframe(self):
         # type: () -> bool
         """Get if autoKeyframe is enabled."""
@@ -171,7 +163,7 @@ class _Scene(object):
     def audio(self):
         # type: () -> Optional[Node]
         """Get the current scene audio node."""
-        audio = mc.timeControl(utils.gPlayBackSlider, query=True, sound=True)
+        audio = mc.timeControl(constants.gPlayBackSlider, query=True, sound=True)
         if not audio:
             return None
         return Node(audio)
@@ -187,7 +179,7 @@ class _Scene(object):
             audio = ''
         elif not isinstance(audio, Node) and '.' in audio:
             audio = mc.sound(file=audio, name=os.path.splitext(os.path.basename(audio))[0])
-        mc.timeControl(utils.gPlayBackSlider, edit=True, sound=audio, displaySound=bool(audio))
+        mc.timeControl(constants.gPlayBackSlider, edit=True, sound=audio, displaySound=bool(audio))
 
 
 class SceneNodes(types.MappedLazyList):
