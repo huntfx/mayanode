@@ -681,12 +681,9 @@ class Attribute(types.StrMixin):
                 raise exceptions.AttributeLockedError(self.node, self.attr)
 
             if plug.isConnected:
-                if plug.isKeyable:
-                    for otherPlug in self.api.plug.connectedTo(True, True):
-                        if not otherPlug.node().hasFn(om2.MFn.kAnimCurve):
-                            raise exceptions.AttributeConnectedError(self.node, self.attr)
-                else:
-                    raise exceptions.AttributeConnectedError(self.node, self.attr)
+                for otherPlug in plug.connectedTo(True, False):
+                    if not otherPlug.node().hasFn(om2.MFn.kAnimCurve):
+                        raise exceptions.AttributeConnectedError(self.node, self.attr)
 
         if isinstance(value, (str, unicode, types.StrMixin)):
             mc.setAttr(self, value, type='string')
