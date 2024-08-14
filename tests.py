@@ -613,18 +613,48 @@ class TestNode(unittest.TestCase):
         cube2.parent = cube
         insts[-1].parent = insts[0]
         manip = mc.createNode('translateManip')
+        mc.select('persp', 'perspShape', 'defaultLightSet', insts[-1])
 
-        nodeLs = lambda **kwargs: set(node.longName for node in Node.ls(**kwargs))
-        mcLs = lambda **kwargs: set(mc.ls(long=True, **kwargs))
+        nodeLs = lambda *args, **kwargs: set(node.longName for node in Node.ls(*args, _api=True, **kwargs))
+        mcLs = lambda *args, **kwargs: set(mc.ls(*args, long=True, **kwargs))
 
         self.assertEqual(nodeLs(), mcLs())
+        self.assertEqual(nodeLs('perspShape'), mcLs('perspShape'))
+        self.assertEqual(nodeLs('persp|perspShape'), mcLs('persp|perspShape'))
+        self.assertEqual(nodeLs('persp|perspShape1'), mcLs('persp|perspShape1'))
+        self.assertEqual(nodeLs('*persp*|*Shape*'), mcLs('*persp*|*Shape*'))
+        self.assertEqual(nodeLs('persp'), mcLs('persp'))
+        self.assertEqual(nodeLs('persp*'), mcLs('persp*'))
+        self.assertEqual(nodeLs('persp', 'perspShape'), mcLs('persp', 'perspShape'))
+        self.assertEqual(nodeLs(['persp', 'perspShape']), mcLs(['persp', 'perspShape']))
+        self.assertEqual(nodeLs('persp*', type='camera'), mcLs('persp*', type='camera'))
+        self.assertEqual(nodeLs('persp*', type='transform'), mcLs('persp*', type='transform'))
         self.assertEqual(nodeLs(type='transform'), mcLs(type='transform'))
         self.assertEqual(nodeLs(type='mesh'), mcLs(type='mesh'))
+        self.assertEqual(nodeLs(type='transform', allPaths=True), mcLs(type='transform', allPaths=True))
         self.assertEqual(nodeLs(type='mesh', allPaths=True), mcLs(type='mesh', allPaths=True))
-        self.assertEqual(nodeLs(type='animCurve'), mcLs(type='animCurve'))
+        self.assertEqual(nodeLs(allPaths=True), mcLs(allPaths=True))
         self.assertEqual(nodeLs(assemblies=True), mcLs(assemblies=True))
+        self.assertEqual(nodeLs(assemblies=True, allPaths=True), mcLs(assemblies=True, allPaths=True))
         self.assertEqual(nodeLs(assemblies=True, type='objectSet'), mcLs(assemblies=True, type='objectSet'))
-        self.assertEqual(nodeLs(assemblies=True, type='doesntexist'), mcLs(assemblies=True, type='doesntexist'))
+        self.assertEqual(nodeLs('persp', assemblies=True), mcLs('persp', assemblies=True))
+        self.assertEqual(nodeLs('persp*', assemblies=True), mcLs('persp', assemblies=True))
+        self.assertEqual(nodeLs('persp', type='camera', assemblies=True), mcLs('persp', type='camera', assemblies=True))
+        self.assertEqual(nodeLs('persp*', type='camera', assemblies=True), mcLs('persp*', type='camera', assemblies=True))
+        with self.assertRaises(RuntimeError):
+            self.assertEqual(nodeLs(type='_invalid'), mcLs(type='_invalid'))
+        with self.assertRaises(RuntimeError):
+            self.assertEqual(nodeLs('persp', type='_invalid'), mcLs('persp', type='_invalid'))
+        with self.assertRaises(RuntimeError):
+            self.assertEqual(nodeLs(assemblies=True, type='_invalid'), mcLs(assemblies=True, type='_invalid'))
+        self.assertEqual(nodeLs(selection=True), mcLs(selection=True))
+        self.assertEqual(nodeLs('persp', selection=True), mcLs('persp', selection=True))
+        self.assertEqual(nodeLs('persp*', selection=True), mcLs('persp*', selection=True))
+        self.assertEqual(nodeLs('perspShape', selection=True), mcLs('perspShape', selection=True))
+        self.assertEqual(nodeLs('persp', selection=True, assemblies=True), mcLs('persp', selection=True, assemblies=True))
+        self.assertEqual(nodeLs('persp', selection=True, type='transform'), mcLs('persp', selection=True, type='transform'))
+        self.assertEqual(nodeLs('persp', selection=True, assemblies=True, type='transform'), mcLs('persp', selection=True, assemblies=True, type='transform'))
+        self.assertEqual(nodeLs('persp', selection=True, assemblies=True, type='mesh'), mcLs('persp', selection=True, assemblies=True, type='mesh'))
 
         mc.undo()  # Only way to delete manip
         mc.delete(cube, cube2)

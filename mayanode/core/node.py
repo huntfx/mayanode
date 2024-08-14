@@ -743,62 +743,37 @@ class Node(types._NodeType):
         return hash(self.api)
 
     @classmethod
-    def _apiLs(cls, **kwargs):
-        # type: (**Any) -> Optional[List[Node]]
-        """Use the API to search the scene.
-        The behaviour must return the exact same results as `mc.ls` with
-        the same arguments, but not necessarily in the same order.
-        """
-        # Read parameters and discard ones with no effect
-        parameters = set(kwargs) - {'long', 'l', 'objectsOnly', 'o'}
-
-        # Get every node in the scene
-        if not parameters:
-            return [cls(item) for item in utils.iterDG()]
-
-        # Cancel if the node type is unknown
-        nodeType = kwargs.get('type', kwargs.get('typ'))
-        if nodeType is not None and nodeType not in constants.MEL_API_TYPE:
-            return None
-
-        # Get the remaining important parameters
-        # This will likely be extended in the future
-        allPaths = kwargs.get('allPaths', kwargs.get('ap', False))
-        parameters -= {'type', 'typ', 'allPaths', 'ap'}
-
-        result = []  # type: List[Node]
-
-        # Get top level transforms
-        if kwargs.get('assemblies') and (nodeType is not None or parameters == {'assemblies'}):
-            result.extend(cls(item) for item in utils.iterAssemblies())
-            parameters.remove('assemblies')
-
-        if nodeType is None:
-            if parameters:
-                return None
-            return result
-
-        # Only search DAG if allPaths was requested
-        if allPaths and nodeType in constants.DAG_TYPES:
-            fn = utils.iterDAG
-        else:
-            fn = utils.iterDG
-
-        result.extend(cls(item) for item in fn(constants.MEL_API_TYPE[nodeType]))
-        return result
-
-    @classmethod
     def ls(cls, *args, **kwargs):
         # type: (*Any, **Any) -> List[Node]
-        """Shortcut to search the scene."""
-        if not args:
-            result = cls._apiLs(**kwargs)
-            if result is not None:
-                return result
+        """Shortcut to search the scene.
+
+        This will use the API when possible.
+        It will return the exact same results as `mc.ls`, but not
+        necessarily in the same order.
+        """
+        useApi = kwargs.pop('_api', None)
+
+        result = []
+        sl = None
+        if useApi in (None, True):
+            ls = utils.Ls(*args, **kwargs)
+            sl = ls()
+            if sl is None and useApi:
+                raise RuntimeError('failed to get nodes matching parameters: {} {}'.format(args, kwargs))
+
+        if sl is not None:
+            for i in range(sl.length()):
+                try:
+                    result.append(Node(sl.getDagPath(i)))
+                except TypeError:
+                    result.append(Node(sl.getDependNode(i)))
 
         # Fallback to standard `mc.ls`
-        kwargs['objectsOnly'] = True
-        return [Node(node) for node in mc.ls(*args, **kwargs)]
+        elif not useApi:
+            kwargs['objectsOnly'] = True
+            result.extend(map(Node, mc.ls(*args, **kwargs)))
+
+        return result
 
     @classmethod
     def create(cls, nodeType, **kwargs):

@@ -1,12 +1,13 @@
 import logging
 import math
 import os
+from functools import partial
 
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from . import exceptions, types
+from . import constants, exceptions, types
 from .type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -260,8 +261,8 @@ def iterDG(apiType=om2.MFn.kInvalid):
             yield iterator.thisNode()
 
 
-def iterDAG(apiType=om2.MFn.kInvalid):
-    # type: (int) -> Iterator[om2.MDagPath]
+def iterDAG(apiType=om2.MFn.kInvalid, allPaths=True):
+    # type: (int, bool) -> Iterator[om2.MDagPath]
     """Get all DAG nodes (including instances) for an API type."""
     dagIterator = om2.MItDag(om2.MItDag.kDepthFirst, apiType)
     dagPathData = {}
@@ -270,12 +271,148 @@ def iterDAG(apiType=om2.MFn.kInvalid):
 
         if dagIterator.isInstanced():
             handle = om2.MObjectHandle(item).hashCode()
-            if handle not in dagPathData:
-                dagPathData[handle] = [dagIterator.getAllPaths(), 0]
-            dagPaths, instanceNum = dagPathData[handle]
 
-            yield dagPaths[instanceNum]
-            dagPathData[handle][1] += 1
+            if allPaths:
+                if handle not in dagPathData:
+                    dagPathData[handle] = [dagIterator.getAllPaths(), 0]
+                dagPaths, instanceNum = dagPathData[handle]
+
+                yield dagPaths[instanceNum]
+                dagPathData[handle][1] += 1
+
+            else:
+                if handle not in dagPathData:
+                    dagPathData[handle] = [dagIterator.getPath(), 0]
+                dagPath, instanceNum = dagPathData[handle]
+                yield dagPath
 
         else:
             yield dagIterator.getPath()
+
+
+class Ls(object):
+    """Get a selection list for an `ls` command."""
+
+    __slots__ = ['args', 'kwargs', 'type']
+
+    def __init__(self, *args, **kwargs):
+        # type: (*Any, **Any) -> None
+        self.args = args
+        self.kwargs = kwargs
+
+    def __call__(self):
+        # type: () -> Optional[om2.MSelectionList]
+        """Generate a selection list from parameters.
+        Returns None if unable to.
+
+        Rules:
+            & = intersect, | = merge, # = ignore
+            search & type
+            search & selection
+            search & assemblies
+            search & selection & type
+            search & selection & assemblies # type
+            selection & type
+            selection & assemblies
+            selection & assemblies xx type
+            type | assemblies
+        """
+        # Read parameters and discard ones with no effect
+        parameters = set(self.kwargs) - {'long', 'l', 'objectsOnly', 'o', 'allPaths', 'ap'}
+
+        if not parameters:
+            if self.args:
+                return self._search()
+            return self._all()
+
+        # Cancel if unknown node type
+        nodeType = self.type
+        parameters -= {'type', 'typ'}
+        if nodeType is not None and nodeType not in constants.MEL_API_TYPE:
+            return None
+
+        # Get selection, cancel if remaining parameters
+        selection = self.kwargs.get('selection', self.kwargs.get('sl'))
+        parameters -= {'selection', 'sl'}
+        if selection:
+            selectionList = self._selection()
+        else:
+            selectionList = om2.MSelectionList()
+
+        if self.kwargs.get('assemblies') and (nodeType is not None or parameters == {'assemblies'}):
+            assemblySl = self._assemblies()
+            if not assemblySl.isEmpty():
+                selectionList.merge(self._assemblies())
+            parameters.remove('assemblies')
+
+        # Cancel here if any parameters are still remaining
+        if parameters:
+            return None
+
+        if nodeType is not None:
+            typeSl = self._type()
+            if not typeSl.isEmpty():
+                selectionList.merge(typeSl)
+        return selectionList
+
+    def _all(self):
+        # type: () -> om2.MSelectionList
+        """Get all nodes."""
+        selectionList = om2.MSelectionList()
+        for item in iterDG():
+            selectionList.add(item)
+        return selectionList
+
+    def _search(self):
+        # type: () -> om2.MSelectionList
+        """Get the nodes matching the search."""
+        selectionList = om2.MSelectionList()
+        for arg in self.args:
+            if not isinstance(arg, (list, tuple, set)):
+                arg = [arg]
+            for a in arg:
+                try:
+                    selectionList.merge(om2.MGlobal.getSelectionListByName(str(a)))
+                except RuntimeError:
+                    pass
+        return selectionList
+
+    def _selection(self):
+        # type: () -> om2.MSelectionList
+        """Get the selection matching the search."""
+        selectionList = om2.MGlobal.getActiveSelectionList()
+        if self.args:
+            selectionList.intersect(self._search())
+        return selectionList
+
+    def _type(self):
+        # type: () -> om2.MSelectionList
+        """Get all types matching the search."""
+        apiType = constants.MEL_API_TYPE[self.type]
+        if self.type in constants.DAG_TYPES:
+            allPaths = self.kwargs.get('allPaths', self.kwargs.get('ap', False))
+            generator = iterDAG(apiType, allPaths=allPaths)
+        else:
+            generator = iterDG(apiType)
+
+        selectionList = om2.MSelectionList()
+        for item in generator:
+            selectionList.add(item)
+        if self.args:
+            selectionList.intersect(self._search())
+        return selectionList
+
+    def _assemblies(self):
+        # type: () -> om2.MSelectionList
+        """Get the assemblies matching the search."""
+        selectionList = om2.MSelectionList()
+        for item in iterAssemblies():
+            selectionList.add(om2.MDagPath.getAPathTo(item))
+        if self.args:
+            selectionList.intersect(self._search())
+        return selectionList
+
+    @property
+    def type(self):
+        """Get the node type."""
+        return self.kwargs.get('type', self.kwargs.get('typ'))
