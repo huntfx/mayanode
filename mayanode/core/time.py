@@ -156,8 +156,9 @@ class _Time(object):
     def selection(self):
         # type: () -> Optional[Tuple[float, float]]
         """Get the selected time range."""
-        if mc.timeControl(constants.gPlayBackSlider, rangeVisible=True, query=True):
-            return mc.timeControl(constants.gPlayBackSlider, rangeArray=True, query=True)
+        playbackSlider = utils.getMelGlobal('PlayBackSlider')
+        if mc.timeControl(playbackSlider, rangeVisible=True, query=True):
+            return mc.timeControl(playbackSlider, rangeArray=True, query=True)
         return None
 
 

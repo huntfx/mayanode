@@ -158,3 +158,7 @@ class InvalidTimeUnitError(BaseError):
         # type: () -> List[str]
         """Get the allowed time units.."""
         return list(constants.TIME_UNITS)
+
+
+class RequiresInteractiveError(BaseError):
+    MESSAGE = 'this operation is not supported in batch mode'

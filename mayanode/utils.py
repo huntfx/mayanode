@@ -416,3 +416,11 @@ class Ls(object):
     def type(self):
         """Get the node type."""
         return self.kwargs.get('type', self.kwargs.get('typ'))
+
+
+def getMelGlobal(name):
+    # type: (str) -> str
+    """Get MEL global variables."""
+    if name in ('PlaybackSlider', 'MainProgressBar') and mc.about(batch=True):
+        raise exceptions.RequiresInteractiveError
+    return mel.eval('$tmp = $g{}'.format(name))

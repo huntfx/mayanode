@@ -32,5 +32,3 @@ TIME_UNITS = {
     'palf': 50,
     'ntscf': 60,
 }
-
-gPlayBackSlider = mel.eval('$tmp = $gPlayBackSlider')

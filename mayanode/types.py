@@ -88,6 +88,10 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
         # type: () -> str
         return ''
 
+    def __bool__(self):
+        return bool(self.name)
+    __nonzero__ = __bool__
+
     def __str__(self):
         # type: () -> str
         return self.name

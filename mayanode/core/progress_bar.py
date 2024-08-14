@@ -11,10 +11,11 @@ Example:
     ...         ProgressBar.value += 1
 """
 
+import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from .. import types
+from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,10 +28,13 @@ class _ProgressBar(types.StrMixin):
 
     __slots__ = ['_name']
 
-    gMainProgressBar = mel.eval('$tmp = $gMainProgressBar;')
-
-    def __init__(self, name=gMainProgressBar):
-        # type: (str) -> None
+    def __init__(self, name=None):
+        # type: (Optional[str]) -> None
+        if name is None:
+            try:
+                name = utils.getMelGlobal('MainProgressBar')
+            except exceptions.RequiresInteractiveError:
+                name = ''
         self._name = name
 
     @property
