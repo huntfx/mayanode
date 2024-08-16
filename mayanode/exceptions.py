@@ -171,5 +171,13 @@ class ReferenceError(BaseError):
         super(ReferenceError, self).__init__(reference=reference, **kwargs)
 
 
-class ReferenceNotTopLevelError(ReferenceError):
+class ReferenceImportError(ReferenceError):
+    MESSAGE = '"{reference}" cannot be imported'
+
+
+class ReferenceNotTopLevelError(ReferenceImportError):
     MESSAGE = '"{reference}" cannot be imported as it is not a top level reference'
+
+
+class ReferenceNotLoadedError(ReferenceImportError):
+    MESSAGE = '"{reference}" cannot be imported as it is unloaded'

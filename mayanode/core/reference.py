@@ -291,10 +291,18 @@ class Reference(Node):
         return children
 
     def import_(self):
-        """Import the current reference."""
+        # type: () -> None
+        """Import the current reference.
+
+        Raises:
+            ReferenceNotTopLevelError
+            ReferenceNotLoadedError
+        """
         utils.raiseIfNodeNotFound(self.refNode)
         if not self.topLevel:
             raise exceptions.ReferenceNotTopLevelError(self)
+        if not self.loaded:
+            raise exceptions.ReferenceNotLoadedError(self)
         mc.file(self.filepath, importReference=True)
 
 
