@@ -4,7 +4,7 @@ import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
 from .node import Node
-from .. import types, utils
+from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -56,6 +56,7 @@ class Reference(Node):
         Equivalent:
             `mc.referenceQuery(self, namespace=True)`
         """
+        utils.raiseIfNodeNotFound(self.refNode)
         associatedNamespace = self.api.reference.associatedNamespace(False)
         if associatedNamespace:
             return Namespace(associatedNamespace)
@@ -72,6 +73,7 @@ class Reference(Node):
             Should this rename the existing one?
         """
         utils.logger.info('Setting new reference namespace for "%s": %s', self, namespace)
+        utils.raiseIfNodeNotFound(self.refNode)
         mc.file(self.filepath, edit=True, namespace=namespace)
 
     @property
@@ -88,6 +90,7 @@ class Reference(Node):
         TODO:
             `ref.filepath.unresolved`
         """
+        utils.raiseIfNodeNotFound(self.refNode)
         try:
             filepath = self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=False)
         except RuntimeError as e:
@@ -100,6 +103,7 @@ class Reference(Node):
     def filepath(self, filepath):
         # type: (str) -> None
         utils.logger.info('Setting new reference path for "%s": %s', self, filepath)
+        utils.raiseIfNodeNotFound(self.refNode)
         mc.file(filepath, loadReference=self)
 
     @property
@@ -113,6 +117,7 @@ class Reference(Node):
         Returns:
             The filename or None.
         """
+        utils.raiseIfNodeNotFound(self.refNode)
         try:
             return self.api.reference.fileName(resolvedName=False, includePath=True, includeCopyNumber=False)
         except RuntimeError as e:
@@ -128,6 +133,7 @@ class Reference(Node):
         Equivalent:
             `mc.referenceQuery(self, isLoaded=True)`
         """
+        utils.raiseIfNodeNotFound(self.refNode)
         return self.api.reference.isLoaded()
 
     @loaded.setter
@@ -143,11 +149,13 @@ class Reference(Node):
         # type: () -> None
         """Load the reference."""
         utils.logger.info('Loading reference: %s', self)
+        utils.raiseIfNodeNotFound(self.refNode)
         mc.file(loadReference=self)
 
     def unload(self):
         # type: () -> None
         utils.logger.info('Unloading reference: %s', self)
+        utils.raiseIfNodeNotFound(self.refNode)
         mc.file(unloadReference=self)
 
     def delete(self):
@@ -155,6 +163,7 @@ class Reference(Node):
         """Delete the reference.
         Returns if the reference was deleted.
         """
+        utils.raiseIfNodeNotFound(self.refNode)
         if self.loaded:
             filename = self.api.reference.fileName(resolvedName=True, includePath=True, includeCopyNumber=True)
             mc.file(filename, removeReference=True)
@@ -171,12 +180,14 @@ class Reference(Node):
             `mc.referenceQuery(self, nodes=True)`
             `mc.ls(self.namespace + ':*')`
         """
+        utils.raiseIfNodeNotFound(self.refNode)
         return ReferenceNodes(self)
 
     @property
     def locked(self):
         # type: () -> bool
         """Get if the reference is locked."""
+        utils.raiseIfNodeNotFound(self.refNode)
         return self.api.reference.isLocked()
 
     @locked.setter
@@ -191,17 +202,20 @@ class Reference(Node):
     def lock(self):
         # type: () -> None
         """Lock the reference."""
+        utils.raiseIfNodeNotFound(self.refNode)
         self.attrs['locked'].value = True
 
     def unlock(self):
         # type: () -> None
         """Unlock the reference."""
+        utils.raiseIfNodeNotFound(self.refNode)
         self.attrs['locked'].value = False
 
     @property
     def topLevel(self):
         # type: () -> bool
         """Determine if the reference is a top level one."""
+        utils.raiseIfNodeNotFound(self.refNode)
         return not self.refNode.api.dependencyNode.isFromReferencedFile
 
     @property
@@ -210,6 +224,7 @@ class Reference(Node):
         """Determine the depth of this reference.
         A top level reference will have a depth of 0.
         """
+        utils.raiseIfNodeNotFound(self.refNode)
         depth = 0
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
         mobject = self.refNode.api.object
@@ -224,6 +239,7 @@ class Reference(Node):
     def parent(self):
         # type: () -> Optional[Reference]
         """Get the parent reference."""
+        utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
         currentObject = self.refNode.api.object
         for _ in depNodeIt:
@@ -236,6 +252,7 @@ class Reference(Node):
     def ancestors(self):
         # type: () -> List[Reference]
         """Get all parent references."""
+        utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
         currentObject = self.refNode.api.object
         ancestors = []
@@ -249,6 +266,7 @@ class Reference(Node):
     def children(self):
         # type: () -> List[Reference]
         """Get the nested child references."""
+        utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
         currentRefNode = self.api.reference
         children = []
@@ -262,6 +280,7 @@ class Reference(Node):
     def descendents(self):
         # type: () -> List[Reference]
         """Get all nested child references and their children."""
+        utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
         currentRefNode = self.api.reference
         children = []
@@ -270,6 +289,13 @@ class Reference(Node):
             if currentRefNode.containsNode(refNode):
                 children.append(Reference(refNode))
         return children
+
+    def import_(self):
+        """Import the current reference."""
+        utils.raiseIfNodeNotFound(self.refNode)
+        if not self.topLevel:
+            raise exceptions.ReferenceNotTopLevelError(self)
+        mc.file(self.filepath, importReference=True)
 
 
 class ReferenceNodes(types.MappedLazyList):

@@ -162,3 +162,14 @@ class InvalidTimeUnitError(BaseError):
 
 class RequiresInteractiveError(BaseError):
     MESSAGE = 'this operation is not supported in batch mode'
+
+
+class ReferenceError(BaseError):
+    MESSAGE = 'error with reference "{reference}"'
+
+    def __init__(self, reference, **kwargs):
+        super(ReferenceError, self).__init__(reference=reference, **kwargs)
+
+
+class ReferenceNotTopLevelError(ReferenceError):
+    MESSAGE = '"{reference}" cannot be imported as it is not a top level reference'
