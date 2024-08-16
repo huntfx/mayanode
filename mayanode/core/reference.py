@@ -198,6 +198,79 @@ class Reference(Node):
         """Unlock the reference."""
         self.attrs['locked'].value = False
 
+    @property
+    def topLevel(self):
+        # type: () -> bool
+        """Determine if the reference is a top level one."""
+        return not self.refNode.api.dependencyNode.isFromReferencedFile
+
+    @property
+    def depth(self):
+        # type: () -> int
+        """Determine the depth of this reference.
+        A top level reference will have a depth of 0.
+        """
+        depth = 0
+        depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
+        mobject = self.refNode.api.object
+        for _ in depNodeIt:
+            refNode = depNodeIt.thisNode()
+            fnRefNode = om2.MFnReference(refNode)
+            if fnRefNode.containsNode(mobject):
+                depth += 1
+        return depth
+
+    @property
+    def parent(self):
+        # type: () -> Optional[Reference]
+        """Get the parent reference."""
+        depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
+        currentObject = self.refNode.api.object
+        for _ in depNodeIt:
+            refNode = om2.MFnReference(depNodeIt.thisNode())
+            if refNode.containsNodeExactly(currentObject):
+                return Reference(refNode)
+        return None
+
+    @property
+    def ancestors(self):
+        # type: () -> List[Reference]
+        """Get all parent references."""
+        depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
+        currentObject = self.refNode.api.object
+        ancestors = []
+        for _ in depNodeIt:
+            refNode = om2.MFnReference(depNodeIt.thisNode())
+            if refNode.containsNode(currentObject):
+                ancestors.append(Reference(refNode))
+        return ancestors
+
+    @property
+    def children(self):
+        # type: () -> List[Reference]
+        """Get the nested child references."""
+        depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
+        currentRefNode = self.api.reference
+        children = []
+        for _ in depNodeIt:
+            refNode = depNodeIt.thisNode()
+            if currentRefNode.containsNodeExactly(refNode):
+                children.append(Reference(refNode))
+        return children
+
+    @property
+    def descendents(self):
+        # type: () -> List[Reference]
+        """Get all nested child references and their children."""
+        depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
+        currentRefNode = self.api.reference
+        children = []
+        for _ in depNodeIt:
+            refNode = depNodeIt.thisNode()
+            if currentRefNode.containsNode(refNode):
+                children.append(Reference(refNode))
+        return children
+
 
 class ReferenceNodes(types.MappedLazyList):
     """Hold a list of all nodes in the reference.

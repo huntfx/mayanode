@@ -125,8 +125,11 @@ class File(StrMixin):
         return namespace
 
     def reference(self, namespace=utils.NOT_SET, group=None, defer=False):
-        # type: (Union[None, StrLike, utils.NotSet], Optional[str], bool) -> Reference
+        # type: (Union[None, StrLike, utils.NotSet], Optional[str], bool) -> Optional[Reference]
         """Reference a file into the scene.
+
+        Warnings:
+            File is already in memory.
 
         Raises:
             FileNotFoundError: If the file doesn't exist.
@@ -157,6 +160,8 @@ class File(StrMixin):
 
         # Reference the file
         refFile = mc.file(self, **params)
+        if refFile is None:
+            return None
         refNode = mc.referenceQuery(refFile, referenceNode=True)
         return Reference(refNode)
 
