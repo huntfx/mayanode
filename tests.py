@@ -1,10 +1,12 @@
+import os
+import tempfile
 import unittest
 
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from mayanode import Node, Namespace, ProgressBar, exceptions
+from mayanode import Node, Namespace, ProgressBar, exceptions, File, Reference
 
 
 class TestNode(unittest.TestCase):
@@ -1494,6 +1496,11 @@ class TestNamespace(unittest.TestCase):
             Namespace(self.ns2).delete()
         self.assertTrue(Namespace(self.ns3).delete())
         self.assertTrue(Namespace(self.ns2).delete())
+        self.assertFalse(Namespace(self.ns2).exists)
+
+    def testDeleteRecursve(self):
+        self.assertEqual(Namespace(self.ns1).delete(recursive=True), 3)
+        self.assertFalse(Namespace(self.ns1).exists)
 
     def testParent(self):
         self.assertEqual(Namespace(self.ns3).parent, self.ns2)
@@ -1607,6 +1614,78 @@ class TestProgressBar(unittest.TestCase):
             ProgressBar.interruptable = True
             self.assertTrue(ProgressBar.interruptable)
             self.assertFalse(ProgressBar.interrupted)
+
+
+class TestReference(unittest.TestCase):
+    _Header = '//Maya ASCII\nrequires maya "2018";'
+
+    _CreateCube = ('createNode transform -n "pCube1";'
+                   'createNode mesh -n "pCubeShape1" -p "pCube1";'
+                   'createNode polyCube -n "polyCube1";'
+                   'connectAttr "polyCube1.out" "pCubeShape1.i";'
+                   'connectAttr "pCubeShape1.iog" ":initialShadingGroup.dsm" -na;')
+
+    _CreateRef = ('file -rdi 1 -ns "ref{n}" -rfn "ref{n}RN" -typ "mayaAscii" "{path}";'
+                  'file -r -ns "ref{n}" -dr 1 -rfn "ref{n}RN" -typ "mayaAscii" "{path}";'
+                  'createNode reference -n "ref{n}RN";'
+                  'lockNode -l 1;')
+
+    def setUp(self):
+        self.refPaths = []
+        self.refDir = tempfile.mkdtemp('-mayanode-tests')
+        for i in range(3):
+            refPath = os.path.join(self.refDir, 'ref{}.ma'.format('ABC'[i])).replace('\\', '/')
+
+            sections = [self._Header, self._CreateCube]
+            if i:
+                sections.append(self._CreateRef.format(n='ABC'[i - 1], path=self.refPaths[-1]))
+            with open(refPath, 'w') as f:
+                f.write('\n'.join(sections))
+            self.refPaths.append(refPath)
+        self.refFile = File(self.refPaths[-1])
+
+    def tearDown(self):
+        for refPath in self.refPaths:
+            os.remove(refPath)
+        os.rmdir(self.refDir)
+
+    def testNamespace(self):
+        rn1 = self.refFile.reference()
+        self.assertEqual(rn1.namespace, ':refC')
+        rn2 = self.refFile.reference(namespace='refD')
+        self.assertEqual(rn2.namespace, ':refD')
+        rn3 = self.refFile.reference(namespace='refD')
+        self.assertEqual(rn3.namespace, ':refD1')
+        rn4 = self.refFile.reference(namespace=None)
+        self.assertEqual(rn4.namespace, ':')
+
+        mc.file(rn1.filepath, unloadReference=True)
+        self.assertEqual(rn1.namespace, ':refC')
+        rn1.namespace.delete(recursive=True)
+        self.assertEqual(rn1.namespace, ':refC')
+
+        rn1.delete()
+        rn2.delete()
+        rn3.delete()
+        rn4.delete(forceRemoveNamespaces=True)
+
+    def testLs(self):
+        loadedRefNode = self.refFile.reference(defer=False)
+        unloadedRefNode = self.refFile.reference(defer=True)
+
+        self.assertEqual(len(Reference.ls()), 4)
+        self.assertEqual([loadedRefNode], Reference.ls(str(loadedRefNode)))
+        self.assertEqual([unloadedRefNode], Reference.ls(str(unloadedRefNode)))
+        self.assertEqual(len(Reference.ls('ref*')), 2)
+        self.assertEqual(len(Reference.ls('*:ref*')), 1)
+        self.assertEqual(len(Reference.ls('*:*:*ref*')), 1)
+
+        self.assertEqual(len(Reference.ls(loaded=True)), 3)
+        self.assertEqual(len(Reference.ls('ref*', loaded=True)), 1)
+        self.assertEqual(len(Reference.ls(loaded=False)), 1)
+
+        loadedRefNode.delete()
+        unloadedRefNode.delete()
 
 
 if __name__ == '__main__':

@@ -61,13 +61,22 @@ class Reference(Node):
         if associatedNamespace:
             return Namespace(associatedNamespace)
 
+        # If the reference was created without a namespace, it will have ":"
+        try:
+            return Namespace(mc.referenceQuery(self, namespace=True))
+
         # If the namespace doesn't exist then fallback to the slower command
-        return Namespace(mc.file(self.filepath, query=True, namespace=True))
+        except RuntimeError:
+            path = self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=True)
+            return Namespace(mc.file(path, query=True, namespace=True))
 
     @namespace.setter
     def namespace(self, namespace):
         # type: (Union[Namespace, str]) -> None
         """Set a new namespace for the reference.
+
+        Raises:
+            # RuntimeError: Cannot edit the namespace because the reference was not created using namespaces. #
 
         TODO:
             Should this rename the existing one?
@@ -78,7 +87,7 @@ class Reference(Node):
 
     @property
     def filepath(self):
-        # type: () -> Optional[str]
+        # type: () -> Optional[File]
         """Get the resolved reference file path.
 
         Equivalent:
@@ -97,7 +106,7 @@ class Reference(Node):
             if '(kFailure): Object does not exist' in str(e):
                 return None
             raise
-        return os.path.normpath(filepath)
+        return File(os.path.normpath(filepath))
 
     @filepath.setter
     def filepath(self, filepath):
@@ -158,17 +167,48 @@ class Reference(Node):
         utils.raiseIfNodeNotFound(self.refNode)
         mc.file(unloadReference=self)
 
-    def delete(self):
-        # type: () -> bool
+    def delete(self, forceRemoveNamespaces=False):
+        # type: (bool) -> bool
         """Delete the reference.
+
+        If the reference has no namespace, then any child reference
+        namespaces will not be removed on deletion. The parameter
+        `forceRemoveNamespaces` has been added for this reason, but
+        since those namespaces may contain other non-reference nodes,
+        it is not enabled by default.
+
         Returns if the reference was deleted.
         """
+        utils.logger.info('Deleting reference: %s', self)
         utils.raiseIfNodeNotFound(self.refNode)
-        if self.loaded:
-            filename = self.api.reference.fileName(resolvedName=True, includePath=True, includeCopyNumber=True)
-            mc.file(filename, removeReference=True)
-            return True
-        return False
+        mfnRef = self.api.reference
+
+        namespacesToDelete = []
+        if forceRemoveNamespaces:
+            # Determine if the node is a reference with no namespace
+            requiresExtraCleanup = False
+            if not mfnRef.associatedNamespace(False):
+                try:
+                    if mc.referenceQuery(self, namespace=True) == ':':
+                        requiresExtraCleanup = True
+                except RuntimeError:
+                    pass
+
+            # Get the namespace from all child ref nodes
+            if requiresExtraCleanup:
+                for node in mfnRef.nodes():
+                    if node.hasFn(om2.MFn.kReference):
+                        namespacesToDelete.append(om2.MFnReference(node).associatedNamespace(False))
+
+        # Delete the reference
+        filename = mfnRef.fileName(resolvedName=True, includePath=True, includeCopyNumber=True)
+        mc.file(filename, removeReference=True)
+
+        # If no namespace, then child refnode namespaces will be left behind
+        for ns in namespacesToDelete:
+            Namespace(ns).delete(recursive=True)
+
+        return True
 
     @property
     def nodes(self):
@@ -379,4 +419,5 @@ class ReferenceNodes(types.MappedLazyList):
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
+from .file import File
 from .namespace import Namespace
