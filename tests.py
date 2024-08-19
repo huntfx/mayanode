@@ -657,6 +657,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(nodeLs('persp', selection=True, assemblies=True, type='mesh'), mcLs('persp', selection=True, assemblies=True, type='mesh'))
 
         mc.undo()  # Only way to delete manip
+        mc.undo()
         mc.delete(cube, cube2)
         mc.delete(insts)
 
