@@ -152,7 +152,7 @@ class Reference(Node):
         if loaded:
             self.load()
         else:
-            self.unload()
+            self.unload(force=True)
 
     def load(self):
         # type: () -> None
@@ -161,11 +161,15 @@ class Reference(Node):
         utils.raiseIfNodeNotFound(self.refNode)
         mc.file(loadReference=self)
 
-    def unload(self):
-        # type: () -> None
+    def unload(self, force=False):
+        # type: (bool) -> None
+        """Unload a reference.
+        If the force argument is not given, a popup may appear to warn
+        about loss of reference edits.
+        """
         utils.logger.info('Unloading reference: %s', self)
         utils.raiseIfNodeNotFound(self.refNode)
-        mc.file(unloadReference=self)
+        mc.file(unloadReference=self, force=force)
 
     def delete(self, forceRemoveNamespaces=False):
         # type: (bool) -> bool
@@ -243,13 +247,27 @@ class Reference(Node):
         # type: () -> None
         """Lock the reference."""
         utils.raiseIfNodeNotFound(self.refNode)
+        loaded = self.loaded
+        if loaded:
+            self.unload(force=True)
         self.attrs['locked'].value = True
+        if loaded:
+            self.load()
 
     def unlock(self):
         # type: () -> None
-        """Unlock the reference."""
+        """Unlock the reference.
+
+        Note that this requires reloading the reference, and Maya warns
+        that reference edits will be lost.
+        """
         utils.raiseIfNodeNotFound(self.refNode)
+        loaded = self.loaded
+        if loaded:
+            self.unload(force=True)
         self.attrs['locked'].value = False
+        if loaded:
+            self.load()
 
     @property
     def topLevel(self):
@@ -284,6 +302,7 @@ class Reference(Node):
         currentObject = self.refNode.api.object
         for _ in depNodeIt:
             refNode = om2.MFnReference(depNodeIt.thisNode())
+            # TODO: Test RuntimeError: (kFailure): Object does not exist
             if refNode.containsNodeExactly(currentObject):
                 return Reference(refNode)
         return None

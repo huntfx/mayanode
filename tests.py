@@ -1687,6 +1687,132 @@ class TestReference(unittest.TestCase):
         loadedRefNode.delete()
         unloadedRefNode.delete()
 
+    def testLoad(self):
+        loadedRefNode = self.refFile.reference(defer=False)
+        unloadedRefNode = self.refFile.reference(defer=True)
+
+        self.assertTrue(loadedRefNode.loaded)
+        self.assertFalse(unloadedRefNode.loaded)
+        loadedRefNode.unload()
+        unloadedRefNode.load()
+        self.assertTrue(unloadedRefNode.loaded)
+        self.assertFalse(loadedRefNode.loaded)
+        loadedRefNode.loaded = True
+        unloadedRefNode.loaded = False
+        self.assertTrue(loadedRefNode.loaded)
+        self.assertFalse(unloadedRefNode.loaded)
+
+        loadedRefNode.delete()
+        unloadedRefNode.delete()
+
+    def testDelete(self):
+        existingNodes = Node.ls()
+        existingNs = Namespace.ls()
+        rn = self.refFile.reference()
+        rn.delete()
+        self.assertEqual(Node.ls(), existingNodes)
+        self.assertEqual(Namespace.ls(), existingNs)
+        rn = self.refFile.reference(namespace=None)
+        rn.delete(forceRemoveNamespaces=True)
+        self.assertEqual(Node.ls(), existingNodes)
+        self.assertEqual(Namespace.ls(), existingNs)
+        rn = self.refFile.reference(namespace=None)
+        rn.delete()
+        self.assertEqual(Node.ls(), existingNodes)
+        self.assertNotEqual(Namespace.ls(), existingNs)
+        for ns in sorted(set(Namespace.ls()) - set(existingNs),
+                         key=lambda ns: str(ns).count(':'), reverse=True):
+            ns.delete()
+        self.assertEqual(Namespace.ls(), existingNs)
+
+    def testNodes(self):
+        refNode = self.refFile.reference()
+        self.assertTrue('pCube1' in refNode.nodes)
+        self.assertTrue(refNode.namespace + ':pCube1' in refNode.nodes)
+        self.assertEqual(refNode, refNode.nodes.reference)
+        self.assertFalse(refNode.children[0].namespace + ':pCube1' in refNode.nodes)
+
+        node = refNode.nodes['pCube1']
+        refNode.unload()
+        self.assertFalse(refNode.nodes)
+        self.assertFalse(refNode.namespace + ':pCube1' in refNode.nodes)
+        self.assertFalse(node in refNode.nodes)
+
+        refNode.delete()
+
+    def testLock(self):
+        loadedRefNode = self.refFile.reference(defer=False)
+        unloadedRefNode = self.refFile.reference(defer=True)
+
+        self.assertFalse(loadedRefNode.locked)
+        self.assertFalse(unloadedRefNode.locked)
+        loadedRefNode.lock()
+        unloadedRefNode.locked = True
+        self.assertTrue(loadedRefNode.locked)
+        self.assertTrue(unloadedRefNode.locked)
+        self.assertTrue(loadedRefNode.loaded)
+        self.assertFalse(unloadedRefNode.loaded)
+        loadedRefNode.unlock()
+        unloadedRefNode.locked = False
+        self.assertFalse(loadedRefNode.locked)
+        self.assertFalse(unloadedRefNode.locked)
+        self.assertTrue(loadedRefNode.loaded)
+        self.assertFalse(unloadedRefNode.loaded)
+
+        loadedRefNode.delete()
+        unloadedRefNode.delete()
+
+    def testDepth(self):
+        refNode = self.refFile.reference()
+        nested = Reference.ls('*:*:*')[0]
+        self.assertTrue(refNode.topLevel)
+        self.assertFalse(nested.topLevel)
+        self.assertEqual(refNode.depth, 0)
+        self.assertEqual(nested.depth, 2)
+
+        refNode.delete()
+
+    def testRelationships(self):
+        refNode = self.refFile.reference()
+        nested = Reference.ls('*:*:*')[0]
+
+        self.assertIn(nested, refNode.descendents)
+        self.assertNotIn(nested, refNode.children)
+        self.assertIn(nested.parent, refNode.children)
+        self.assertIn(refNode, nested.ancestors)
+        self.assertNotEqual(refNode, nested.parent)
+        self.assertEqual(refNode.children[0], nested.parent)
+
+        refNode.delete()
+
+    def testImport(self):
+        refNode = self.refFile.reference()
+        nodes = list(refNode.nodes)
+        for node in nodes:
+            self.assertTrue(node.exists)
+            self.assertIsNotNone(node.reference)
+
+        refNode.import_()
+
+        self.assertFalse(refNode.exists)
+        for node in nodes:
+            self.assertTrue(node.exists)
+            self.assertIsNone(node.reference)
+            if node.type == 'reference':
+                self.assertTrue(Reference(node).topLevel)
+
+        namespaces = set()
+        for node in nodes:
+            if not node.exists:
+                continue
+            namespaces.add(node.namespace)
+            if node.type == 'reference':
+                Reference(node).delete(forceRemoveNamespaces=True)
+            elif node.type == 'transform':
+                node.delete()
+        for namespace in namespaces:
+             Namespace(namespace).delete()
+
 
 if __name__ == '__main__':
     unittest.main()
