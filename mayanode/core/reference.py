@@ -35,7 +35,7 @@ class Reference(Node):
 
         refNodes = []
         for refNode in refNodeGen:
-            # The second argument (includePath) is faster when enabled
+            # The second argument (includePath) is faster when True
             try:
                 om2.MFnReference(refNode).fileName(True, True, True)
             except RuntimeError:
@@ -50,12 +50,19 @@ class Reference(Node):
         return refNodes
 
     @classmethod
-    def fromFile(self, filepath):
+    def fromFile(cls, filepath):
         # type: (StrLike) -> List[Reference]
         """Get all references matching a file path."""
-        refNodes = mc.ls(references=True)
         filepath = os.path.normpath(str(filepath))
-        return [ref for ref in map(Reference, refNodes) if ref.filepath == filepath]
+        matches = []
+        for refNode in utils.iterDG(om2.MFn.kReference):
+            try:
+                refPath = om2.MFnReference(refNode).fileName(True, False, False)
+            except RuntimeError:
+                continue
+            if os.path.normpath(refPath) == filepath:
+                matches.append(cls(refNode))
+        return matches
 
     @property
     def refNode(self):
