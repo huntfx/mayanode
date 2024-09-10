@@ -13,6 +13,7 @@ MEL_API_TYPE = dict(
     shadingEngine=om2.MFn.kShadingEngine,
     light=om2.MFn.kLight,
     camera=om2.MFn.kCamera,
+    reference=om2.MFn.kReference,
 )
 
 # MEL types that are valid DAG objects

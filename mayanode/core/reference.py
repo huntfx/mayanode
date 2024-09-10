@@ -20,9 +20,27 @@ class Reference(Node):
     @classmethod
     def ls(cls, *args, **kwargs):
         # type: (*StrLike, **Any)  -> List[Reference]
-        """Get all references."""
-        # Map to the class
-        refNodes = [cls(refNode) for refNode in mc.ls(*args, references=True)]
+        """Get all valid references."""
+        # Get all file references
+        # Using `mc.ls` may return invalid references without files
+        # (despite what the documentation says), and `mc.file` with
+        # `mc.referenceQuery` is considerably slower
+        if args:
+            sl = utils.Ls(*args, type='reference')()
+            refNodeGen = map(sl.getDependNode, range(sl.length()))
+
+        # If no args, then it's faster just to do this
+        else:
+            refNodeGen = utils.iterDG(om2.MFn.kReference)
+
+        refNodes = []
+        for refNode in refNodeGen:
+            # The second argument (includePath) is faster when enabled
+            try:
+                om2.MFnReference(refNode).fileName(True, True, True)
+            except RuntimeError:
+                continue
+            refNodes.append(cls(refNode))
 
         # Filter by loaded refs
         loaded = kwargs.get('loaded')  # type: Optional[bool]
