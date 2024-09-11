@@ -1875,5 +1875,10 @@ class TestReference(unittest.TestCase):
              Namespace(namespace).delete()
 
 
+class TestFile(unittest.TestCase):
+    def testOS(self):
+        self.assertEqual(os.path.join(File('C:/test'), 'what'), r'C:\test\what')
+
+
 if __name__ == '__main__':
     unittest.main()
