@@ -5,7 +5,6 @@ import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
 from .. import exceptions, utils
-from ..types import StrMixin
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -13,49 +12,42 @@ if TYPE_CHECKING:
     from ..type_hints import StrLike
 
 
-class File(StrMixin):
+class File(str):
     """Handle individual filepaths."""
 
-    def __init__(self, path):
-        if path:
-            self._path = os.path.normpath(path)
-        else:
-            self._path = ''
+    def __new__(cls, path):
+        # type: (str) -> str
+        return str.__new__(cls, os.path.normpath(path) if path else '')
 
     @property
     def name(self):
         # type: () -> str
-        return self._path
-
-    @property
-    def filepath(self):
-        # type: () -> str
-        """Get the full path."""
-        return self._path
+        """Get the name of the file."""
+        return os.path.splitext(self)[0]
 
     @property
     def filename(self):
         # type: () -> str
         """Get the filename of the path."""
-        return os.path.basename(self._path)
+        return os.path.basename(self)
 
     @property
     def extension(self):
         # type: () -> str
         """Get the file extension."""
-        return os.path.splitext(self._path)[1][1:].lower()
+        return os.path.splitext(self)[1][1:].lower()
 
     @property
     def exists(self):
         # type: () -> bool
         """Determine if the path exists."""
-        return os.path.exists(self.filepath)
+        return os.path.exists(self)
 
     def checkExists(self):
         # type: () -> None
         """Raise an error if the file does not exist."""
         if not self.exists:
-            raise exceptions.FileNotFoundError(errno.ENOENT, 'No such file', self.filepath)
+            raise exceptions.FileNotFoundError(errno.ENOENT, 'No such file', self)
 
     @classmethod
     def currentScene(cls):
@@ -91,7 +83,7 @@ class File(StrMixin):
             mc.optionVar(stringValue=('preloadRefEdTopLevelFile', self.replace('\\', '/')))
             mel.eval('PreloadReferenceEditor;')
         else:
-            utils.addToRecentFiles(self.filepath)
+            utils.addToRecentFiles(self)
 
     def import_(self, namespace=None):
         # type: (Optional[StrLike]) -> Optional[Namespace]
