@@ -1346,6 +1346,53 @@ class TestKeyframes(unittest.TestCase):
         self.assertEqual(set(self.node.attrs['tx'].keyframes.frames), set(frames) - set(range(1, 10, 2)))
         self.assertEqual(self.node.attrs['tx'].keyframes[1:10:2].value, [])
 
+    def testOffsetNode(self):
+        frames = list(self.node.keyframes.frames)
+        self.node.keyframes.frames.offset(1)
+        self.assertEqual(self.node.keyframes.frames, [i + 1 for i in frames])
+
+    def testOffsetNodeInt(self):
+        self.node.keyframes[2].frames.offset(2)
+        self.assertIn(4, self.node.keyframes.frames)
+
+    def testOffsetNodeSlice(self):
+        self.assertEqual(len(self.node.keyframes[0:3].frames), 4)
+        self.node.keyframes[0:3].frames.offset(3)
+        self.assertEqual(len(self.node.keyframes[0:3].frames), 0)
+        self.node.keyframes.frames.offset(-3)
+        self.assertEqual(len(self.node.keyframes[0:3].frames), 3)
+
+    def testOffsetAttr(self):
+        frames = list(self.node.attrs['tx'].keyframes.frames)
+        self.node.attrs['tx'].keyframes.frames.offset(1)
+        self.assertEqual(self.node.attrs['tx'].keyframes.frames, [i + 1 for i in frames])
+
+    def testOffsetAttrInt(self):
+        self.node.attrs['tx'].keyframes[3].frames.offset(1)
+        self.assertIn(4, self.node.attrs['tx'].keyframes.frames)
+        self.assertNotIn(3, self.node.attrs['tx'].keyframes.frames)
+
+    def testOffsetAttrSlice(self):
+        self.assertEqual(self.node.attrs['tx'].keyframes[2:6].frames, [2, 3, 5])
+        self.node.attrs['tx'].keyframes[2:6].frames.offset(3)
+        self.assertEqual(self.node.attrs['tx'].keyframes[2:6].frames, [5])
+        self.node.attrs['tx'].keyframes[2:6].frames.offset(1)
+        self.assertEqual(self.node.attrs['tx'].keyframes[2:6].frames, [])
+        self.node.attrs['tx'].keyframes.frames.offset(-4)
+        self.assertEqual(len(self.node.attrs['tx'].keyframes[2:6].frames), 2)
+
+    def testAdd(self):
+        r = lambda lst: [round(i, 4) for i in lst]
+        frames = r(self.node.keyframes.frames)
+        for keyframe in self.node.keyframes:
+            keyframe.frame += 0.5
+        self.assertEqual(r(self.node.keyframes.frames), [i + 0.5 for i in frames])
+
+        frames = r(self.node.attrs['tx'].keyframes.frames)
+        for keyframe in self.node.attrs['tx'].keyframes:
+            keyframe.frame += 0.5
+        self.assertEqual(r(self.node.attrs['tx'].keyframes.frames), [i + 0.5 for i in frames])
+
 
 class TestUVSets(unittest.TestCase):
     def setUp(self):

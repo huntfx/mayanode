@@ -97,7 +97,7 @@ class NodeKeyframes(KeyframeBase):
         frames = set()  # type: Set[float]
         for kf in self._data:
             frames.update(kf._keyframes.keys())
-        return list(sorted(frames))
+        return KeyframeList(self.node, None, sorted(frames))
 
     @property
     def attrs(self):
@@ -131,6 +131,43 @@ class NodeKeyframes(KeyframeBase):
         Keyframe(self.node).delete()
 
 
+class KeyframeList(list):
+    def __init__(self, attr, frame, frames):
+        # type: (Union[Node, Attribute], Optional[Union[float, slice]], Iterator[float]) -> None
+        if TYPE_CHECKING:
+            self._attr = None  # type: Optional[Attribute]
+
+        self._frame = frame
+        if isinstance(attr, Attribute):
+            self._node = attr.node
+            self._attr = attr
+        elif isinstance(attr, Node):
+            self._node = attr
+            self._attr = None
+
+        super(KeyframeList, self).__init__(frames)
+
+    @property
+    def attr(self):
+        # type: () -> Optional[Attribute]
+        """Get the associated attribute."""
+        return self._attr
+
+    @property
+    def node(self):
+        # type: () -> Node
+        """Get the associated node."""
+        return self._node
+
+    def offset(self, value, relative=True):
+        # type: (float, bool) -> None
+        """Offset the frames."""
+        item = self.attr
+        if item is None:
+            item = self.node
+        return Keyframe(item, self._frame).offset(value, relative=relative)
+
+
 class NodeKeyframeList(KeyframeBase):
     __slots__ = ['_frame', '_kf']
     def __init__(self, nodeKeyframes, frame):
@@ -162,11 +199,19 @@ class NodeKeyframeList(KeyframeBase):
             return list(map(float, frames))
         raise TypeError(type(self._frame))
 
+    @property
+    def frames(self):
+        # type: () -> KeyframeList
+        """Get all the frames."""
+        return KeyframeList(self.node, self._frame, (kf.frame for kf in self))
+
     def __iter__(self):
+        # type: () -> Iterator[Keyframe]
+        """Iterate over all the frames."""
         frames = self._frames
         if frames is None:
             return iter(self._kf)
-        return iter(kf for kf in self._kf if any(frame in kf for frame in frames))
+        return iter(kf for kf in self._kf if kf.frame in frames)
 
     def set(self, value=None):
         # type: (Optional[float]) -> None
@@ -175,6 +220,11 @@ class NodeKeyframeList(KeyframeBase):
     def delete(self):
         # type: () -> None
         Keyframe(self.node, self._frame).delete()
+
+    def offset(self, value, relative=True):
+        # type: (float, bool) -> None
+        """Offset the frames."""
+        Keyframe(self.node, self._frame).offset(value, relative=relative)
 
 
 class AttributeKeyframes(KeyframeBase):
@@ -246,7 +296,7 @@ class AttributeKeyframes(KeyframeBase):
         Equivalent:
             `mc.keyframe(self.node, attribute=self.attr.attr, query=True, timeChange=True)`
         """
-        return list(self._keyframes.keys())
+        return KeyframeList(self.attr, None, sorted(self._keyframes.keys()))
 
     @property
     def values(self):
@@ -264,7 +314,7 @@ class Keyframe(KeyframeBase):
     May be for a single frame or multiple.
     """
 
-    __slots__ = ['_node', '_attr', 'frame']
+    __slots__ = ['_node', '_attr', '_frame']
 
     def __init__(self, attr, frame=None):
         # type: (Union[Node, Attribute], Optional[Union[float, slice]]) -> None
@@ -277,11 +327,10 @@ class Keyframe(KeyframeBase):
         elif isinstance(attr, Node):
             self._node = attr
             self._attr = None
+        else:
+            raise TypeError(type(attr))
 
-        # If no frame is defined then use the current frame
-        if frame is None:
-            frame = mc.currentTime(query=True)
-        self.frame = frame
+        self._frame = frame
 
     @property
     def attr(self):
@@ -320,7 +369,9 @@ class Keyframe(KeyframeBase):
             kwargs['attribute'] = attr.attr
 
         if not isinstance(frame, slice):
-            result = mc.keyframe(node, time=(frame, frame), **kwargs)
+            if frame is not None:
+                kwargs['time'] = (frame, frame)
+            result = mc.keyframe(node, **kwargs)
             if not result:
                 return 0
             return result
@@ -335,6 +386,48 @@ class Keyframe(KeyframeBase):
 
         return mc.keyframe(nodetime=(frame.start, frame.stop - 1), **kwargs)
 
+    @property
+    def frame(self):
+        # type: () -> Optional[Union[float, slice]]
+        """Get the frame value."""
+        return self._frame
+
+    @frame.setter
+    def frame(self, value):
+        # type: (float) -> None
+        """Set a new frame value."""
+        self.offset(value, relative=False)
+
+    @property
+    def frames(self):
+        # type: () -> KeyframeList
+        """Get the frames."""
+        node = self.node
+        attr = self.attr
+        frame = self.frame
+
+        kwargs = {'query': True, 'timeChange': True}
+        if attr is not None:
+            kwargs['attribute'] = attr.attr
+
+        frames = []
+        if not isinstance(frame, slice):
+            if frame is not None:
+                kwargs['time'] = (frame, frame)
+            frames = mc.keyframe(node, **kwargs)
+
+        elif (frame.step or 1) != 1:
+            frames = []
+            for f in range(frame.start, frame.stop, frame.step):
+                frames.extend(mc.keyframe(node, time=(f, f), **kwargs))
+
+        else:
+            frames = mc.keyframe(node, time=(frame.start, frame.stop - 1), **kwargs)
+
+        if frames is None:
+            frames = ()
+        return KeyframeList(attr if attr is not None else node, self.frame, sorted(frames))
+
     def get(self):
         # type: () -> Optional[Union[float, List[float]]]
         """Get a keyframe value."""
@@ -347,7 +440,9 @@ class Keyframe(KeyframeBase):
             kwargs['attribute'] = attr.attr
 
         if not isinstance(frame, slice):
-            result = mc.keyframe(node, time=(frame, frame), **kwargs)
+            if frame is not None:
+                kwargs['time'] = (frame, frame)
+            result = mc.keyframe(node, **kwargs)
             if not result:
                 return None
             return result[0]
@@ -402,11 +497,10 @@ class Keyframe(KeyframeBase):
             kwargs['attribute'] = attr.attr
 
         result = 0
-        if frame is None:
+        if not isinstance(frame, slice):
+            if frame is not None:
+                kwargs['time'] = (frame, frame)
             result += mc.cutKey(node, **kwargs)
-
-        elif not isinstance(frame, slice):
-            result += mc.cutKey(node, time=(frame, frame), **kwargs)
 
         elif (frame.step or 1) != 1:
             for f in range(frame.start, frame.stop, frame.step):
@@ -414,6 +508,33 @@ class Keyframe(KeyframeBase):
 
         else:
             result += mc.cutKey(node, time=(frame.start, frame.stop), **kwargs)
+        return result
+
+    def offset(self, value, relative=True):
+        # type: (float, bool) -> int
+        """Offset the keyframes.
+        Note that a keyframe can't be offset past an adjacent keyframe.
+        """
+        node = self.node
+        attr = self.attr
+        frame = self.frame
+
+        kwargs = {'edit': True, 'relative': relative, 'timeChange': value}
+        if attr is not None:
+            kwargs['attribute'] = attr.attr
+
+        result = 0
+        if not isinstance(frame, slice):
+            if frame is not None:
+                kwargs['time'] = (frame, frame)
+            result += mc.keyframe(node, **kwargs)
+
+        elif (frame.step or 1) != 1:
+            for f in range(frame.start, frame.stop, frame.step):
+                result += mc.keyframe(node, time=(f, f), **kwargs)
+
+        else:
+            result += mc.keyframe(node, time=(frame.start, frame.stop - 1), **kwargs)
         return result
 
     @property
