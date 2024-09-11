@@ -9,7 +9,7 @@ from ..types import StrMixin
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Optional, SupportsIndex, Union
+    from typing import List, Optional, Union
     from ..type_hints import StrLike
 
 
@@ -21,14 +21,6 @@ class File(StrMixin):
             self._path = os.path.normpath(path)
         else:
             self._path = ''
-
-    def __len__(self):
-        # type: () -> int
-        return len(self.name)
-
-    def __getitem__(self, item):
-        # type: (Union[SupportsIndex, slice]) -> str
-        return self.name.__getitem__(item)
 
     @property
     def name(self):
