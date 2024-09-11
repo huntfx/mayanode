@@ -108,10 +108,10 @@ class Reference(Node):
         """
         utils.logger.info('Setting new reference namespace for "%s": %s', self, namespace)
         utils.raiseIfNodeNotFound(self.refNode)
-        mc.file(self.filepath, edit=True, namespace=namespace)
+        mc.file(self.refPath, edit=True, namespace=namespace)
 
     @property
-    def filepath(self):
+    def path(self):
         # type: () -> Optional[File]
         """Get the resolved reference file path.
 
@@ -119,10 +119,7 @@ class Reference(Node):
             `mc.referenceQuery(self, filename=True, withoutCopyNumber=True)`
 
         Returns:
-            The filepath or None.
-
-        TODO:
-            `ref.filepath.unresolved`
+            The resolved filepath or None.
         """
         utils.raiseIfNodeNotFound(self.refNode)
         try:
@@ -133,12 +130,32 @@ class Reference(Node):
             raise
         return File(os.path.normpath(filepath))
 
-    @filepath.setter
-    def filepath(self, filepath):
+    @path.setter
+    def path(self, path):
         # type: (str) -> None
-        utils.logger.info('Setting new reference path for "%s": %s', self, filepath)
+        utils.logger.info('Setting new reference path for "%s": %s', self, path)
         utils.raiseIfNodeNotFound(self.refNode)
-        mc.file(filepath, loadReference=self)
+        mc.file(path, loadReference=self)
+
+    @property
+    def refPath(self):
+        # type: () -> Optional[File]
+        """Get the resolved reference file path.
+
+        Equivalent:
+            `mc.referenceQuery(self, filename=True)`
+
+        Returns:
+            The unresolved filepath or None.
+        """
+        utils.raiseIfNodeNotFound(self.refNode)
+        try:
+            filepath = self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=True)
+        except RuntimeError as e:
+            if '(kFailure): Object does not exist' in str(e):
+                return None
+            raise
+        return File(os.path.normpath(filepath))
 
     @property
     def filename(self):
@@ -387,7 +404,7 @@ class Reference(Node):
             raise exceptions.ReferenceNotTopLevelError(self)
         if not self.loaded:
             raise exceptions.ReferenceNotLoadedError(self)
-        mc.file(self.filepath, importReference=True)
+        mc.file(self.refPath, importReference=True)
 
 
 class ReferenceNodes(types.MappedLazyList):

@@ -1720,7 +1720,7 @@ class TestReference(unittest.TestCase):
         rn4 = self.refFile.reference(namespace=None)
         self.assertEqual(rn4.namespace, ':')
 
-        mc.file(rn1.filepath, unloadReference=True)
+        mc.file(rn1.refPath, unloadReference=True)
         self.assertEqual(rn1.namespace, ':refC')
         rn1.namespace.delete(recursive=True)
         self.assertEqual(rn1.namespace, ':refC')
