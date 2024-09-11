@@ -31,7 +31,9 @@ ATTR_TYPES = {
     'double': float,
     'double2': (float, float),
     'double3': (float, float, float),
+    'doubleLinear': float,
     'doubleArray': [float],
+    'doubleAngle': float,
     'float': float,
     'float2': (float, float),
     'float3': (float, float, float),
@@ -343,7 +345,7 @@ class Attribute(types.StrMixin):
         Add create/ensure methods if possible
     """
 
-    __slots__ = ['node', 'attr', 'api', '_keyframes', '_compoundChildren']
+    __slots__ = ['node', 'attr', 'api', '_compoundChildren']
 
     class ApiData(object):
         """Hold the OpenMaya API objects."""
@@ -453,7 +455,6 @@ class Attribute(types.StrMixin):
             self.attr = attr
             self.api = Attribute.ApiData.fromNode(self.node, attr)
 
-        self._keyframes = AttributeKeyframes(self)
         self._compoundChildren = None  # type: Optional[Dict[str, Attribute]]
 
     @classmethod
@@ -830,7 +831,7 @@ class Attribute(types.StrMixin):
     def keyframes(self):
         # type: () -> AttributeKeyframes
         """Get the keyframe dict."""
-        return self._keyframes
+        return AttributeKeyframes(self)
 
     @property
     def children(self):

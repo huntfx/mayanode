@@ -1246,91 +1246,105 @@ class TestAttr(unittest.TestCase):
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
-        self.node = Node(mc.polyCube(name='keyframeTest')[0])
+        self.node = Node('persp')
+        self.oldX = mc.getAttr('persp.translateX')
+        self.oldFL = mc.getAttr('perspShape.focalLength')
         for i in range(3):
-            mc.setKeyframe(self.node + '.tx', time=(i, i), value=-i)
-        mc.setKeyframe(self.node + '.tx', time=(3, 5), value=10)
-        mc.setKeyframe(self.node + '.tx', time=(9, 9), value=-5)
-        mc.setKeyframe(self.node + '.ty', time=(0, 0), value=0)
-        mc.setKeyframe(self.node + '.ty', time=(5, 5), value=-10)
-        mc.setKeyframe(self.node + '.ty', time=(10, 10), value=5)
-
-        self.nodeKeyframes = self.node.keyframes
-        self.attrKeyframes = self.node.attrs['tx'].keyframes
+            mc.setKeyframe('persp.translateX', time=(i, i), value=-i)
+        mc.setKeyframe('persp.translateX', time=(3, 5), value=10)
+        mc.setKeyframe('perspShape.focalLength', time=(2, 2), value=55)
+        mc.setKeyframe('perspShape.focalLength', time=(7, 7), value=35)
 
     def tearDown(self):
-        mc.delete(self.node)
+        mc.cutKey('persp', attribute='translateX', time=(0, 10))
+        mc.cutKey('perspShape', attribute='focalLength', time=(0, 10))
+        mc.setAttr('persp.translateX', self.oldX)
+        mc.setAttr('perspShape.focalLength', self.oldFL)
 
-    def testAttrGet(self):
-        self.assertEqual(self.attrKeyframes.keys(), [0.0, 1.0, 2.0, 3.0, 5.0, 9.0])
-        self.assertEqual(self.attrKeyframes.values(), [0.0, -1.0, -2.0, 10.0, 10.0, -5.0])
-        self.assertEqual(list(self.attrKeyframes.items()), list(zip(self.attrKeyframes.keys(), self.attrKeyframes.values())))
-        self.assertEqual(self.attrKeyframes, {0.0: 0.0, 1.0: -1.0, 2.0: -2.0, 3.0: 10.0, 5.0: 10.0, 9.0: -5.0})
+    def testLength(self):
+        self.assertEqual(len(self.node.keyframes), 7)
+        self.assertEqual(len(self.node.attrs['tx'].keyframes), 5)
+        self.assertEqual(len(self.node.shape.attrs['focalLength'].keyframes), 2)
 
-        self.assertEqual(self.attrKeyframes[1].value, -1)
-        self.assertEqual(self.attrKeyframes[1.0].value, -1)
-        self.assertIsNone(self.attrKeyframes[4].value)
+    def testAttrs(self):
+        self.assertEqual(self.node.keyframes.attrs, ['persp.translateX', 'perspShape.focalLength'])
 
-    def testNodeGet(self):
-        self.assertEqual(self.nodeKeyframes.keys(), [0.0, 1.0, 2.0, 3.0, 5.0, 9.0, 0.0, 5.0, 10.0])
-        self.assertEqual(self.nodeKeyframes.values(), [0.0, -1.0, -2.0, 10.0, 10.0, -5.0, 0.0, -10.0, 5.0])
-        self.assertEqual(list(self.nodeKeyframes.items()), list(zip(self.nodeKeyframes.keys(), self.nodeKeyframes.values())))
-        self.assertEqual(self.nodeKeyframes, {0.0: 0.0, 1.0: -1.0, 2.0: -2.0, 3.0: 10.0, 5.0: -10.0, 9.0: -5.0, 10.0: 5.0})
+    def testFrames(self):
+        self.assertEqual(self.node.keyframes.frames, [0.0, 1.0, 2.0, 3.0, 5.0, 7.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes.frames, [0.0, 1.0, 2.0, 3.0, 5.0])
+
+    def testIter(self):
+        seenAttrs = []
+        seenFrames = []
+        seenAttrFrames = []
+        for kf in self.node.keyframes:
+            seenAttrs.append(kf.attr)
+            seenFrames.append(kf.frame)
+            seenAttrFrames.append((kf.attr, kf.frame))
+        uniqueAttrs = set(seenAttrs)
+        uniqueFrames = set(seenFrames)
+        uniqueAttrFrames = set(seenAttrFrames)
+        self.assertNotEqual(len(seenAttrs), len(uniqueAttrs))
+        self.assertNotEqual(len(seenFrames), len(uniqueFrames))
+        self.assertEqual(len(seenAttrFrames), len(uniqueAttrFrames))
+
+        seenAttrs = []
+        seenFrames = []
+        seenAttrFrames = []
+        for kf in self.node.attrs['tx'].keyframes:
+            seenAttrs.append(kf.attr)
+            seenFrames.append(kf.frame)
+            seenAttrFrames.append((kf.attr, kf.frame))
+        uniqueAttrs = set(seenAttrs)
+        uniqueFrames = set(seenFrames)
+        uniqueAttrFrames = set(seenAttrFrames)
+        self.assertNotEqual(len(seenAttrs), len(uniqueAttrs))
+        self.assertEqual(uniqueAttrs, {self.node.attrs['tx']})
+        self.assertEqual(len(seenFrames), len(uniqueFrames))
+        self.assertEqual(len(uniqueFrames), 5)
+        self.assertEqual(len(seenAttrFrames), len(uniqueAttrFrames))
+
+    def testGet(self):
+        self.assertEqual(self.node.attrs['tx'].keyframes[0].value, 0.0)
+        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -1.0)
+        self.assertEqual(self.node.attrs['tx'].keyframes[2.0].value, -2.0)
+        self.assertIsNone(self.node.attrs['tx'].keyframes[4].value)
+        self.assertEqual(self.node.attrs['tx'].keyframes.values, [0.0, -1.0, -2.0, 10.0, 10.0])
 
     def testGetSlice(self):
-        self.assertEqual(self.attrKeyframes[1:3].value, [-1.0, -2.0])
-        self.assertEqual(self.attrKeyframes[1:6:2].value, [-1.0, 10.0, 10.0])
-        self.assertEqual(self.nodeKeyframes[1:3].value, [-1.0, -2.0])
-        self.assertEqual(self.nodeKeyframes[1:6:2].value, [-1.0, 10.0, 10.0, -10.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes[0:3].value, [0.0, -1.0, -2.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes[4:5].value, [])
+        self.assertEqual(self.node.attrs['tx'].keyframes[4:6].value, [10.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes[1:10:2].value, [-1.0, 10.0, 10.0])
 
-    def testSetValue(self):
-        self.attrKeyframes[2] = 10
-        self.attrKeyframes[3].set(20)
-        self.assertEqual(self.attrKeyframes[1].value, -1)
-        self.assertEqual(self.attrKeyframes[2].value, 10)
-        self.assertEqual(self.attrKeyframes[3].value, 20)
-        self.assertIsNone(self.attrKeyframes[4].value)
+    def testSet(self):
+        self.node.attrs['tx'].keyframes[2] = -10
+        self.node.attrs['tx'].keyframes[3].set(-20)
+        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -1)
+        self.assertEqual(self.node.attrs['tx'].keyframes[2].value, -10)
+        self.assertEqual(self.node.attrs['tx'].keyframes[3].value, -20)
+        self.assertIsNone(self.node.attrs['tx'].keyframes[4].value)
 
-        self.nodeKeyframes[8] = 50
-        self.assertEqual(self.attrKeyframes[8].value, 50)
-
-    def testSetCurrent(self):
-        self.assertNotIn(7, mc.keyframe(self.node, attribute='tx', query=True, timeChange=True))
-        self.attrKeyframes[7] = None
-        self.assertIn(7, mc.keyframe(self.node, attribute='tx', query=True, timeChange=True))
-        self.assertTrue(-5 < mc.keyframe(self.node, attribute='tx', query=True, valueChange=True, time=(7, 7))[0] < 10)
-
-        self.assertNotIn(7, mc.keyframe(self.node, attribute='ty', query=True, timeChange=True))
-        self.nodeKeyframes[7].set(outTangentType='step')
-        self.assertIn(7, mc.keyframe(self.node, attribute='ty', query=True, timeChange=True))
-        self.assertTrue(-10 < mc.keyframe(self.node, attribute='ty', query=True, valueChange=True, time=(7, 7))[0] < 5)
-
-        del self.nodeKeyframes[7]
+    def testSetSlice(self):
+        self.node.attrs['tx'].keyframes[1:3] = -10
+        self.node.attrs['tx'].keyframes[3:6].set(-20)
+        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -10)
+        self.assertEqual(self.node.attrs['tx'].keyframes[3:6].value, [-20, -20, -20])
 
     def testDelete(self):
-        self.assertEqual(self.attrKeyframes[1].value, -1)
-        del self.attrKeyframes[1]
-        self.assertIsNone(self.attrKeyframes[1].value)
+        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -1)
+        self.assertEqual(self.node.attrs['tx'].keyframes[5].value, 10)
+        del self.node.attrs['tx'].keyframes[1]
+        self.node.attrs['tx'].keyframes[5].delete()
+        self.assertIsNone(self.node.attrs['tx'].keyframes[1].value)
+        self.assertIsNone(self.node.attrs['tx'].keyframes[5].value)
+        self.assertIsNotNone(self.node.attrs['tx'].keyframes[2].value)
 
-        self.assertEqual(self.attrKeyframes[5].value, 10)
-        self.attrKeyframes[5].delete()
-        self.assertIsNone(self.attrKeyframes[5].value)
-
-        self.assertIn(0, mc.keyframe(self.node, attribute='ty', query=True, timeChange=True))
-        del self.nodeKeyframes[0]
-        self.assertNotIn(0, mc.keyframe(self.node, attribute='ty', query=True, timeChange=True))
-
-        self.assertIn(2, mc.keyframe(self.node, attribute='tx', query=True, timeChange=True))
-        self.nodeKeyframes[2].delete()
-        self.assertNotIn(2, mc.keyframe(self.node, attribute='tx', query=True, timeChange=True))
-
-        self.assertTrue(mc.keyframe(self.node, attribute='tx', query=True, timeChange=True))
-        self.attrKeyframes.delete()
-        self.assertFalse(mc.keyframe(self.node, attribute='tx', query=True, timeChange=True))
-
-        self.assertTrue(mc.keyframe(self.node, query=True, timeChange=True))
-        self.nodeKeyframes.delete()
-        self.assertFalse(mc.keyframe(self.node, query=True, timeChange=True))
+    def testDeleteSlice(self):
+        frames = self.node.attrs['tx'].keyframes.frames
+        del self.node.attrs['tx'].keyframes[1:10:2]
+        self.assertEqual(set(self.node.attrs['tx'].keyframes.frames), set(frames) - set(range(1, 10, 2)))
+        self.assertEqual(self.node.attrs['tx'].keyframes[1:10:2].value, [])
 
 
 class TestUVSets(unittest.TestCase):
