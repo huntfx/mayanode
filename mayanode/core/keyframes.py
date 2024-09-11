@@ -118,9 +118,9 @@ class NodeKeyframes(KeyframeBase):
         # type: (Union[float, slice], float) -> None
         Keyframe(self.node, frame).set(value)
 
-    def set(self, value=None):
-        # type: (Optional[float]) -> None
-        Keyframe(self.node).set(value)
+    def set(self, value=None, **kwargs):
+        # type: (Optional[float], **Any) -> None
+        Keyframe(self.node).set(value, **kwargs)
 
     def __delitem__(self, frame):
         # type: (Union[float, slice]) -> None
@@ -213,9 +213,9 @@ class NodeKeyframeList(KeyframeBase):
             return iter(self._kf)
         return iter(kf for kf in self._kf if kf.frame in frames)
 
-    def set(self, value=None):
-        # type: (Optional[float]) -> None
-        Keyframe(self.node, self._frame).set(value)
+    def set(self, value=None, **kwargs):
+        # type: (Optional[float], **Any) -> None
+        Keyframe(self.node, self._frame).set(value, **kwargs)
 
     def delete(self):
         # type: () -> None

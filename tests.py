@@ -1319,7 +1319,7 @@ class TestKeyframes(unittest.TestCase):
 
     def testSet(self):
         self.node.attrs['tx'].keyframes[2] = -10
-        self.node.attrs['tx'].keyframes[3].set(-20)
+        self.node.attrs['tx'].keyframes[3].set(-20, outTangentType='step')
         self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -1)
         self.assertEqual(self.node.attrs['tx'].keyframes[2].value, -10)
         self.assertEqual(self.node.attrs['tx'].keyframes[3].value, -20)
@@ -1327,7 +1327,7 @@ class TestKeyframes(unittest.TestCase):
 
     def testSetSlice(self):
         self.node.attrs['tx'].keyframes[1:3] = -10
-        self.node.attrs['tx'].keyframes[3:6].set(-20)
+        self.node.attrs['tx'].keyframes[3:6].set(-20, outTangentType='step')
         self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -10)
         self.assertEqual(self.node.attrs['tx'].keyframes[3:6].value, [-20, -20, -20])
 
