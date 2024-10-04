@@ -1257,8 +1257,8 @@ class TestKeyframes(unittest.TestCase):
         mc.setKeyframe('perspShape.focalLength', time=(7, 7), value=35)
 
     def tearDown(self):
-        mc.cutKey('persp', attribute='translateX', time=(0, 10))
-        mc.cutKey('perspShape', attribute='focalLength', time=(0, 10))
+        mc.cutKey('persp', attribute='translateX')
+        mc.cutKey('perspShape', attribute='focalLength')
         mc.setAttr('persp.translateX', self.oldX)
         mc.setAttr('perspShape.focalLength', self.oldFL)
 
