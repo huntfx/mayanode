@@ -439,3 +439,31 @@ class MappedLazyList(object):
 
 class _NodeType(StrMixin):
     """Base Node type for internal inheritance checks."""
+
+
+class _StrCmp(str):
+    """Python 2 compatibility class to allow string comparisons."""
+
+    def __gt__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, (int, float)):
+            return True
+        return super(_StrCmp, self).__gt__(str(other))
+
+    def __ge__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, (int, float)):
+            return True
+        return super(_StrCmp, self).__ge__(str(other))
+
+    def __lt__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, (int, float)):
+            return False
+        return super(_StrCmp, self).__lt__(str(other))
+
+    def __le__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, (int, float)):
+            return False
+        return super(_StrCmp, self).__le__(str(other))

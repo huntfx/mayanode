@@ -6,7 +6,8 @@ import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from mayanode import Node, Namespace, ProgressBar, exceptions, File, Reference
+from mayanode import Node, Namespace, ProgressBar, exceptions, File, Reference, Maya
+from mayanode.utils import tokeniseVersion, standardiseVersions
 
 
 class TestNode(unittest.TestCase):
@@ -1878,6 +1879,72 @@ class TestReference(unittest.TestCase):
 class TestFile(unittest.TestCase):
     def testOS(self):
         self.assertEqual(os.path.join(File('C:/a'), 'b'), r'C:\a\b')
+
+
+class TestVersion(unittest.TestCase):
+    def setUp(self):
+        self.version = mc.about(version=True)
+        self.major = mc.about(majorVersion=True)
+        self.minor = mc.about(minorVersion=True)
+        self.patch = mc.about(patchVersion=True)
+
+    def testComparison(self):
+        self.assertEqual(Maya.version, mc.about(version=True))
+        self.assertEqual(Maya.version, self.major)
+        self.assertEqual(Maya.version, int(self.major))
+        self.assertEqual(int(Maya.version), int(self.major))
+        self.assertEqual(Maya.version, '{}.{}'.format(self.major, self.minor))
+        self.assertEqual(Maya.version, float('{}.{}'.format(self.major, self.minor)))
+        self.assertEqual(float(Maya.version), float('{}.{}'.format(self.major, self.minor)))
+        self.assertEqual(Maya.version, '{}.{}.{}'.format(self.major, self.minor, self.patch))
+        self.assertTrue(Maya.version < (int(self.major) + 1))
+        self.assertTrue(Maya.version > 0.0)
+        self.assertFalse(Maya.version < '0')
+        self.assertFalse(Maya.version > '')
+        self.assertFalse(Maya.version > 'string')
+
+    def testTokenise(self):
+        self.assertEqual(tokeniseVersion('1'), [1])
+        self.assertEqual(tokeniseVersion('1.2'), [1, 2])
+        self.assertEqual(tokeniseVersion('1v2'), [1, 2])
+        self.assertEqual(tokeniseVersion('1.2.3'), [1, 2, 3])
+        self.assertEqual(tokeniseVersion('1.2.3v4'), [1, 2, 3, 4])
+        self.assertEqual(tokeniseVersion('1.2.03v04'), [1, 2, 3, 4])
+        self.assertEqual(tokeniseVersion('1.2.30v40'), [1, 2, 30, 40])
+        self.assertEqual(tokeniseVersion('1.2.3v4a'), [1, 2, 3, 4, 'a'])
+        self.assertEqual(tokeniseVersion('a'), ['a'])
+        self.assertEqual(tokeniseVersion('a1'), ['a', 1])
+        self.assertEqual(tokeniseVersion('a1a'), ['a', 1, 'a'])
+        self.assertEqual(tokeniseVersion('a.b'), ['a', 'b'])
+        self.assertEqual(tokeniseVersion('v1'), [1])
+        self.assertEqual(tokeniseVersion('v1', False), ['v', 1])
+        self.assertEqual(tokeniseVersion('12.ab.c34d.5ef6'), [12, 'ab', 'c34d', 5, 6])
+        self.assertEqual(tokeniseVersion(1), [1])
+        self.assertEqual(tokeniseVersion(1.2), [1, 2])
+
+    def testStandardise(self):
+        self.assertEqual(standardiseVersions('1.2.3', '1.2.3'), ([1, 2, 3], [1, 2, 3]))
+        self.assertEqual(standardiseVersions(1, 2), (1, 2))
+        self.assertEqual(standardiseVersions(1, 1.2), (1, 1))
+        self.assertEqual(standardiseVersions(1.2, 1), (1, 1))
+        self.assertEqual(standardiseVersions(1.2, '1'), (1, 1))
+        self.assertEqual(standardiseVersions(1.2, '1.2.3'), ([1, 2], [1, 2]))
+        self.assertEqual(standardiseVersions(1, '1.2.3'), (1, 1))
+        self.assertEqual(standardiseVersions(1.2, 'v2'), (1, 2))
+        self.assertEqual(standardiseVersions(1.2, 'v'), (1, 'v'))
+        self.assertEqual(standardiseVersions(1.2, '1.2v3'), ([1, 2], [1, 2]))
+        self.assertEqual(standardiseVersions(1.2, '1v2'), ([1, 2], [1, 2]))
+        self.assertEqual(standardiseVersions('1v2', 1.2), ([1, 2], [1, 2]))
+        self.assertEqual(standardiseVersions('1.2.3', '1.2.3v4'), ([1, 2, 3], [1, 2, 3]))
+        self.assertEqual(standardiseVersions('1.2.3', '1.2.34'), ([1, 2, 3], [1, 2, 34]))
+        self.assertEqual(standardiseVersions('1.2.3', 'v1.2.3'), ([1, 2, 3], [1, 2, 3]))
+        self.assertEqual(standardiseVersions('v1.2.3', 'v1.2'), ([1, 2], [1, 2]))
+        self.assertEqual(standardiseVersions('v1.2.3', 1), (1, 1))
+        self.assertEqual(standardiseVersions(1, 'v1.2.3'), (1, 1))
+        self.assertEqual(standardiseVersions('1.2v3a', '1.2v3b'), ([1, 2, 3, 'a'], [1, 2, 3, 'b']))
+        self.assertEqual(standardiseVersions('1.2v3a', '1.2v3'), ([1, 2, 3], [1, 2, 3]))
+        self.assertEqual(standardiseVersions('a.1', 'a.2'), (['a', 1], ['a', 2]))
+        self.assertEqual(standardiseVersions('a.b', 'a.2'), (['a', 'b'], ['a', 2]))
 
 
 if __name__ == '__main__':
