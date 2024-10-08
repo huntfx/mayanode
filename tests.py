@@ -7,7 +7,7 @@ import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
 from mayanode import Node, Namespace, ProgressBar, exceptions, File, Reference, Maya
-from mayanode.utils import tokeniseVersion, standardiseVersions
+from mayanode.version import tokeniseVersion, standardiseVersions
 
 
 class TestNode(unittest.TestCase):
