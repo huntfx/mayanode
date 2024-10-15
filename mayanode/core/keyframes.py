@@ -283,10 +283,18 @@ class AttributeKeyframes(KeyframeBase):
         """Set a keyframe."""
         Keyframe(self.attr, frame).set(value)
 
+    def set(self, value=None, **kwargs):
+        # type: (Optional[float], **Any) -> None
+        Keyframe(self.attr).set(value, **kwargs)
+
     def __delitem__(self, frame):
         # type: (Union[float, slice]) -> None
         """Delete a keyframe."""
         Keyframe(self.attr, frame).delete()
+
+    def delete(self):
+        # type: () -> None
+        Keyframe(self.attr).delete()
 
     @property
     def frames(self):

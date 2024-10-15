@@ -833,6 +833,12 @@ class Attribute(types.StrMixin):
         """Get the keyframe dict."""
         return AttributeKeyframes(self)
 
+    @keyframes.deleter
+    def keyframes(self):
+        # type: () -> None
+        """Delete all keyframes on the current attribute."""
+        AttributeKeyframes(self).delete()
+
     @property
     def children(self):
         # type: () -> AttributeChildren

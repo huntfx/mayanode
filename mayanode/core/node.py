@@ -1348,6 +1348,12 @@ class Node(types._NodeType):
         """Get the keyframes on the node."""
         return NodeKeyframes(self)
 
+    @keyframes.deleter
+    def keyframes(self):
+        # type: () -> None
+        """Delete all keyframes on the node."""
+        NodeKeyframes(self).delete()
+
     def instance(self, **kwargs):
         # type: (**Any) -> Node
         """Create an instance of the object.

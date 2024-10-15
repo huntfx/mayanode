@@ -1341,6 +1341,34 @@ class TestKeyframes(unittest.TestCase):
         self.assertIsNone(self.node.attrs['tx'].keyframes[5].value)
         self.assertIsNotNone(self.node.attrs['tx'].keyframes[2].value)
 
+    def testDeleteAttrKeyword(self):
+        self.assertTrue(self.node.attrs['tx'].keyframes)
+        del self.node.attrs['tx'].keyframes
+        self.assertFalse(self.node.attrs['tx'].keyframes)
+
+    def testDeleteAttrMethod(self):
+        self.assertTrue(self.node.attrs['tx'].keyframes)
+        self.node.attrs['tx'].keyframes.delete()
+        self.assertFalse(self.node.attrs['tx'].keyframes)
+
+    def testDeleteNodeKeyword(self):
+        self.assertTrue(self.node.keyframes)
+        self.assertTrue(self.node.attrs['tx'].keyframes)
+        self.assertTrue(self.node.attrs['tx'].keyframes)
+        del self.node.keyframes
+        self.assertFalse(self.node.keyframes)
+        self.assertFalse(self.node.attrs['tx'].keyframes)
+        self.assertFalse(self.node.shape.attrs['focalLength'].keyframes)
+
+    def testDeleteNodeMethod(self):
+        self.assertTrue(self.node.keyframes)
+        self.assertTrue(self.node.attrs['tx'].keyframes)
+        self.assertTrue(self.node.attrs['tx'].keyframes)
+        self.node.keyframes.delete()
+        self.assertFalse(self.node.keyframes)
+        self.assertFalse(self.node.attrs['tx'].keyframes)
+        self.assertFalse(self.node.shape.attrs['focalLength'].keyframes)
+
     def testDeleteSlice(self):
         frames = self.node.attrs['tx'].keyframes.frames
         del self.node.attrs['tx'].keyframes[1:10:2]
