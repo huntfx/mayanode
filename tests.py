@@ -1267,6 +1267,14 @@ class TestKeyframes(unittest.TestCase):
         self.assertEqual(len(self.node.attrs['tx'].keyframes), 5)
         self.assertEqual(len(self.node.shape.attrs['focalLength'].keyframes), 2)
 
+        mc.cutKey(self.node, attribute='tx')
+        self.assertEqual(len(self.node.attrs['tx'].keyframes), 0)
+        self.assertFalse(self.node.attrs['tx'].keyframes)
+        self.assertEqual(len(self.node.keyframes), 2)
+        self.assertTrue(self.node.keyframes)
+        mc.cutKey(self.node)
+        self.assertFalse(self.node.keyframes)
+
     def testAttrs(self):
         self.assertEqual(self.node.keyframes.attrs, ['persp.translateX', 'perspShape.focalLength'])
 

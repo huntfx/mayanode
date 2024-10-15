@@ -14,6 +14,15 @@ if TYPE_CHECKING:
 class KeyframeBase(object):
     __slots__ = []  # type: List[str]
 
+    def __bool__(self):
+        # type: () -> bool
+        return self.__len__() > 0
+    __nonzero__ = __bool__
+
+    def __len__(self):
+        # type: () -> int
+        return 0
+
     @property
     def node(self):
         # type: () -> Node
@@ -204,6 +213,13 @@ class NodeKeyframeList(KeyframeBase):
         # type: () -> KeyframeList
         """Get all the frames."""
         return KeyframeList(self.node, self._frame, (kf.frame for kf in self))
+
+    def __len__(self):
+        # type: () -> int
+        frames = self._frames
+        if frames is None:
+            return len(self._kf)
+        return sum(1 for kf in self._kf if kf.frame in frames)
 
     def __iter__(self):
         # type: () -> Iterator[Keyframe]
