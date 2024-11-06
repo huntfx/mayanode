@@ -8,7 +8,7 @@ from .. import types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Dict, Optional, Tuple, Union
+    from typing import Dict, Optional, Union
     from ..types import StrLike
 
 
@@ -181,6 +181,12 @@ class _Scene(object):
             audio = mc.sound(file=audio, name=os.path.splitext(os.path.basename(audio))[0])
         mc.timeControl(utils.getMelGlobal('PlayBackSlider'), edit=True, sound=audio, displaySound=bool(audio))
 
+    @property
+    def fileInfo(self):
+        # type: () -> _FileInfo
+        """Get the fileInfo data for the current scene."""
+        return FileInfo
+
 
 class SceneNodes(types.MappedLazyList):
     """Hold a dict of all nodes currently in the scene."""
@@ -209,5 +215,6 @@ Scene = _Scene()
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
+from .file_info import FileInfo, _FileInfo
 from .node import Node
 from .plugin import Plugin

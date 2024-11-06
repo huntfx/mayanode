@@ -181,3 +181,21 @@ class ReferenceNotTopLevelError(ReferenceImportError):
 
 class ReferenceNotLoadedError(ReferenceImportError):
     MESSAGE = '"{reference}" cannot be imported as it is unloaded'
+
+
+class FileInfoError(BaseError):
+    MESSAGE = 'error with fileInfo'
+
+
+class ReadOnlyFileInfoError(FileInfoError):
+    MESSAGE = 'fileInfo {reason} and cannot be edited'
+
+    def __init__(self, reason, **kwargs):
+        super(ReadOnlyFileInfoError, self).__init__(reason=reason, **kwargs)
+
+
+class MultipleFileInfoResultsError(FileInfoError):
+    MESSAGE = 'more than one fileInfo value returned for "{key}"'
+
+    def __init__(self, key, **kwargs):
+        super(MultipleFileInfoResultsError, self).__init__(key=key, **kwargs)

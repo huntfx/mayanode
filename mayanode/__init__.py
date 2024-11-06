@@ -138,6 +138,7 @@ __all__ = [
     'BoundingBox',
     'Camera',
     'File',
+    'FileInfo',
     'Maya',
     'Namespace',
     'Plugin',
@@ -156,6 +157,7 @@ from .core.attribute import Attribute
 from .core.bounding_box import BoundingBox
 from .core.camera import Camera
 from .core.file import File
+from .core.file_info import FileInfo
 from .core.namespace import Namespace
 from .core.plugin import Plugin
 from .core.profiler import Profiler

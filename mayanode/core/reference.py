@@ -406,6 +406,12 @@ class Reference(Node):
             raise exceptions.ReferenceNotLoadedError(self)
         mc.file(self.refPath, importReference=True)
 
+    @property
+    def fileInfo(self):
+        # type: () -> _FileInfo
+        """Get the fileInfo data for the current reference."""
+        return _FileInfo(self)
+
 
 class ReferenceNodes(types.MappedLazyList):
     """Hold a list of all nodes in the reference.
@@ -481,4 +487,5 @@ class ReferenceNodes(types.MappedLazyList):
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .file import File
+from .file_info import _FileInfo
 from .namespace import Namespace
