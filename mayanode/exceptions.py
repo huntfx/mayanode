@@ -199,3 +199,10 @@ class MultipleFileInfoResultsError(FileInfoError):
 
     def __init__(self, key, **kwargs):
         super(MultipleFileInfoResultsError, self).__init__(key=key, **kwargs)
+
+
+class FileExtensionError(BaseError):
+    MESSAGE = 'unexpected file extension (expected "ma" or "mb", got "{ext}")'
+
+    def __init__(self, ext, **kwargs):
+        super(FileExtensionError, self).__init__(ext=ext, **kwargs)

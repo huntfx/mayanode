@@ -34,7 +34,7 @@ class File(str):
     @property
     def extension(self):
         # type: () -> str
-        """Get the file extension."""
+        """Get the file extension without the period."""
         return os.path.splitext(self)[1][1:].lower()
 
     @property
@@ -115,6 +115,43 @@ class File(str):
         utils.logger.info('Importing file "%s" to namespace "%s"', self, namespace)
         mc.file(self, **params)
         return namespace
+
+    def export(self, selected=False):
+        # type: (bool) -> File
+        """Export a file.
+
+        Parameters:
+            selected: Export the current selection.
+                This will include any selected shaders.
+
+        Raises:
+            ValueError: unsupported file type
+
+        TODO:
+            Tests
+        """
+        params = {
+            'preserveReferences': True,
+            'force': True,
+        }
+
+        try:
+            params['type'] = {'ma': 'mayaAscii', 'mb': 'mayaBinary'}[self.extension.lower()]
+        except KeyError:
+            raise exceptions.FileExtensionError('unsupported file type (expected "ma" or "mb", got "{}")'.format(self.extension))
+
+        if selected:
+            params['exportSelected'] = True
+
+            # Export the shader since the user can deselect if needed
+            params['shader'] = True
+
+        else:
+            params['exportAll'] = True
+
+        utils.logger.info('Exporting file "%s"', self)
+        mc.file(self, **params)
+        return self
 
     def reference(self, namespace=utils.NOT_SET, group=None, defer=False):
         # type: (Union[None, StrLike, utils.NotSet], Optional[str], bool) -> Optional[Reference]
