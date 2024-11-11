@@ -144,7 +144,7 @@ class InvalidUuidError(BaseError):
     MESSAGE = '"{uuid}" is not a valid UUID'
 
     def __init__(self, uuid, **kwargs):
-        super(NamespaceNotEmptyError, self).__init__(uuid=uuid, **kwargs)
+        super(InvalidUuidError, self).__init__(uuid=uuid, **kwargs)
 
 
 class InvalidTimeUnitError(BaseError):
