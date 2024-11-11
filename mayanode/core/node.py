@@ -960,15 +960,33 @@ class Node(types._NodeType):
         """Get the DG/DAG modifiers."""
         return self._modifiers
 
-    def select(self, add=False, remove=False):
-        # type(bool, bool) -> None
-        """Set, add or remove a node from the selection."""
-        if add:
-            mc.select(self, add=True)
-        elif remove:
-            mc.select(self, remove=True)
-        else:
-            mc.select(self)
+    def select(self, add=None, replace=None):
+        # type(Optional[bool], Optional[bool]) -> None
+        """Select the current node.
+
+        Parameters:
+            add: If the node should be added to the current selection.
+                Defaults to False if `replace` not set.
+            replace: If the node should replace the current selection.
+                Defaults to True if `add` not set.
+
+        TODO:
+            Tests
+        """
+        if add is None and replace is None:
+            add = False
+            replace = True
+        elif add is None:
+            add = not replace
+        elif replace is None:
+            replace = not add
+        kwargs = {'add': add, 'replace': replace}
+        mc.select(self, noExpand=True, **kwargs)
+
+    def deselect(self):
+        # type: () -> None
+        """Deselect the current node."""
+        mc.select(self, noExpand=True, deselect=True)
 
     def translate(self, x, y, z):
         # type: (float, float, float) -> None
