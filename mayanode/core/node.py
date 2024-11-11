@@ -899,23 +899,26 @@ class Node(types._NodeType):
             NodeDeletedError
             RenameReadOnlyNodeError
         """
-        utils.logger.info('Renaming %r to %r', self, name)
+        name = str(name)
+        utils.logger.info('Renaming "%s" to "%s"', self, name)
         utils.raiseIfNodeNotFound(self)
 
         if self.referenced or self.default or self.name in constants.STARTUP_CAMERAS:
             raise exceptions.RenameReadOnlyNodeError(self)
 
+        # Keep namespace if not defined
+        if ':' not in name:
+            name = '{}:{}'.format(self.namespace, name)
+
         mod = self.modifiers.dg
         if mod is None:
             mod = self.modifiers.dag
 
-        newName = '{}:{}'.format(self.namespace, name)
         if mod is None:
-            mc.rename(self, newName)
-
+            mc.rename(self, name)
         else:
-            Namespace.fromNode(newName).create()
-            mod.renameNode(self.api.object, newName)
+            Namespace.fromNode(name).create()
+            mod.renameNode(self.api.object, name)
 
     @property
     def longName(self):

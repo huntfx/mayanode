@@ -485,8 +485,16 @@ class TestNode(unittest.TestCase):
         node.namespace = 'new:namespace'
         node.parent = 'persp'
         node.name = 'namespaceTest2'
+        self.assertEqual(node.name, 'new:namespace:namespaceTest2')
         self.assertEqual(node.namespace, 'new:namespace')
         self.assertEqual(node.parent.namespace, '')
+
+        node.name = 'new:namespaceTest1'
+        self.assertEqual(node.name, 'new:namespaceTest1')
+        self.assertEqual(node.namespace, 'new')
+
+        node.name = ':namespaceTest2'
+        self.assertFalse(node.namespace)
 
         mc.delete(node.name)
         mc.namespace(removeNamespace='new:namespace')
