@@ -1567,8 +1567,11 @@ class TestNamespace(unittest.TestCase):
         self.ns1 = ':' + mc.namespace(add='namespaceTest1')
         self.ns2 = ':' + mc.namespace(add='namespaceTest2', parent=self.ns1)
         self.ns3 = ':' + mc.namespace(add='namespaceTest3', parent=self.ns2)
+        self.node = mc.polyCube(n=self.ns2 + ':namespaceTest')[0]
 
     def tearDown(self):
+        if mc.objExists(self.node):
+            mc.delete(self.node)
         if mc.namespace(exists=self.ns3):
             mc.namespace(removeNamespace=self.ns3)
         if mc.namespace(exists=self.ns2):
@@ -1597,16 +1600,41 @@ class TestNamespace(unittest.TestCase):
         with self.assertRaises(AttributeError):
             Namespace(self.ns3).parent = self.ns1
 
-    def testDelete(self):
+    def testDeleteSimple(self):
+        mc.delete(self.node)
+        self.assertTrue(Namespace(self.ns3).delete())
+        self.assertTrue(Namespace(self.ns2).delete())
+        self.assertTrue(Namespace(self.ns1).delete())
+
+    def testDeleteWithNamespace(self):
+        mc.delete(self.node)
         with self.assertRaises(exceptions.NamespaceNotEmptyError):
             Namespace(self.ns2).delete()
         self.assertTrue(Namespace(self.ns3).delete())
         self.assertTrue(Namespace(self.ns2).delete())
-        self.assertFalse(Namespace(self.ns2).exists)
 
-    def testDeleteRecursve(self):
-        self.assertEqual(Namespace(self.ns1).delete(recursive=True), 3)
-        self.assertFalse(Namespace(self.ns1).exists)
+    def testDeleteParamWithNamespace(self):
+        with self.assertRaises(exceptions.NamespaceNotEmptyError):
+            self.assertTrue(Namespace(self.ns2).delete(recursive=True))
+        mc.delete(self.node)
+        self.assertTrue(Namespace(self.ns2).delete(recursive=True))
+
+    def testDeleteWithNode(self):
+        self.assertTrue(Namespace(self.ns3).delete())
+        with self.assertRaises(exceptions.NamespaceNotEmptyError):
+            Namespace(self.ns2).delete()
+        mc.delete(self.node)
+        self.assertTrue(Namespace(self.ns2).delete())
+
+    def testDeleteParamWithNode(self):
+        with self.assertRaises(exceptions.NamespaceNotEmptyError):
+            self.assertTrue(Namespace(self.ns2).delete(nodes=True))
+        self.assertTrue(Namespace(self.ns3).delete())
+        self.assertTrue(Namespace(self.ns2).delete(nodes=True))
+
+    def testDeleteRecursive(self):
+        self.assertTrue(Namespace(self.ns1).delete(nodes=True, recursive=True))
+        self.assertFalse(mc.objExists(self.node))
 
     def testParent(self):
         self.assertEqual(Namespace(self.ns3).parent, self.ns2)

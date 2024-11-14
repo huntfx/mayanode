@@ -157,17 +157,17 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         mc.namespace(add=self)
         return True
 
-    def delete(self, recursive=False):
-        # type: (bool) -> int
+    def delete(self, recursive=False, nodes=False):
+        # type: (bool, bool) -> List[Namespace]
         """Delete the namespace.
 
         Raises:
             NamespaceNotEmptyError
 
         Returns:
-            Number of deleted namespaces.
+            Deleted namespaces.
         """
-        utils.logger.info('Deleting namespace: %s', self)
+        utils.logger.info('Deleting namespace: %s (recursive: %s, nodes: %s)', self, recursive, nodes)
         if not self.exists:
             return 0
 
@@ -181,14 +181,20 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         namespaces = [self.name] + childNamespaces
 
         # Check if any nodes exist
-        # TODO: Add test
+        nodesToDelete = []
         for namespace in namespaces:
-            if om2.MNamespace.getNamespaceObjects(namespace):
-                raise exceptions.NamespaceNotEmptyError(self)
+            nsObjects = om2.MNamespace.getNamespaceObjects(namespace)
+            if nsObjects:
+                if nodes:
+                    nodesToDelete.extend(depNode.name() for depNode in map(om2.MFnDependencyNode, nsObjects))
+                else:
+                    raise exceptions.NamespaceNotEmptyError(self)
 
-        for i, namespace in enumerate(reversed(namespaces)):
+        if nodesToDelete:
+            mc.delete(nodesToDelete)
+        for namespace in reversed(namespaces):
             mc.namespace(removeNamespace=namespace)
-        return i + 1
+        return namespaces
 
     @property
     def name(self):
