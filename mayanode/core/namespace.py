@@ -79,6 +79,27 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         # type: (StrLike) -> str
         return other.rstrip(':') + self.name
 
+    def strip(self, value=None):
+        # type: (Optional[str]) -> str
+        name = super(Namespace, self).strip(value)
+        if value is None:
+            return name.strip(':')
+        return name
+
+    def lstrip(self, value=None):
+        # type: (Optional[str]) -> str
+        name = super(Namespace, self).lstrip(value)
+        if value is None:
+            return name.lstrip(':')
+        return name
+
+    def rstrip(self, value=None):
+        # type: (Optional[str]) -> str
+        name = super(Namespace, self).rstrip(value)
+        if value is None:
+            return name.rstrip(':')
+        return name
+
     @classmethod
     def ls(cls):
         # type: () -> List[Namespace]

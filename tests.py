@@ -1717,6 +1717,26 @@ class TestNamespace(unittest.TestCase):
         self.assertIn('{}:{}'.format(self.ns2[1:], cube), namespace.nodes)
         self.assertIn('|{}:{}'.format(self.ns2, cube), namespace.nodes)
 
+    def testStrip(self):
+        ns1 = Namespace(self.ns1)
+        self.assertEqual(ns1, ':namespaceTest1')
+        self.assertEqual(ns1, 'namespaceTest1')
+
+        self.assertEqual(str(ns1), ':namespaceTest1')
+        self.assertNotEqual(str(ns1), 'namespaceTest1')
+
+        self.assertEqual(str(ns1).strip(), ':namespaceTest1')
+        self.assertNotEqual(str(ns1).strip(), 'namespaceTest1')
+
+        self.assertNotEqual(ns1.strip(), ':namespaceTest1')
+        self.assertEqual(ns1.strip(), 'namespaceTest1')
+        self.assertEqual(ns1.lstrip(), 'namespaceTest1')
+        self.assertEqual(ns1.rstrip(), ':namespaceTest1')
+
+        self.assertFalse(Namespace(':').strip())
+        self.assertFalse(Namespace(':').lstrip())
+        self.assertFalse(Namespace(':').rstrip())
+
 
 class TestProgressBar(unittest.TestCase):
     def setUp(self):

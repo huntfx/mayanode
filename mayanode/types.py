@@ -158,16 +158,16 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
         # type: (str) -> bool
         return self.name.endswith(value)
 
-    def strip(self, value):
-        # type: (str) -> str
+    def strip(self, value=None):
+        # type: (Optional[str]) -> str
         return self.name.strip(value)
 
-    def lstrip(self, value):
-        # type: (str) -> str
+    def lstrip(self, value=None):
+        # type: (Optional[str]) -> str
         return self.name.lstrip(value)
 
-    def rstrip(self, value):
-        # type: (str) -> str
+    def rstrip(self, value=None):
+        # type: (Optional[str]) -> str
         return self.name.rstrip(value)
 
     def replace(self, old, new):
