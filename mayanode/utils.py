@@ -423,3 +423,9 @@ def getMelGlobal(name):
     if name in ('PlaybackSlider', 'MainProgressBar') and mc.about(batch=True):
         raise exceptions.RequiresInteractiveError
     return mel.eval('$tmp = $g{}'.format(name))
+
+
+def validateNamespace(namespace):
+    # type: (str) -> str
+    """Validate a namespace input."""
+    return ':' + ':'.join(map(om2.MNamespace.validateName, str(namespace).lstrip(':').split(':')))

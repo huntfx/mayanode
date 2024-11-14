@@ -58,7 +58,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
 
     def __init__(self, namespace=':'):  # pylint: disable=super-init-not-called
         # type: (str) -> None
-        self._namespace = ':' + ':'.join(map(om2.MNamespace.validateName, namespace.lstrip(':').split(':')))
+        self._namespace = utils.validateNamespace(namespace)
 
     def __eq__(self, other):
         # type: (Any) -> bool
