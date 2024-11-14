@@ -1596,6 +1596,41 @@ class TestNamespace(unittest.TestCase):
         self.assertFalse(ns4.delete())
         self.assertFalse(ns4.exists)
 
+    def testRename(self):
+        ns1 = Namespace(self.ns1)
+        ns2 = Namespace(self.ns2)
+
+        ns1.name = 'namespaceTestRenamed'
+        self.assertFalse(ns2.exists)
+        self.assertEqual(ns2, 'namespaceTest1:namespaceTest2')
+        self.assertEqual(ns1.children, ['namespaceTestRenamed:namespaceTest2'])
+        ns1.name = 'namespaceTest1'
+        self.assertTrue(ns2.exists)
+
+        self.assertFalse(Namespace('namespaceTestParent').exists)
+        ns1.name = 'namespaceTestParent:namespaceTestChild'
+        self.assertEqual(ns1, 'namespaceTestParent:namespaceTestChild')
+        self.assertIn(ns1, Namespace('namespaceTestParent').children)
+        self.assertFalse(ns2.exists)
+        ns1.name = 'namespaceTest1'
+        self.assertTrue(ns2.exists)
+
+        self.assertTrue(Namespace('namespaceTestParent').exists)
+        ns1.name = 'namespaceTestParent:namespaceTestChild'
+        ns1.name = 'namespaceTest1'
+        mc.namespace(removeNamespace='namespaceTestParent')
+
+    def testRenameSelf(self):
+        ns1 = Namespace(self.ns1)
+        ns1.name = ns1
+
+    def testRenameInvalid(self):
+        ns3 = Namespace(self.ns3)
+        with self.assertRaises(exceptions.NamespaceNotUniqueError):
+            Namespace(ns3).name = self.ns1
+        with self.assertRaises(exceptions.NamespaceInvalidNameError):
+            Namespace(ns3).name = ':'
+
     def testReparent(self):
         with self.assertRaises(AttributeError):
             Namespace(self.ns3).parent = self.ns1

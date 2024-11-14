@@ -129,6 +129,10 @@ class NamespaceError(BaseError):
         super(NamespaceError, self).__init__(namespace=namespace, **kwargs)
 
 
+class NamespaceInvalidNameError(NamespaceError):
+    MESSAGE = 'The new name for "{namespace}" contains only illegal characters.'
+
+
 class NamespaceNotFoundError(NamespaceError):
     MESSAGE = 'No namespace matches name: {namespace}'
 
@@ -136,8 +140,9 @@ class NamespaceNotFoundError(NamespaceError):
 class NamespaceNotEmptyError(NamespaceError):
     MESSAGE = 'The namespace "{namespace}" is not empty.'
 
-    def __init__(self, namespace, **kwargs):
-        super(NamespaceNotEmptyError, self).__init__(namespace=namespace, **kwargs)
+
+class NamespaceNotUniqueError(NamespaceError):
+    MESSAGE = 'Namespace name is not unique: {namespace}'
 
 
 class InvalidUuidError(BaseError):

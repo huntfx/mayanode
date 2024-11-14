@@ -202,6 +202,40 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         """Get the namespace as a string."""
         return self._namespace
 
+    @name.setter
+    def name(self, name):
+        # type: (Any) -> None
+        """Rename the namespace.
+        Any required parent namespaces will be automatically created.
+
+        Raises:
+            NamespaceInvalidNameError
+            NamespaceNotUniqueError
+        """
+        utils.logger.info('Renaming "%s" to "%s"', self, name)
+        name = namespace = utils.validateNamespace(name)
+        name = name.lstrip(':')
+
+        if not name:
+            raise exceptions.NamespaceInvalidNameError(self)
+        if om2.MNamespace.namespaceExists(name):
+            if self == name:
+                return
+            raise exceptions.NamespaceNotUniqueError(name)
+
+        kwargs = {}
+
+        # Handle parents
+        if ':' in name:
+            parent, name = name.rsplit(':', 1)
+            parent = Namespace(parent)
+            if not parent.exists:
+                parent.create()
+            kwargs['parent'] = parent
+
+        mc.namespace(rename=(self, name), **kwargs)
+        self._namespace = namespace
+
     @property
     def nodes(self):
         # type: () -> NamespaceNodes
