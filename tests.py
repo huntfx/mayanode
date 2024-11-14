@@ -493,11 +493,21 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.name, 'new:namespaceTest1')
         self.assertEqual(node.namespace, 'new')
 
+        node.name = 'new:namespace2:namespaceTest1'
+        self.assertEqual(node.name, 'new:namespace2:namespaceTest1')
+        self.assertEqual(node.namespace, 'new:namespace2')
+
+        node.name = ':new:namespace3:namespaceTest1'
+        self.assertEqual(node.name, 'new:namespace3:namespaceTest1')
+        self.assertEqual(node.namespace, 'new:namespace3')
+
         node.name = ':namespaceTest2'
         self.assertFalse(node.namespace)
 
         mc.delete(node.name)
         mc.namespace(removeNamespace='new:namespace')
+        mc.namespace(removeNamespace='new:namespace2')
+        mc.namespace(removeNamespace='new:namespace3')
         mc.namespace(removeNamespace='new')
 
     def testDeleted(self):

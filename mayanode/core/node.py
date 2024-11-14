@@ -909,6 +909,8 @@ class Node(types._NodeType):
         # Keep namespace if not defined
         if ':' not in name:
             name = '{}:{}'.format(self.namespace, name)
+        elif not name.startswith(':'):
+            name = ':' + name
 
         mod = self.modifiers.dg
         if mod is None:
