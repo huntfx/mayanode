@@ -696,7 +696,7 @@ class Attribute(types.StrMixin):
     @property
     def locked(self):
         # type: () -> bool
-        """Get the node locked state."""
+        """Get the attribute locked state."""
         if not self.api.plug.isNull:
             return self.api.plug.isLocked
         return mc.getAttr(self, lock=True)
@@ -704,7 +704,7 @@ class Attribute(types.StrMixin):
     @locked.setter
     def locked(self, value):
         # type: (bool) -> None
-        """Set the node locked state.
+        """Set the attribute locked state.
 
         Raises:
             NodeDeletedError
@@ -712,6 +712,16 @@ class Attribute(types.StrMixin):
         utils.logger.info('Setting %s locked state: %r', self, value)
         utils.raiseIfNodeNotFound(self.node)
         mc.setAttr(self, lock=value)
+
+    def lock(self):
+        # type: () -> None
+        """Lock the attribute."""
+        self.locked = True
+
+    def unlock(self):
+        # type: () -> None
+        """Unlock the attribute."""
+        self.locked = False
 
     @property
     def keyable(self):
