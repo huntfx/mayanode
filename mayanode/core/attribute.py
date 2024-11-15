@@ -284,7 +284,7 @@ class NodeAttributes(dict):
 
         self._loaded = True
 
-    def create(self, attr, attrType=None, **kwargs):
+    def create(self, longName, attrType=None, **kwargs):
         # type: (str, Optional[str], **Any) -> Attribute
         """Create the attribute."""
         if attrType is not None:
@@ -297,9 +297,9 @@ class NodeAttributes(dict):
             elif attrType is float:
                 kwargs['attributeType'] = 'double'
 
-        utils.logger.info('Adding attribute %s with arguments %s', self, kwargs)
-        mc.addAttr(self.node, longName=attr, **kwargs)
-        return self.__getitem__(attr)
+        utils.logger.info('Adding attribute "%s.%s" with arguments %s', self.node, longName, kwargs)
+        mc.addAttr(self.node, longName=longName, **kwargs)
+        return self.__getitem__(longName)
 
 
 def _getPlugFromDepNode(depNode, attr):
