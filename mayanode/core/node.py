@@ -71,7 +71,7 @@ class Ancestors(types.MappedLazyList):
         self._ancestors = []  # type: List[om2.MDagPath]
         self._loadedAllAncestors = False
         self._modifiers = Modifiers.fromValue(modifier)
-        super(Ancestors, self).__init__([] if node.api.dagPath is None else None)
+        super(Ancestors, self).__init__(None if node.api.dagPath.isValid() else [])
 
     @property
     def node(self):
@@ -88,7 +88,7 @@ class Ancestors(types.MappedLazyList):
         # type: () -> bool
         """Determine if there are any ancestors."""
         dagPath = self.node.api.dagPath
-        if dagPath is None:
+        if not dagPath.isValid():
             return False
         return dagPath.length() > 1
     __nonzero__ = __bool__
@@ -101,7 +101,7 @@ class Ancestors(types.MappedLazyList):
 
         # Get the DAG path length
         dagPath = self.node.api.dagPath
-        if dagPath is None:
+        if not dagPath.isValid():
             self._loadedAllAncestors = True
             return 0
         ancestorLength = dagPath.length() - 1
@@ -130,7 +130,7 @@ class Ancestors(types.MappedLazyList):
             `[ancestors[i] for i in range(n)]`  # 67
             `[ancestors[i] for i in reversed(range(n))]`  # 74
         """
-        if self.node.api.dagPath is None:
+        if not self.node.api.dagPath.isValid():
             return True
 
         if not self._loadedAllAncestors:
@@ -257,7 +257,7 @@ class _ApiData(object):
     def __hash__(self):
         # type: () -> int
         dagPath = self.dagPath
-        return self.handle.hashCode() + dagPath.instanceNumber() if dagPath is not None else 0
+        return self.handle.hashCode() + dagPath.instanceNumber() if dagPath.isValid() else 0
 
     @classmethod
     def fromName(cls, name, instanceNumber=-1):
@@ -385,10 +385,11 @@ class _ApiData(object):
 
     @property
     def dagPath(self):
-        # type: () -> Optional[om2.dagPath]
+        # type: () -> om2.dagPath
         """Get the `MDagPath` object, or None.
 
         Notable methods:
+            `isValid()`
             `fullPathName()`
             `partialPathName()`
 
@@ -401,10 +402,7 @@ class _ApiData(object):
             mobj = self.object
 
             # Intercept when loading on deleted nodes
-            if mobj.isNull():
-                return None
-
-            if mobj.hasFn(om2.MFn.kDagNode):
+            if not mobj.isNull() and mobj.hasFn(om2.MFn.kDagNode):
                 if self._instanceNumber < 0:
                     self._dagPaths = [om2.MDagPath.getAPathTo(mobj)]
                 else:
@@ -415,7 +413,7 @@ class _ApiData(object):
                 self._dagPaths = []
 
         if not self._dagPaths:
-            return None
+            return om2.MDagPath()
         return self._dagPaths[self._instanceNumber]
 
     @property
@@ -480,7 +478,7 @@ class _ApiData(object):
         # type: () -> Optional[om2.MObject]
         """Get the transform dag path from a shape node."""
         dagPath = self.dagPath
-        if dagPath is None:
+        if not dagPath.isValid():
             return None
         transform = dagPath.transform()
         if om2.MObjectHandle(transform) == self.handle:
@@ -488,12 +486,12 @@ class _ApiData(object):
         return transform
 
     def getShapeDagPath(self):
-        # type: () -> Optional[om2.MDagPath]
+        # type: () -> om2.MDagPath
         """Get the shape dag path from a transform node.
         If no shape then it will return the current DAG path.
         """
         dagPath = self.dagPath
-        if dagPath is None or not dagPath.numberOfShapesDirectlyBelow():
+        if not dagPath.isValid() or not dagPath.numberOfShapesDirectlyBelow():
             return dagPath
 
         shapeDagPath = om2.MDagPath(dagPath)
@@ -513,7 +511,7 @@ class _ApiData(object):
 
             dagPath = self.dagPath
             self._hasGeometry = (
-                dagPath is not None
+                dagPath.isValid()
                 and dagPath.hasFn(om2.MFn.kMesh)
                 and om2.MItGeometry(dagPath).index() != -1
             )
@@ -538,9 +536,9 @@ class _ApiData(object):
         """
         if self.hasGeometry:
             dagPath = self.getShapeDagPath()
-            if dagPath is None:
-                return om2.MFnMesh(self.object)
-            return om2.MFnMesh(dagPath)
+            if dagPath.isValid():
+                return om2.MFnMesh(dagPath)
+            return om2.MFnMesh(self.object)
         return None
 
     @property
@@ -631,7 +629,7 @@ class _ApiData(object):
 
             # Load the MFnTransform if supported
             dagPath = self.getShapeDagPath()
-            if dagPath is not None and dagPath.hasFn(om2.MFn.kCamera):
+            if dagPath.isValid() and dagPath.hasFn(om2.MFn.kCamera):
                 self._camera = om2.MFnCamera(dagPath)
             else:
                 self._camera = -1
@@ -876,7 +874,7 @@ class Node(types._NodeType):
         # Even if the MObject is not valid (ie. the node was deleted),
         # the dagPath may still work so check it first
         dagPath = api.dagPath
-        if dagPath is not None and dagPath.isValid():
+        if dagPath.isValid():
             partialName = dagPath.partialPathName()
             if partialName:
                 return partialName
@@ -932,7 +930,7 @@ class Node(types._NodeType):
         """
         utils.raiseIfNodeNotFound(self)
         dagPath = self.api.dagPath
-        if dagPath is not None:
+        if dagPath.isValid():
             longName = dagPath.fullPathName()
             if longName:
                 return longName
@@ -1018,9 +1016,10 @@ class Node(types._NodeType):
             Named coordinate tuple of X, Y, Z.
         """
         utils.raiseIfNodeNotFound(self)
-        if self.api.dagPath is None:
+        dagPath = self.api.dagPath
+        if not dagPath.isValid():
             return None
-        matrix = om2.MTransformationMatrix(self.api.dagPath.inclusiveMatrix())
+        matrix = om2.MTransformationMatrix(dagPath.inclusiveMatrix())
         vector = matrix.translation(om2.MSpace.kWorld)
         return types.Coordinate(vector.x, vector.y, vector.z)
 
@@ -1060,7 +1059,8 @@ class Node(types._NodeType):
             Named coordinate tuple of X, Y, Z.
         """
         utils.raiseIfNodeNotFound(self)
-        if self.api.dagPath is None:
+        dagPath = self.api.dagPath
+        if not dagPath.isValid():
             return None
         matrix = om2.MTransformationMatrix(self.api.dagPath.inclusiveMatrix())
         euler = matrix.rotation()
@@ -1102,7 +1102,8 @@ class Node(types._NodeType):
             Named coordinate tuple of X, Y, Z.
         """
         utils.raiseIfNodeNotFound(self)
-        if self.api.dagPath is None:
+        dagPath = self.api.dagPath
+        if not dagPath.isValid():
             return None
         matrix = om2.MTransformationMatrix(self.api.dagPath.inclusiveMatrix())
         scale = matrix.scale(om2.MSpace.kWorld)
@@ -1128,7 +1129,8 @@ class Node(types._NodeType):
             `mc.xform(self, query=True, matrix=True, worldSpace=True)`
         """
         utils.raiseIfNodeNotFound(self)
-        if self.api.dagPath is None:
+        dagPath = self.api.dagPath
+        if not dagPath.isValid():
             return None
         return types.Matrix4D(self.api.dagPath.inclusiveMatrix())
 
@@ -1204,7 +1206,7 @@ class Node(types._NodeType):
         if not self.exists:
             return None
         dagPath = self.api.dagPath
-        if dagPath is None:
+        if not dagPath.isValid():
             return None
 
         parentDagPath = om2.MDagPath(dagPath).pop()
@@ -1288,7 +1290,7 @@ class Node(types._NodeType):
         Equivalent:
             `mc.listRelatives(self, allDescendents=True)`
         """
-        if not self.exists or self.api.dagPath is None:
+        if not self.exists or not self.api.dagPath.isValid():
             return []
 
         dag = om2.MItDag()
