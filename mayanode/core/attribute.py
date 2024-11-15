@@ -284,17 +284,17 @@ class NodeAttributes(dict):
 
         self._loaded = True
 
-    def create(self, longName, attrType=None, **kwargs):
+    def create(self, longName, type=None, **kwargs):
         # type: (str, Optional[str], **Any) -> Attribute
         """Create the attribute."""
-        if attrType is not None:
-            if attrType is bool:
+        if type is not None:
+            if type is bool:
                 kwargs['attributeType'] = 'bool'
-            elif attrType is int:
+            elif type is int:
                 kwargs['attributeType'] = 'long'
-            elif attrType is str:
+            elif type is str:
                 kwargs['dataType'] = 'string'
-            elif attrType is float:
+            elif type is float:
                 kwargs['attributeType'] = 'double'
 
         utils.logger.info('Adding attribute "%s.%s" with arguments %s', self.node, longName, kwargs)
@@ -799,23 +799,23 @@ class Attribute(types.StrMixin):
         """Get the attribute connections as plugs."""
         return AttributeConnectionProxy(self)
 
-    def create(self, attrType=None, **kwargs):
+    def create(self, type=None, **kwargs):
         # type: (Optional[str], **Any) -> None
         """Create the attribute."""
         try:
-            if attrType is None:
-                attrType = self.type
+            if type is None:
+                type = self.type
         except exceptions.AttributeNotFoundError:
             pass
 
-        if attrType is not None:
-            if attrType is bool:
+        if type is not None:
+            if type is bool:
                 kwargs['attributeType'] = 'bool'
-            elif attrType is int:
+            elif type is int:
                 kwargs['attributeType'] = 'long'
-            elif attrType is str:
+            elif type is str:
                 kwargs['dataType'] = 'string'
-            elif attrType is float:
+            elif type is float:
                 kwargs['attributeType'] = 'double'
 
         utils.logger.info('Adding attribute %s with arguments %s', self, kwargs)
