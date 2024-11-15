@@ -514,8 +514,8 @@ class TestNode(unittest.TestCase):
         node = Node(mc.polyCube(name='deleteTest')[0])
         mc.delete(node)
 
-        self.assertEqual(node.name, 'deleteTest')
-
+        with self.assertRaises(exceptions.NodeDeletedError):
+            node.name
         with self.assertRaises(exceptions.NodeDeletedError):
             node.name = 'renamed'
         with self.assertRaises(exceptions.NodeDeletedError):
@@ -1112,6 +1112,7 @@ class TestAttr(unittest.TestCase):
 
     def testInvalidConnections(self):
         # FATAL ERROR WARNING: Fixed now, but previously this crashed maya
+        # FATAL ERROR WARNING: Fixed now, but previously this crashed maya
         t1 = Node(mc.createNode('transform', name='connectionDeleteTest1'))
         t2 = Node(mc.createNode('transform', name='connectionDeleteTest2'))
         t2.attrs.create('test', 1)
@@ -1139,14 +1140,18 @@ class TestAttr(unittest.TestCase):
         self.assertEqual(len(connections.disconnect()), 1)
         self.assertEqual(len(connections.connect()), 1)
 
+        attrStr = str(attr)
         mc.delete(t2)
         for connection in connections:
-            self.assertTrue(connection.name)
+            with self.assertRaises(exceptions.NodeDeletedError):
+                connection.name
 
         with self.assertRaises(exceptions.NodeDeletedError):
             t2.attrs['test'] >> t1.attrs['tx']
-        with self.assertRaises(exceptions.AttributeNotFoundError):
+        with self.assertRaises(exceptions.NodeDeletedError):
             attr >> t1.attrs['tx']
+        with self.assertRaises(exceptions.NodeNotFoundError):
+            attrStr >> t1.attrs['tx']
 
         self.assertEqual(len(connections.connect()), 0)
         self.assertEqual(len(connections.disconnect()), 0)

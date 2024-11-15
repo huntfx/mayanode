@@ -39,7 +39,14 @@ class NodeNotFoundError(NodeError):
 
 
 class NodeDeletedError(NodeNotFoundError):
-    MESSAGE = 'Node no longer exists: {node}'
+    MESSAGE = 'Node no longer exists{node}'
+
+    def __init__(self, node=None, **kwargs):
+        if node is None:
+            node = ''
+        else:
+            node = ': ' + node
+        super(NodeDeletedError, self).__init__(node=node, **kwargs)
 
 
 class InvalidNodeError(NodeError):

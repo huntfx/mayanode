@@ -859,16 +859,22 @@ class Node(types._NodeType):
 
         mc.rename(self, uuid, uuid=True)
 
-
     @property
     def name(self):
         # type: () -> str
         """Get the node name.
-        This will always work even when the node is deleted.
+
+        Raises:
+            NodeDeletedError
 
         Returns:
             Node name as a string.
         """
+        # While the name may be read after the node has deleted, if
+        # `dependencyNode.name()` hasn't been called it will cause a
+        # fatal error. Even if it has been called, it loses track of
+        # the current node, indicating it is unintended behaviour.
+        utils.raiseIfNodeNotFound(self)
         api = self.api
 
         # Even if the MObject is not valid (ie. the node was deleted),
@@ -927,6 +933,9 @@ class Node(types._NodeType):
 
         Raises:
             NodeDeletedError
+
+        Returns:
+            Node long name as a string.
         """
         utils.raiseIfNodeNotFound(self)
         dagPath = self.api.dagPath
@@ -943,9 +952,6 @@ class Node(types._NodeType):
 
         Alternatives:
             `mc.nodeType(self)`
-
-        Raises:
-            NodeDeletedError
         """
         utils.raiseIfNodeNotFound(self)
         return NodeType(self.api.dependencyNode.typeName)
@@ -1557,11 +1563,9 @@ class Node(types._NodeType):
         Raises:
             NodeDeletedError
         """
+        utils.raiseIfNodeNotFound(self)
         utils.logger.info('Deleting node: %s', self)
-        try:
-            mc.delete(self)
-        except ValueError as e:
-            raise exceptions.NodeDeletedError(str(e))
+        mc.delete(self)
 
     @property
     def uvSet(self):

@@ -37,10 +37,13 @@ NOT_SET = NotSet()
 def raiseIfNodeNotFound(node):
     # type: (Node) -> None
     """Raise an error if the node doesn't exist."""
-    if not node.exists:
-        if not node.api.object.isNull:
+    handle = node.api.handle
+    if not handle.isValid():
+        if handle.isAlive():
+            raise exceptions.NodeDeletedError(node.api.dependencyNode.name())
+        if handle.object().isNull():
             raise exceptions.NullMObjectError
-        raise exceptions.NodeDeletedError(node)
+        raise exceptions.NodeDeletedError
 
 
 def addToRecentFiles(path):
