@@ -1,6 +1,7 @@
 import logging
 import math
 import os
+from types import GeneratorType
 
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
@@ -370,8 +371,8 @@ class Ls(object):
         """Get the nodes matching the search."""
         selectionList = om2.MSelectionList()
         for arg in self.args:
-            if not isinstance(arg, (list, tuple, set)):
-                arg = [arg]
+            if not isinstance(arg, (list, tuple, set, GeneratorType)):
+                arg = arg,
             for a in arg:
                 try:
                     selectionList.merge(om2.MGlobal.getSelectionListByName(str(a)))

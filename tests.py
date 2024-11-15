@@ -676,6 +676,7 @@ class TestNode(unittest.TestCase):
         self.assertEqual(nodeLs('persp', selection=True, type='transform'), mcLs('persp', selection=True, type='transform'))
         self.assertEqual(nodeLs('persp', selection=True, assemblies=True, type='transform'), mcLs('persp', selection=True, assemblies=True, type='transform'))
         self.assertEqual(nodeLs('persp', selection=True, assemblies=True, type='mesh'), mcLs('persp', selection=True, assemblies=True, type='mesh'))
+        self.assertEqual(nodeLs('perspShape' for _ in range(1)), mcLs('perspShape' for _ in range(1)))
 
         mc.undo()  # Only way to delete manip
         mc.undo()
