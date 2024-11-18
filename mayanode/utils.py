@@ -102,7 +102,7 @@ def unnetworkPlug(plug):
     return new
 
 
-def constructionHistory(mobject, future=False):
+def iterConstructionHistory(mObject, future=False):
     # type: (om2.MObject, bool) -> Iterator[om2.MObject]
     """Get the construction history of a node.
     Note that this will not automatically convert a transform to a mesh.
@@ -110,13 +110,55 @@ def constructionHistory(mobject, future=False):
     Equivalent:
         `mc.listHistory(node)`
     """
-    iterator = om2.MItDependencyGraph(mobject, om2.MFn.kInvalid,
-                                      om2.MItDependencyGraph.kDownstream if future else om2.MItDependencyGraph.kUpstream,
-                                      om2.MItDependencyGraph.kDepthFirst,
-                                      om2.MItDependencyGraph.kNodeLevel)
+    iterator = om2.MItDependencyGraph(
+        mObject,
+        om2.MFn.kInvalid,
+        om2.MItDependencyGraph.kDownstream if future else om2.MItDependencyGraph.kUpstream,
+        om2.MItDependencyGraph.kDepthFirst,
+        om2.MItDependencyGraph.kNodeLevel,
+    )
     iterator.next()  # Skip the current node
     for _ in iterator:
         yield iterator.currentNode()
+
+
+def iterShadingGroups(mObject):
+    # type: (om2.MObject) -> Iterator[om2.MObject]
+    """Get all the shading group nodes for a given node.
+
+    Equivalent:
+        `mc.listConnections(node, type='shadingEngine')`
+    """
+    if not om2.MObjectHandle(mObject).isValid():
+        return
+
+    iterator = om2.MItDependencyGraph(
+        mObject,
+        om2.MFn.kShadingEngine,
+        om2.MItDependencyGraph.kDownstream,
+        om2.MItDependencyGraph.kDepthFirst,
+        om2.MItDependencyGraph.kPlugLevel,
+    )
+    for _ in iterator:
+        yield iterator.currentNode()
+
+
+def getShadingGroup(mObject):
+    # type: (Union[om2.MObject, om2.MDagPath]) -> Optional[om2.MObject]
+    """Get the shading group for a specific node.
+    Instances are supported if an `MDagPath` is given.
+
+    Equivalent:
+        `mc.listConnections(node, type='shadingEngine')[0]`
+    """
+    if isinstance(mObject, om2.MObject):
+        instNum = 0
+    elif isinstance(mObject, om2.MDagPath):
+        instNum, mObject = mObject.instanceNumber(), mObject.node()
+    for i, sg in enumerate(iterShadingGroups(mObject)):
+        if i == instNum:
+            return sg
+    return None
 
 
 def getChildPlugs(plug):

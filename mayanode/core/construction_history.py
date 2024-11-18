@@ -59,7 +59,7 @@ class ConstructionHistory(types.MappedLazyList):
 
     def loadData(self, key=None):
         # type: (Optional[Union[int, str]]) -> bool
-        history = utils.constructionHistory(self.node.api.object, future=self._future)
+        history = utils.iterConstructionHistory(self.node.api.object, future=self._future)
         self._set(map(Node, history))
         return True
 

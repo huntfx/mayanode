@@ -13,43 +13,6 @@ if TYPE_CHECKING:
     ModifierType = Optional[Union['Modifiers', om2.MDGModifier, om2.MDagModifier]]
 
 
-def _getShadingGroups(mobj):
-    # type: (om2.MObject) -> Generator[om2.MObject, None, None]
-    """Get all the shading group nodes for a given node.
-
-    Equivalent:
-        `mc.listConnections(self, type='shadingEngine')
-    """
-    if not om2.MObjectHandle(mobj).isValid():
-        return
-
-    iterator = om2.MItDependencyGraph(
-        mobj,
-        om2.MFn.kShadingEngine,
-        om2.MItDependencyGraph.kDownstream,
-        om2.MItDependencyGraph.kDepthFirst,
-        om2.MItDependencyGraph.kPlugLevel,
-    )
-    for _ in iterator:
-        node = iterator.currentNode()
-        if not node.isNull():
-            yield node
-
-
-def _getShadingGroup(mobj, dagPath=None):
-    """Get the shading group for a specific node.
-    This takes instances into account.
-    """
-    if dagPath is None:
-        instNum = 0
-    else:
-        instNum = dagPath.instanceNumber()
-    for i, sg in enumerate(_getShadingGroups(mobj)):
-        if i == instNum:
-            return sg
-    return None
-
-
 class Ancestors(types.MappedLazyList):
     """Only load the ancestor nodes when needed.
 
@@ -1460,18 +1423,17 @@ class Node(types._NodeType):
         Equivalent:
             `mc.listConnections(self, type='shadingEngine')`
         """
-        return [Node(sg) for sg in _getShadingGroups(self.api.object)]
+        return [Node(sg) for sg in utils.iterShadingGroups(self.api.object)]
 
     @property
     def shadingGroup(self):
         # type: () -> Optional[Node]
-        """Get the shading group assigned to the node.
-        Works with instances.
-
-        Equivalent:
-            `mc.listConnections(self, type='shadingEngine')[0]`
-        """
-        sg = _getShadingGroup(self.api.object, self.api.dagPath)
+        """Get the shading group assigned to the node."""
+        dagPath = self.api.dagPath
+        if dagPath.isValid():
+            sg = utils.getShadingGroup(dagPath)
+        else:
+            sg = utils.getShadingGroup(self.api.object)
         if sg is None:
             return None
         return Node(sg, modifier=self.modifiers)
