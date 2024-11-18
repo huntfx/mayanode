@@ -13,8 +13,14 @@ if TYPE_CHECKING:
 
 
 class Reference(Node):
-    """Handle references.
-    TODO: Tests
+    """Handle reference nodes and their data.
+
+    This is designed to work similiarly to the `Node` class, but on
+    the references themselves. The reference node itself can be read
+    from the `self.refNode` property.
+
+    TODO:
+        Remove Node inheritance to make it a standalone class
     """
 
     @classmethod
@@ -80,7 +86,9 @@ class Reference(Node):
     def name(self, name):
         # type: (Any) -> None
         """Set a new reference node name.
-        This will automatically unlock the reference node if required.
+
+        By default, reference nodes are locked and can't be renamed.
+        This is a convenience method to automatically handle unlocking.
         """
         refNode = self.refNode
         isLocked = refNode.locked
@@ -155,6 +163,7 @@ class Reference(Node):
     @path.setter
     def path(self, path):
         # type: (str) -> None
+        """Update the reference path."""
         utils.logger.info('Setting new reference path for "%s": %s', self, path)
         utils.raiseIfNodeNotFound(self.refNode)
         mc.file(path, loadReference=self)
