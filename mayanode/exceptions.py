@@ -195,12 +195,24 @@ class ReferenceImportError(ReferenceError):
     MESSAGE = '"{reference}" cannot be imported'
 
 
-class ReferenceNotTopLevelError(ReferenceImportError):
+class NotATopLevelReferenceImportError(ReferenceImportError):
     MESSAGE = '"{reference}" cannot be imported as it is not a top level reference'
 
 
-class ReferenceNotLoadedError(ReferenceImportError):
+class UnloadedReferenceImportError(ReferenceImportError):
     MESSAGE = '"{reference}" cannot be imported as it is unloaded'
+
+
+class ReferenceNamespaceError(ReferenceError):
+    MESSAGE = '"{reference}" namespace cannot be edited'
+
+
+class UnloadedReferenceNamespaceError(ReferenceError):
+    MESSAGE = '"{reference}" is unloaded so the namespace cannot be edited'
+
+
+class ReferenceWithoutNamespaceError(ReferenceError):
+    MESSAGE = '"{reference}" was not created using namespaces so the namespace cannot be edited'
 
 
 class FileInfoError(BaseError):

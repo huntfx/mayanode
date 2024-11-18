@@ -112,18 +112,24 @@ class Reference(Node):
             `mc.referenceQuery(self, namespace=True)`
         """
         utils.raiseIfNodeNotFound(self.refNode)
+
+        # Get the associated namespace
+        # If the namespace exists, it will return the namespace
+        # If the namespace does not exist, it will return an empty string
+        # If the reference has no namespace, it will return an empty string
         associatedNamespace = self.api.reference.associatedNamespace(False)
         if associatedNamespace:
             return Namespace(associatedNamespace)
 
-        # If the reference was created without a namespace, it will have ":"
+        # If an empty string, check that it is meant to be empty
+        # If the namespace doesn't exist an error will be raised
         try:
             return Namespace(mc.referenceQuery(self, namespace=True))
 
-        # If the namespace doesn't exist then fallback to the slower command
+        # Fallback to the slower method to get the correct namespace
+        # All references here have namespaces that don't exist
         except RuntimeError:
-            path = self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=True)
-            return Namespace(mc.file(path, query=True, namespace=True))
+            return Namespace(mc.file(self.refPath, query=True, namespace=True))
 
     @namespace.setter
     def namespace(self, namespace):
@@ -131,13 +137,16 @@ class Reference(Node):
         """Set a new namespace for the reference.
 
         Raises:
-            # RuntimeError: Cannot edit the namespace because the reference was not created using namespaces. #
-
-        TODO:
-            Should this rename the existing one?
+            UnloadedReferenceNamespaceError
+            ReferenceWithoutNamespaceError
         """
-        utils.logger.info('Setting new reference namespace for "%s": %s', self, namespace)
+        utils.logger.info('Updating reference namespace for "%s": %s', self, namespace)
         utils.raiseIfNodeNotFound(self.refNode)
+
+        if not self.loaded:
+            raise exceptions.UnloadedReferenceNamespaceError(self)
+        if not self.namespace:
+            raise exceptions.ReferenceWithoutNamespaceError(self)
         mc.file(self.refPath, edit=True, namespace=namespace)
 
     @property
@@ -427,14 +436,14 @@ class Reference(Node):
         """Import the current reference.
 
         Raises:
-            ReferenceNotTopLevelError
-            ReferenceNotLoadedError
+            NotATopLevelReferenceImportError
+            UnloadedReferenceImportError
         """
         utils.raiseIfNodeNotFound(self.refNode)
         if not self.topLevel:
-            raise exceptions.ReferenceNotTopLevelError(self)
+            raise exceptions.NotATopLevelReferenceImportError(self)
         if not self.loaded:
-            raise exceptions.ReferenceNotLoadedError(self)
+            raise exceptions.UnloadedReferenceImportError(self)
         mc.file(self.refPath, importReference=True)
 
     @property

@@ -1874,6 +1874,29 @@ class TestReference(unittest.TestCase):
         rn3.delete()
         rn4.delete(forceRemoveNamespaces=True)
 
+    def testNamespaceEdit(self):
+        rn1 = self.refFile.reference()
+        rn2 = self.refFile.reference(namespace='refD')
+        rn3 = self.refFile.reference(namespace=None)
+
+        rn1.namespace = 'refD'
+        self.assertEqual(rn2.namespace, 'refD')
+        self.assertNotEqual(rn1.namespace, 'refD')
+        rn1.namespace = 'refE'
+        self.assertEqual(rn1.namespace, 'refE')
+
+        rn1.unload()
+        with self.assertRaises(exceptions.UnloadedReferenceNamespaceError):
+            rn1.namespace = 'refF'
+
+        with self.assertRaises(exceptions.ReferenceWithoutNamespaceError):
+            rn3.namespace = 'refG'
+        self.assertEqual(rn3.namespace, ':')
+
+        rn1.delete()
+        rn2.delete()
+        rn3.delete(forceRemoveNamespaces=True)
+
     def testLs(self):
         loadedRefNode = self.refFile.reference(defer=False)
         unloadedRefNode = self.refFile.reference(defer=True)
@@ -2017,6 +2040,23 @@ class TestReference(unittest.TestCase):
                 node.delete()
         for namespace in namespaces:
              Namespace(namespace).delete()
+
+    def testImportChild(self):
+        refNode = self.refFile.reference()
+
+        childRefNode = refNode.children[0]
+        with self.assertRaises(exceptions.NotATopLevelReferenceImportError):
+            childRefNode.import_()
+
+        refNode.delete()
+
+    def testImportUnloaded(self):
+        refNode = self.refFile.reference(defer=True)
+
+        with self.assertRaises(exceptions.UnloadedReferenceImportError):
+            refNode.import_()
+
+        refNode.delete()
 
     def testRenameNode(self):
         refNode = self.refFile.reference()
