@@ -902,13 +902,19 @@ class Node(types._NodeType):
             RuntimeError: New name has no legal characters.
             NodeDeletedError
             RenameReadOnlyNodeError
+            RenameReferencedNodeError
+            RenameLockedNodeError
         """
         name = str(name)
         utils.logger.info('Renaming "%s" to "%s"', self, name)
         utils.raiseIfNodeNotFound(self)
 
-        if self.referenced or self.default or self.name in constants.STARTUP_CAMERAS:
+        if self.default or self.name in constants.STARTUP_CAMERAS:
             raise exceptions.RenameReadOnlyNodeError(self)
+        if self.referenced:
+            raise exceptions.RenameReferencedNodeError(self)
+        if self.locked:
+            raise exceptions.RenameLockedNodeError(self)
 
         # Keep namespace if not defined
         if ':' not in name:
@@ -1566,6 +1572,59 @@ class Node(types._NodeType):
         utils.raiseIfNodeNotFound(self)
         utils.logger.info('Deleting node: %s', self)
         mc.delete(self)
+
+    @property
+    def locked(self):
+        # type: () -> bool
+        """Determine if the node is locked.
+
+        Alternatives:
+            `mc.lockNode(self, query=True, lock=True)[0]`
+        """
+        utils.raiseIfNodeNotFound(self)
+        return self.api.dependencyNode.isLocked
+
+    @locked.setter
+    def locked(self, locked):
+        # type: (bool) -> None
+        """Set the locked state of the node.
+
+        Raises:
+            NodeDeletedError
+
+        Alternatives:
+            `mc.lockNode(self, lock=locked)`
+        """
+        if locked:
+            self.lock()
+        else:
+            self.unlock()
+
+    def lock(self):
+        # type: () -> None
+        """Lock the node.
+
+        Raises:
+            NodeDeletedError
+
+        Alternatives:
+            `mc.lockNode(self, lock=True)`
+        """
+        utils.raiseIfNodeNotFound(self)
+        self.api.dependencyNode.isLocked = True
+
+    def unlock(self):
+        # type: () -> None
+        """Unlock the node.
+
+        Raises:
+            NodeDeletedError
+
+        Alternatives:
+            `mc.lockNode(self, lock=False)`
+        """
+        utils.raiseIfNodeNotFound(self)
+        self.api.dependencyNode.isLocked = False
 
     @property
     def uvSet(self):

@@ -69,6 +69,14 @@ class RenameReadOnlyNodeError(ReadOnlyNodeError):
     MESSAGE = 'Cannot rename "{node}" as it is read only'
 
 
+class RenameReferencedNodeError(ReadOnlyNodeError):
+    MESSAGE = 'Cannot rename "{node}" as it is from a reference'
+
+
+class RenameLockedNodeError(ReadOnlyNodeError):
+    MESSAGE = 'Cannot rename "{node}" as it is locked'
+
+
 class NodeAttributeError(NodeError):
     MESSAGE = 'Error: {node}.{attr}'
 
