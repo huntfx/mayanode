@@ -2018,6 +2018,42 @@ class TestReference(unittest.TestCase):
         for namespace in namespaces:
              Namespace(namespace).delete()
 
+    def testRenameNode(self):
+        refNode = self.refFile.reference()
+        with self.assertRaises(exceptions.RenameReferencedNodeError):
+            refNode.nodes['pCube1'].name = 'refRenameTest'
+        refNode.nodes['pCube1'].unlock()
+        with self.assertRaises(exceptions.RenameReferencedNodeError):
+            refNode.nodes['pCube1'].name = 'refRenameTest'
+        refNode.delete()
+
+    def testRenameRefNode(self):
+        loadedRefNode = self.refFile.reference(defer=False)
+        unloadedRefNode = self.refFile.reference(defer=True)
+
+        loadedRefNode.name = 'renameRefTestLoaded1'
+        unloadedRefNode.name = 'renameRefTestUnloaded1'
+
+        with self.assertRaises(exceptions.RenameLockedNodeError):
+            loadedRefNode.refNode.name = 'renameRefTestLoaded2'
+        with self.assertRaises(exceptions.RenameLockedNodeError):
+            unloadedRefNode.refNode.name = 'renameRefTestUnloaded2'
+
+        loadedRefNode.lock()
+        unloadedRefNode.lock()
+
+        loadedRefNode.name = 'renameRefTestLoaded3'
+        unloadedRefNode.name = 'renameRefTestUnloaded3'
+
+        loadedRefNode.refNode.unlock()
+        unloadedRefNode.refNode.unlock()
+
+        loadedRefNode.name = 'renameRefTestLoaded4'
+        unloadedRefNode.name = 'renameRefTestUnloaded4'
+
+        loadedRefNode.delete()
+        unloadedRefNode.delete()
+
 
 class TestFile(unittest.TestCase):
     def testOS(self):

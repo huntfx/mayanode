@@ -66,8 +66,30 @@ class Reference(Node):
 
     @property
     def refNode(self):
-        # type: () -> Reference
-        return self
+        # type: () -> Node
+        """Get the associated reference node."""
+        return Node(self)
+
+    @property
+    def name(self):
+        # type: () -> str
+        """Get the node name."""
+        return super(Reference, self).name
+
+    @name.setter
+    def name(self, name):
+        # type: (Any) -> None
+        """Set a new reference node name.
+        This will automatically unlock the reference node if required.
+        """
+        refNode = self.refNode
+        isLocked = refNode.locked
+        if isLocked:
+            refNode.unlock()
+        try:
+            refNode.name = name
+        finally:
+            refNode.lock()
 
     @property
     def namespace(self):
