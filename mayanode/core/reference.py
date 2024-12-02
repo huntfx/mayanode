@@ -70,6 +70,12 @@ class Reference(Node):
                 matches.append(cls(refNode))
         return matches
 
+    @classmethod
+    def fromNamespace(cls, namespace):
+        # type: (StrLike) -> Optional[Reference]
+        """Get the reference matching the namespace."""
+        return Namespace(namespace).reference
+
     @property
     def refNode(self):
         # type: () -> Node

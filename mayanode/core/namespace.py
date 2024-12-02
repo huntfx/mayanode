@@ -303,7 +303,29 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         """Get all descendant namespaces."""
         return [Namespace(child) for child in om2.MNamespace.getNamespaces(parentNamespace=self.name, recurse=True)]
 
+    @property
+    def reference(self):
+        # type: () -> Optional[Reference]
+        """Get the associated reference node."""
+        depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
+        for _ in depNodeIt:
+            refNode = om2.MFnReference(depNodeIt.thisNode())
+
+            # If the namespace exists then it can be directly queried
+            if self.exists:
+                namespace = refNode.associatedNamespace(False)
+
+            # If it doesn't exist, then it's still possible a reference has it
+            else:
+                filename = refNode.fileName(resolvedName=True, includePath=False, includeCopyNumber=True)
+                namespace = mc.file(filename, query=True, namespace=True)
+
+            if namespace == self:
+                return Reference(refNode)
+        return None
+
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .node import Node
+from .reference import Reference

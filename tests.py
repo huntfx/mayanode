@@ -1874,6 +1874,12 @@ class TestReference(unittest.TestCase):
         rn3.delete()
         rn4.delete(forceRemoveNamespaces=True)
 
+    def testFromNamespace(self):
+        rn1 = self.refFile.reference()
+        self.assertEqual(rn1.namespace.reference, rn1)
+        self.assertEqual(Reference.fromNamespace(rn1.namespace), rn1)
+        rn1.delete(forceRemoveNamespaces=True)
+
     def testNamespaceEdit(self):
         rn1 = self.refFile.reference()
         rn2 = self.refFile.reference(namespace='refD')
