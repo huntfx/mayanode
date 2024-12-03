@@ -1269,6 +1269,31 @@ class TestAttr(unittest.TestCase):
 
         mc.delete(n1, n2)
 
+    def testLogicalOnlyChildren(self):
+        n = Node(mc.polyCube(name='logicalTest1')[0])
+
+        na = n.attrs['tx']
+        na.keyframes[5] = 5
+        na.keyframes[0] = 0
+        na.keyframes[7] = -5
+        na.keyframes[10] = 10
+        del na.keyframes[7]
+        curve = na.connections[0].node
+        ktv = curve.attrs['ktv']
+        self.assertEqual(len(ktv.children), 3)
+        self.assertEqual(ktv.children[1].children['keyValue'].value, 5)
+
+        fa = n.shape.attrs['face']
+        self.assertEqual(len(fa.children), 6)
+        fa1 = fa.children[1]
+        fa5 = fa.children[5]
+        mc.delete(n + '.f[1]')
+        self.assertTrue(fa1.exists)
+        self.assertFalse(fa5.exists)
+
+        mc.delete(n)
+
+
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
         self.node = Node('persp')
