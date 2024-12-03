@@ -152,14 +152,7 @@ class AttributeChildren(types.MappedLazyList):
         # type: (Node, om2.MPlug) -> None
         keyType = str  # type: Type[Any]
         if plug.isArray:
-            try:
-                plugs = map(plug.elementByPhysicalIndex, range(plug.numElements()))
-
-            # In some cases, the physical index won't work, it's not
-            # obvious why. The 'ktv' attribute on curves is an example,
-            # and modifying its child items reorders the logical index.
-            except RuntimeError:
-                plugs = map(plug.elementByLogicalIndex, range(plug.numElements()))
+            plugs = map(plug.elementByLogicalIndex, plug.getExistingArrayAttributeIndices())
             keyType = int
 
         elif plug.isCompound:
@@ -425,18 +418,13 @@ class Attribute(types.StrMixin):
         @property
         def plugs(self):
             # type: () -> List[om2.MPlug]
-            """Get all the `MPlug` objects in the case of arrays."""
+            """Get all the `MPlug` objects associated with this attribute.
+            Only array attributes contain multiple plugs.
+            """
             plug = self.plug
             result = [plug]
             if plug.isArray:
-                try:
-                    result.extend(plug.elementByPhysicalIndex(i) for i in range(plug.numElements()))
-
-                # See the `AttributeChildren` class for an explanation
-                # of why this fallback is needed.
-                except RuntimeError:
-                    result.extend(plug.elementByPhysicalIndex(i) for i in range(plug.numElements()))
-
+                result.extend(map(plug.elementByLogicalIndex, plug.getExistingArrayAttributeIndices()))
             return result
 
         @property
