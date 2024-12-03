@@ -861,47 +861,6 @@ class Attribute(types.StrMixin):
             raise exceptions.AttributeNotFoundError(self.node, self.attr)
         return AttributeChildren(self.node, self.api.plug)
 
-    def child(self, value):
-        # type: (Union[int, str]) -> Attribute
-        """Get a child attribute.
-
-        Note that this can't get `__getitem__`, as it'll either cause a
-        crash (eg. with `Attribute(node, 'color').type`) or simply cause
-        `maya.cmds` to throw out errors.
-
-        Raises:
-            TypeError: plug is not an array or compound
-            TypeError: array indexes must be integers
-            IndexError: array index out of range
-            KeyError: compound attribute does not exist
-
-        TODO:
-            Tests
-        """
-        plug = self.api.plug
-        if plug.isArray:
-            if not isinstance(value, int):
-                raise TypeError('array indexes much be integers, not {}'.format(type(value)))
-            if not 0 <= value < plug.numElements():
-                raise IndexError('array index "{}" out of range'.format(value))
-            return Attribute(self.node, plug.elementByPhysicalIndex(value))
-
-        elif plug.isCompound:
-            # Load the child plugs if not already loaded
-            if self._compoundChildren is None or value not in self._compoundChildren:
-                self._reloadCompoundChildren()
-
-            if TYPE_CHECKING:
-                assert self._compoundChildren is not None
-                assert isinstance(value, str)
-
-            try:
-                return self._compoundChildren[value]
-            except KeyError:
-                raise KeyError('compound attribute "{}" does not exist'.format(value))
-
-        raise TypeError('plug is not an array or compound')
-
     def __len__(self):
         # type: () -> int
         """Get the number of child attributes."""
@@ -911,19 +870,6 @@ class Attribute(types.StrMixin):
         if plug.isCompound:
             return plug.numChildren()
         return 0
-
-    def _reloadCompoundChildren(self):
-        # type: () -> None
-        """Load all the children of a compound plug.
-
-        Raises:
-            TypeError: plug is not a compound
-        """
-        if not self.api.plug.isCompound:
-            raise TypeError('plug is not a compound')
-        childPlugs = map(self.api.plug.child, range(self.api.plug.numChildren()))
-        childAttrs = (Attribute(self.node, plug) for plug in childPlugs)
-        self._compoundChildren = {attr.name.rsplit('.', 1)[-1]: attr for attr in childAttrs}
 
     @property
     def uvLinks(self):
