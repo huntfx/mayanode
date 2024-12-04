@@ -41,89 +41,74 @@ ATTR_TYPES = {
     'float3': (float, float, float),
     'floatArray': [float],
     'int3': (int, int, int),
-    om2.MFnData.kString: str,
-    om2.MFnNumericData.kBoolean: bool,
-    om2.MFnNumericData.kInt: int,
-    om2.MFnNumericData.kInt64: int,
-    om2.MFnNumericData.kShort: int,
-    om2.MFnNumericData.kLong: int,
-    om2.MFnNumericData.kFloat: float,
-    om2.MFnNumericData.kDouble: float,
-    om2.MFn.kAttribute2Float: [float, float],
-    om2.MFn.kAttribute2Double: [float, float],
-    om2.MFn.kAttribute2Int: [int, int],
-    om2.MFn.kAttribute2Short: [int, int],
-    om2.MFn.kAttribute3Float: [float, float, float],
-    om2.MFn.kAttribute3Double: [float, float, float],
-    om2.MFn.kAttribute3Int: [int, int, int],
-    om2.MFn.kAttribute3Short: [int, int, int],
-    om2.MFn.kAttribute4Double: [float, float, float, float],
 }
 
 
-def _getPlugValue(plug):
-    # type: (om2.MPlug) -> Any
-    """Get the value of the plug as the correct type.
-
-    Raises:
-        NotImplementedError: If the type is not yet supported.
-    """
+def _getPlugData(plug, value=True):
+    # type: (om2.MPlug, bool) -> Optional[Any]
+    """Get the type or value of a plug."""
     attribute = plug.attribute()
     apiType = attribute.apiType()
 
     if apiType == om2.MFn.kTypedAttribute:
         attrType = om2.MFnTypedAttribute(attribute).attrType()
         if attrType == om2.MFnData.kString:
-            return plug.asString()
+            return plug.asString() if value else str
 
         # If the type is kAny then it may be connected to another value
         if attrType == om2.MFnData.kAny and plug.isDestination:
-            return _getPlugValue(plug.source())
+            return _getPlugData(plug.source(), value=value)
 
-    elif apiType == om2.MFn.kNumericAttribute:
+    if apiType == om2.MFn.kNumericAttribute:
         numericType = om2.MFnNumericAttribute(attribute).numericType()
         if numericType == om2.MFnNumericData.kBoolean:
-            return plug.asBool()
+            return plug.asBool() if value else bool
         if numericType in (om2.MFnNumericData.kInt, om2.MFnNumericData.kInt64, om2.MFnNumericData.kLong):
-            return plug.asInt()
+            return plug.asInt() if value else int
         if numericType == om2.MFnNumericData.kFloat:
-            return plug.asFloat()
+            return plug.asFloat() if value else float
         if numericType == om2.MFnNumericData.kDouble:
-            return plug.asDouble()
+            return plug.asDouble() if value else float
         if numericType == om2.MFnNumericData.kShort:
-            return plug.asShort()
+            return plug.asShort() if value else int
 
-    elif apiType in (om2.MFn.kFloatAngleAttribute, om2.MFn.kDoubleAngleAttribute):
+    if apiType in (om2.MFn.kFloatAngleAttribute, om2.MFn.kDoubleAngleAttribute):
+        if not value:
+            return None  # TODO
         return plug.asMAngle().asDegrees()  # Equivalent to `math.degrees(plug.asDouble())`
-    elif apiType in (om2.MFn.kFloatLinearAttribute, om2.MFn.kDoubleLinearAttribute):
+
+    if apiType in (om2.MFn.kFloatLinearAttribute, om2.MFn.kDoubleLinearAttribute):
+        if not value:
+            return None  # TODO
         return plug.asMDistance().asCentimeters()  # Equivalent to `plug.asDouble()`
 
-    elif apiType == om2.MFn.kEnumAttribute:
-        return plug.asInt()
+    if apiType == om2.MFn.kEnumAttribute:
+        if value:
+            return plug.asInt()
+        return 'enum'  # Match the result from `getAttr`
 
-    elif apiType == om2.MFn.kAttribute2Float:
-        return tuple(plug.child(i).asFloat() for i in range(2))
-    elif apiType == om2.MFn.kAttribute2Double:
-        return tuple(plug.child(i).asDouble() for i in range(2))
-    elif apiType == om2.MFn.kAttribute2Int:
-        return tuple(plug.child(i).asInt() for i in range(2))
-    elif apiType == om2.MFn.kAttribute2Short:
-        return tuple(plug.child(i).asShort() for i in range(2))
-    elif apiType == om2.MFn.kAttribute3Float:
-        return tuple(plug.child(i).asFloat() for i in range(3))
-    elif apiType == om2.MFn.kAttribute3Double:
-        return tuple(plug.child(i).asDouble() for i in range(3))
-    elif apiType == om2.MFn.kAttribute3Int:
-        return tuple(plug.child(i).asInt() for i in range(3))
-    elif apiType == om2.MFn.kAttribute3Short:
-        return tuple(plug.child(i).asShort() for i in range(3))
-    elif apiType == om2.MFn.kAttribute4Double:
-        return tuple(plug.child(i).asDouble() for i in range(4))
+    if apiType == om2.MFn.kAttribute2Float:
+        return tuple(plug.child(i).asFloat() for i in range(2)) if value else (float, float)
+    if apiType == om2.MFn.kAttribute2Double:
+        return tuple(plug.child(i).asDouble() for i in range(2)) if value else (float, float)
+    if apiType == om2.MFn.kAttribute2Int:
+        return tuple(plug.child(i).asInt() for i in range(2)) if value else (int, int)
+    if apiType == om2.MFn.kAttribute2Short:
+        return tuple(plug.child(i).asShort() for i in range(2)) if value else (int, int)
+    if apiType == om2.MFn.kAttribute3Float:
+        return tuple(plug.child(i).asFloat() for i in range(3)) if value else (float, float, float)
+    if apiType == om2.MFn.kAttribute3Double:
+        return tuple(plug.child(i).asDouble() for i in range(3)) if value else (float, float, float)
+    if apiType == om2.MFn.kAttribute3Int:
+        return tuple(plug.child(i).asInt() for i in range(3)) if value else (int, int, int)
+    if apiType == om2.MFn.kAttribute3Short:
+        return tuple(plug.child(i).asShort() for i in range(3)) if value else (int, int, int)
+    if apiType == om2.MFn.kAttribute4Double:
+        return tuple(plug.child(i).asDouble() for i in range(4)) if value else (float, float, float, float)
 
-    elif apiType == om2.MFn.kMessageAttribute:
+    if value and apiType == om2.MFn.kMessageAttribute:
         raise RuntimeError('Message attributes have no data values')  # Match the mc.getAttr error
-
-    raise NotImplementedError(attribute.apiTypeStr)
+    return None
 
 
 def _setPlugValue(plug, value):
@@ -640,21 +625,9 @@ class Attribute(types.StrMixin):
             String if unsupported (eg. "enum").
         """
         if not self.api.plug.isNull:
-            attribute = self.api.plug.attribute()
-            apiType = attribute.apiType()
-
-            if apiType == om2.MFn.kTypedAttribute:
-                attrType = om2.MFnTypedAttribute(attribute).attrType()
-                if attrType in ATTR_TYPES:
-                    return ATTR_TYPES[attrType]
-
-            elif apiType == om2.MFn.kNumericAttribute:
-                numericType = om2.MFnNumericAttribute(attribute).numericType()
-                if numericType in ATTR_TYPES:
-                    return ATTR_TYPES[numericType]
-
-            elif apiType == om2.MFn.kEnumAttribute:
-                return 'enum'  # Match the getAttr result
+            result = _getPlugData(self.api.plug, value=False)
+            if result is not None:
+                return result
 
         try:
             attrType = mc.getAttr(self, type=True)
@@ -675,10 +648,9 @@ class Attribute(types.StrMixin):
         # type: () -> Any
         """Get an attribute value."""
         if not self.api.plug.isNull:
-            try:
-                return _getPlugValue(self.api.plug)
-            except NotImplementedError:
-                pass
+            result = _getPlugData(self.api.plug, value=True)
+            if result is not None:
+                return result
         return mc.getAttr(self)
 
     @value.setter
