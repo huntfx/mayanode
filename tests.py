@@ -1330,20 +1330,15 @@ class TestAttr(unittest.TestCase):
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
-        self.node = Node('persp')
-        self.oldX = mc.getAttr('persp.translateX')
-        self.oldFL = mc.getAttr('perspShape.focalLength')
+        self.node = Node(mc.camera(name='keyframeTest')[0])
         for i in range(3):
-            mc.setKeyframe('persp.translateX', time=(i, i), value=-i)
-        mc.setKeyframe('persp.translateX', time=(3, 5), value=10)
-        mc.setKeyframe('perspShape.focalLength', time=(2, 2), value=55)
-        mc.setKeyframe('perspShape.focalLength', time=(7, 7), value=35)
+            mc.setKeyframe(self.node + '.translateX', time=(i, i), value=-i)
+        mc.setKeyframe(self.node + '.translateX', time=(3, 5), value=10)
+        mc.setKeyframe(self.node.shape + '.focalLength', time=(2, 2), value=55)
+        mc.setKeyframe(self.node.shape + '.focalLength', time=(7, 7), value=35)
 
     def tearDown(self):
-        mc.cutKey('persp', attribute='translateX')
-        mc.cutKey('perspShape', attribute='focalLength')
-        mc.setAttr('persp.translateX', self.oldX)
-        mc.setAttr('perspShape.focalLength', self.oldFL)
+        mc.delete(self.node)
 
     def testLength(self):
         self.assertEqual(len(self.node.keyframes), 7)
