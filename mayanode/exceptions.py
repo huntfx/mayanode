@@ -242,3 +242,15 @@ class FileExtensionError(BaseError):
 
     def __init__(self, ext, **kwargs):
         super(FileExtensionError, self).__init__(ext=ext, **kwargs)
+
+
+class KeyframeError(NodeAttributeError):
+    MESSAGE = 'Error with keyframe on "{node}.{attr}".'
+
+
+class LockedKeyframeError(KeyframeError):
+    MESSAGE = 'The keyframe on "{node}.{attr}" is locked and cannot be edited.'
+
+
+class KeyframeLockError(KeyframeError):
+    MESSAGE = '"{node}.{attr}" has no attached curves so it cannot be locked.'

@@ -4,11 +4,21 @@ import maya.api.OpenMaya as om2  # type: ignore
 import maya.api.OpenMayaAnim as oma2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
-from .. import utils
+from .. import exceptions, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Iterator, List, Optional, Set, Union
+
+
+def _getKtvPlug(plug):
+    # type: (om2.MPlug) -> Optional[om2.MPlug]
+    """Get the ktv plug for an attribute."""
+    if not plug.isDestination:
+        return None
+    curvePlug = plug.source()
+    curveNode = curvePlug.node()
+    return om2.MFnDependencyNode(curveNode).findPlug('keyTimeValue', False)
 
 
 class KeyframeBase(object):
@@ -332,6 +342,47 @@ class AttributeKeyframes(KeyframeBase):
         """
         return list(self._keyframes.values())
 
+    @property
+    def locked(self):
+        # type: () -> bool
+        """Get the locked state of keyframes."""
+        ktvPlug = _getKtvPlug(self.attr.api.plug)
+        if ktvPlug is None:
+            return False
+        return ktvPlug.isLocked
+
+    @locked.setter
+    def locked(self, value):
+        # type: (bool) -> None
+        """Lock or unlock the keyframes.
+
+        Raises:
+            KeyframeLockError
+        """
+        utils.logger.info('Setting %s keyframe locked state: %r', self.attr, value)
+        ktvPlug = _getKtvPlug(self.attr.api.plug)
+        if ktvPlug is None:
+            raise exceptions.KeyframeLockError(self.node, self.attr)
+        mc.setAttr(ktvPlug.name(), lock=value)
+
+    def lock(self):
+        # type: () -> None
+        """Lock the keyframes.
+
+        Raises:
+            KeyframeLockError
+        """
+        self.locked = True
+
+    def unlock(self):
+        # type: () -> None
+        """Unlock the keyframes.
+
+        Raises:
+            KeyframeLockError
+        """
+        self.locked = False
+
 
 class Keyframe(KeyframeBase):
     """Keyframe for a specific attribute.
@@ -374,6 +425,12 @@ class Keyframe(KeyframeBase):
         if item is None:
             item = self.node
         return '{}({!r}, {})'.format(type(self).__name__, item, self.frame)
+
+    def __str__(self):
+        item = self.attr  # type: Optional[Union[Node, Attribute]]
+        if item is None:
+            item = self.node
+        return '{} ({})'.format(item, self.frame)
 
     def __bool__(self):
         # type: () -> bool
@@ -494,6 +551,9 @@ class Keyframe(KeyframeBase):
                           attr if attr is not None else node, frame, value)
 
         if attr is not None:
+            ktvPlug = _getKtvPlug(attr.api.plug)
+            if ktvPlug is not None and ktvPlug.isLocked:
+                raise exceptions.LockedKeyframeError(attr.node, attr.attr)
             kwargs['attribute'] = attr.attr
 
         if value is not None:
@@ -518,6 +578,8 @@ class Keyframe(KeyframeBase):
             utils.logger.info('Deleting keyframe on "%s" (frame %s)', attr if attr is not None else node, frame)
 
         if attr is not None:
+            if _getKtvPlug(attr.api.plug).isLocked:
+                raise exceptions.LockedKeyframeError(attr.node, attr.attr)
             kwargs['attribute'] = attr.attr
 
         result = 0
@@ -545,6 +607,8 @@ class Keyframe(KeyframeBase):
 
         kwargs = {'edit': True, 'relative': relative, 'timeChange': value}
         if attr is not None:
+            if _getKtvPlug(attr.api.plug).isLocked:
+                raise exceptions.LockedKeyframeError(attr.node, attr.attr)
             kwargs['attribute'] = attr.attr
 
         result = 0

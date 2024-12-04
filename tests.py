@@ -1513,6 +1513,76 @@ class TestKeyframes(unittest.TestCase):
             keyframe.frame += 0.5
         self.assertEqual(r(self.node.attrs['tx'].keyframes.frames), [i + 0.5 for i in frames])
 
+    def testLockedAttr(self):
+        attr = self.node.attrs['tx']
+
+        self.assertIsNone(attr.keyframes[100].value)
+        attr.keyframes[100].value = 5
+        self.assertEqual(attr.keyframes[100].value, 5)
+        attr.keyframes.lock()
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            attr.keyframes[100].value = 1
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            del attr.keyframes[100]
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            attr.keyframes[100].offset(1)
+        self.assertEqual(attr.keyframes[100].value, 5)
+        attr.keyframes.unlock()
+        attr.keyframes[100].value = 1
+        del attr.keyframes[100]
+        self.assertIsNone(attr.keyframes[100].value)
+
+    def testLockedAttrOnNode(self):
+        attr = self.node.attrs['tx']
+
+        attr.keyframes[100].value = 1
+        attr.keyframes.lock()
+        self.node.keyframes[100] = 5
+        self.assertEqual(attr.keyframes[100].value, 1)
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            attr.keyframes[100].value = 5
+        del self.node.keyframes[100]
+        self.assertEqual(attr.keyframes[100].value, 1)
+        attr.keyframes[100].unlock()
+        del self.node.keyframes[100]
+
+    def testLockedAttr(self):
+        attr = self.node.attrs['tx']
+
+        self.assertIsNone(attr.keyframes[100].value)
+        attr.keyframes[100].value = 5
+        self.assertEqual(attr.keyframes[100].value, 5)
+        attr.keyframes.lock()
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            attr.keyframes[100].value = 1
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            del attr.keyframes[100]
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            attr.keyframes[100].offset(1)
+        self.assertEqual(attr.keyframes[100].value, 5)
+        attr.keyframes.unlock()
+        attr.keyframes[100].value = 1
+        del attr.keyframes[100]
+        self.assertIsNone(attr.keyframes[100].value)
+
+    def testLockedAttrOnNode(self):
+        attr = self.node.attrs['tx']
+
+        attr.keyframes[100].value = 1
+        attr.keyframes.lock()
+        self.node.keyframes[100] = 5
+        self.assertEqual(attr.keyframes[100].value, 1)
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            attr.keyframes[100].value = 5
+        del self.node.keyframes[100]
+        self.assertEqual(attr.keyframes[100].value, 1)
+        attr.keyframes.unlock()
+        del self.node.keyframes[100]
+
+    def testLockWithoutCurves(self):
+        with self.assertRaises(exceptions.KeyframeLockError):
+            self.node.attrs['sz'].keyframes.lock()
+
 
 class TestUVSets(unittest.TestCase):
     def setUp(self):
