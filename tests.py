@@ -926,6 +926,14 @@ class TestAttr(unittest.TestCase):
 
         mc.delete(group1, group2)
 
+    def testValueKAny(self):
+        surfaceShader =  Node('initialShadingGroup').attrs['surfaceShader']
+        outColor = Node('lambert1').attrs['outColor']
+        self.assertEqual(surfaceShader.type, (float, float, float))
+        self.assertEqual(outColor.type, (float, float, float))
+        self.assertEqual(surfaceShader.value, (0, 0, 0))
+        self.assertEqual(outColor.value, (0, 0, 0))
+
     def testCompoundIndex(self):
         cube = mc.polyCube(name='compoundExistsTest')[0]
 

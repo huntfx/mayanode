@@ -76,6 +76,10 @@ def _getPlugValue(plug):
         if attrType == om2.MFnData.kString:
             return plug.asString()
 
+        # If the type is kAny then it may be connected to another value
+        if attrType == om2.MFnData.kAny and plug.isDestination:
+            return _getPlugValue(plug.source())
+
     elif apiType == om2.MFn.kNumericAttribute:
         numericType = om2.MFnNumericAttribute(attribute).numericType()
         if numericType == om2.MFnNumericData.kBoolean:
