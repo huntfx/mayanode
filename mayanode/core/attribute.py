@@ -44,9 +44,11 @@ ATTR_TYPES = {
 }
 
 
-def _getPlugData(plug, value=True):
-    # type: (om2.MPlug, bool) -> Optional[Any]
+def _getPlugData(attr, plug=None, value=True):
+    # type: (Attribute, Optional[om2.MPlug], bool) -> Optional[Any]
     """Get the type or value of a plug."""
+    if plug is None:
+        plug = attr.api.plug
     attribute = plug.attribute()
     apiType = attribute.apiType()
 
@@ -54,10 +56,12 @@ def _getPlugData(plug, value=True):
         attrType = om2.MFnTypedAttribute(attribute).attrType()
         if attrType == om2.MFnData.kString:
             return plug.asString() if value else str
+        if attrType == om2.MFnData.kInvalid:
+            raise exceptions.InvalidAttributeTypeError(attr.node, attr.attr)
 
         # If the type is kAny then it may be connected to another value
         if attrType == om2.MFnData.kAny and plug.isDestination:
-            return _getPlugData(plug.source(), value=value)
+            return _getPlugData(attr, plug.source(), value=value)
 
     if apiType == om2.MFn.kNumericAttribute:
         numericType = om2.MFnNumericAttribute(attribute).numericType()
@@ -617,6 +621,7 @@ class Attribute(types.StrMixin):
 
         Raises:
             AttributeNotFoundError
+            InvalidAttributeTypeError
 
         Returns:
             Python type for standard attributes.
@@ -625,7 +630,7 @@ class Attribute(types.StrMixin):
             String if unsupported (eg. "enum").
         """
         if not self.api.plug.isNull:
-            result = _getPlugData(self.api.plug, value=False)
+            result = _getPlugData(self, value=False)
             if result is not None:
                 return result
 
@@ -634,7 +639,6 @@ class Attribute(types.StrMixin):
         except ValueError as e:
             if 'No object matches name' in str(e):
                 raise exceptions.AttributeNotFoundError(self.node, self.attr)
-            raise
         return ATTR_TYPES.get(attrType, attrType)
 
     @property
@@ -646,9 +650,13 @@ class Attribute(types.StrMixin):
     @property
     def value(self):
         # type: () -> Any
-        """Get an attribute value."""
+        """Get an attribute value.
+
+        Raises:
+            InvalidAttributeTypeError
+        """
         if not self.api.plug.isNull:
-            result = _getPlugData(self.api.plug, value=True)
+            result = _getPlugData(self, value=True)
             if result is not None:
                 return result
         return mc.getAttr(self)

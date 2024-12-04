@@ -100,6 +100,10 @@ class ConnectToSelfError(NodeAttributeError):
     MESSAGE = 'Cannot connect attribute "{node}.{attr}" to itself.'
 
 
+class InvalidAttributeTypeError(NodeAttributeError):
+    MESSAGE = 'The value for the attribute "{node}.{attr}" could not be retrieved.'
+
+
 class NoBoundingBoxError(NodeError):
     MESSAGE = '"{node}" has no bounding box'
 

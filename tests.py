@@ -1319,6 +1319,14 @@ class TestAttr(unittest.TestCase):
         self.assertNotEqual(cam.attrs['worldMatrix'].children[1], cam + '.worldMatrix[2]')
         mc.delete(cam)
 
+    def testInvalidAttr(self):
+        n = Node(mc.polyCube(name='invalidAttrTest')[0])
+        with self.assertRaises(exceptions.InvalidAttributeTypeError):
+            n.shape.attrs['face'].type
+        with self.assertRaises(exceptions.InvalidAttributeTypeError):
+            n.shape.attrs['face'].value
+        mc.delete(n)
+
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
