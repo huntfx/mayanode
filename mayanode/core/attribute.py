@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import re
+
 import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
@@ -453,7 +455,7 @@ class Attribute(types.StrMixin):
         self.node = node
         if isinstance(attr, om2.MPlug):
             self.api = Attribute.ApiData(attr)
-            self.attr = self.api.plug.partialName(useLongNames=True)
+            self.attr = self.api.plug.partialName(useLongNames=True, includeInstancedIndices=True)
 
         else:
             self.attr = attr
@@ -476,10 +478,13 @@ class Attribute(types.StrMixin):
 
     def __eq__(self, value):
         # type: (Any) -> bool
+        plug = self.api.plug
+        if plug is None:
+            return value == self.attr
         if isinstance(value, Attribute):
-            return self.api.plug == value.api.plug
+            return plug == value.api.plug
         if isinstance(value, Connection):
-            return self.api.plug == value._dstPlug
+            return plug == value._dstPlug
 
         value = str(value)
         if not value:
@@ -506,14 +511,18 @@ class Attribute(types.StrMixin):
                 if self.node.endswith(node):
                     value = possibleValue
 
-        # If no plug then keep it simple
-        plug = self.api.plug
-        if plug is None:
-            return value == self.attr
-
         useFullAttributePath = '.' in value
         partialName = plug.partialName(useFullAttributePath=useFullAttributePath)
         longName = plug.partialName(useFullAttributePath=useFullAttributePath, useLongNames=True)
+
+        # Check plug element index if not included in the name
+        if plug.isElement and '[' not in partialName:
+            isElement = re.match(r'(.*?)\[(\d)\]', value)
+            if not isElement:
+                return False
+            value, element = isElement.groups()
+            if int(element) != plug.logicalIndex():
+                return False
 
         return value in (partialName, longName) or partialName.endswith(value) or longName.endswith(value)
 

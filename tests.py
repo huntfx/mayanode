@@ -1247,11 +1247,17 @@ class TestAttr(unittest.TestCase):
 
         attr = Node(cube).attrs['test']
         self.assertEqual(len(attr.children), 3)
+        self.assertNotEqual(attr.children[1], 'test')
         self.assertEqual(attr.children[1], 'test[1]')
         self.assertEqual(attr.children[1].children[0], attr.children[1].children['testA'])
         self.assertEqual(attr.children[1].children[0], cube + '.test[1].testA')
         self.assertEqual(attr.children[1].children[0], 'test[1].testA')
         self.assertEqual(attr.children[1].children[0], 'testA')
+
+        with self.assertRaises(KeyError):
+            attr.children[3]
+        with self.assertRaises(KeyError):
+            attr.children[1].children['testB']
 
         mc.delete(cube)
 
@@ -1292,6 +1298,18 @@ class TestAttr(unittest.TestCase):
         self.assertFalse(fa5.exists)
 
         mc.delete(n)
+
+    def testChildElementNames(self):
+        cam = Node(mc.camera(name='childElementTest')[0])
+        mc.getAttr(cam + '.worldMatrix[1]')
+        mc.getAttr(cam + '.worldMatrix[2]')
+        self.assertEqual(len(cam.attrs['worldMatrix'].children), 2)
+        with self.assertRaises(KeyError):
+            cam.attrs['worldMatrix'].children[0]
+        self.assertEqual(cam.attrs['worldMatrix'].children[1], cam + '.worldMatrix[1]')
+        self.assertNotEqual(cam.attrs['worldMatrix'].children[1], cam + '.worldMatrix')
+        self.assertNotEqual(cam.attrs['worldMatrix'].children[1], cam + '.worldMatrix[2]')
+        mc.delete(cam)
 
 
 class TestKeyframes(unittest.TestCase):
