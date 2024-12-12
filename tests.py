@@ -801,6 +801,21 @@ class TestDgModifier(unittest.TestCase):
             context.dgModifier.undoIt()
             self.assertIn('map2', node.shape.uvSets)
 
+        with MayaNode() as context:
+            context.dgModifier = om2.MDGModifier()
+
+            mc.undoInfo(openChunk=True)
+            node.shape.uvSet.name = 'map3'
+            mc.undoInfo(openChunk=False)
+            self.assertTrue(node.shape.uvSet, 'map3')
+            self.assertTrue(node.shape.uvSets, ['map3', 'map2'])
+            with self.assertRaises(RuntimeError):
+                mc.undo()
+            with self.assertRaises(exceptions.UVSetExistsError):
+                node.shape.uvSet.name = 'map2'
+            context.dgModifier.undoIt()
+            self.assertEqual(node.shape.uvSet.name, 'map1')
+
         mc.delete(node)
 
 

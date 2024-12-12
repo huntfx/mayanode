@@ -154,7 +154,11 @@ class UVSet(types.StrMixin):
         if name in fnMesh.getUVSetNames():
             raise exceptions.UVSetExistsError(self.node, self.name)
 
-        mc.polyUVSet(self.node, rename=True, uvSet=self.name, newUVSet=name)
+        dgMod = MayaNode.dgModifier
+        if dgMod is None:
+            mc.polyUVSet(self.node, rename=True, uvSet=self.name, newUVSet=name)
+        else:
+            fnMesh.renameUVSet(self.name, name, dgMod)
         self._name = name
 
     @property
