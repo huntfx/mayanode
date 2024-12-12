@@ -123,6 +123,10 @@ class UVSetNotFoundError(UVSetError):
     MESSAGE = 'The UV set "{node}.{uvSet}" was not found'
 
 
+class UVSetExistsError(UVSetError):
+    MESSAGE = 'Cannot rename "{node}.{uvSet}" to an existing UV set name.'
+
+
 class ColorSetError(NodeError):
     MESSAGE = 'Error: {node}.colorSet[{colorSet}]'
 

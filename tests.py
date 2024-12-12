@@ -1644,6 +1644,10 @@ class TestUVSets(unittest.TestCase):
         self.assertEqual(self.node.uvSet, 'renamed')
         self.assertEqual(self.node.uvSets, ['renamed', 'map2'])
 
+    def testRenameInUse(self):
+        with self.assertRaises(exceptions.UVSetExistsError):
+            self.node.uvSet.name = 'map2'
+
     def testSet(self):
         self.node.uvSet = 'map2'
         self.assertEqual(self.node.uvSet, 'map2')

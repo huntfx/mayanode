@@ -134,19 +134,26 @@ class UVSet(types.StrMixin):
     @property
     def name(self):
         # type: () -> str
-        """Get the name of the color set."""
+        """Get the name of the uv set."""
         return self._name
 
     @name.setter
     def name(self, name):
         # type: (str) -> None
-        """Rename a color set.
-        This does not update the UI window.
+        """Rename a UV set.
 
         Raises:
-            RuntimeError: Cannot rename color set to an existing color set name.
+            UVSetNotFoundError
+            UVSetExistsError
         """
         utils.logger.info("Renaming '%s' UV set '%s' to '%s'", self.node, self.name, name)
+
+        fnMesh = self.node.api.mesh
+        if fnMesh is None:
+            raise exceptions.UVSetNotFoundError(self.node, self.name)
+        if name in fnMesh.getUVSetNames():
+            raise exceptions.UVSetExistsError(self.node, self.name)
+
         mc.polyUVSet(self.node, rename=True, uvSet=self.name, newUVSet=name)
         self._name = name
 
