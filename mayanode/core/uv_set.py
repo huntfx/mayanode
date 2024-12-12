@@ -199,6 +199,15 @@ class UVSet(types.StrMixin):
         return self.attr.api.plug.parent().logicalIndex()
 
     @property
+    def exists(self):
+        # type: () -> bool
+        """Determine if this UV set exists."""
+        fnMesh = self.node.api.mesh
+        if fnMesh is None:
+            return False
+        return self.name in fnMesh.getUVSetNames()
+
+    @property
     def current(self):
         # type: () -> bool
         """Determine if this UV set is the current one."""
