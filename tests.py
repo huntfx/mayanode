@@ -6,7 +6,7 @@ import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from mayanode import Node, Namespace, ProgressBar, exceptions, File, Reference, Maya, MayaNode
+from mayanode import *
 from mayanode.version import tokeniseVersion, standardiseVersions
 
 
@@ -765,58 +765,6 @@ class TestDgModifier(unittest.TestCase):
                 self.assertIs(context1.modifier, dag1)
 
         MayaNode.dgModifier = None
-
-    def testUVSet(self):
-        node = Node(mc.polyCube(name='uvDgModTest')[0])
-        mc.polyUVSet(node, create=True, uvSet='map2')
-        mc.polyUVSet(node, currentUVSet=True, uvSet='map1')
-
-        mc.undoInfo(openChunk=True)
-        node.shape.uvSet = 'map2'
-        mc.undoInfo(openChunk=False)
-        self.assertTrue(node.shape.uvSet, 'map2')
-        mc.undo()
-        self.assertTrue(node.shape.uvSet, 'map1')
-
-        with MayaNode() as context:
-            context.dgModifier = om2.MDGModifier()
-
-            mc.undoInfo(openChunk=True)
-            node.shape.uvSet = 'map2'
-            mc.undoInfo(openChunk=False)
-            self.assertTrue(node.shape.uvSet, 'map2')
-            with self.assertRaises(RuntimeError):
-                mc.undo()
-            self.assertTrue(node.shape.uvSet, 'map2')
-            context.dgModifier.undoIt()
-            self.assertTrue(node.shape.uvSet, 'map1')
-
-        with MayaNode() as context:
-            context.dgModifier = om2.MDGModifier()
-
-            self.assertIn('map2', node.shape.uvSets)
-            self.assertTrue(node.shape.uvSets['map2'].exists)
-            node.shape.uvSets['map2'].delete()
-            self.assertNotIn('map2', node.shape.uvSets)
-            context.dgModifier.undoIt()
-            self.assertIn('map2', node.shape.uvSets)
-
-        with MayaNode() as context:
-            context.dgModifier = om2.MDGModifier()
-
-            mc.undoInfo(openChunk=True)
-            node.shape.uvSet.name = 'map3'
-            mc.undoInfo(openChunk=False)
-            self.assertTrue(node.shape.uvSet, 'map3')
-            self.assertTrue(node.shape.uvSets, ['map3', 'map2'])
-            with self.assertRaises(RuntimeError):
-                mc.undo()
-            with self.assertRaises(exceptions.UVSetExistsError):
-                node.shape.uvSet.name = 'map2'
-            context.dgModifier.undoIt()
-            self.assertEqual(node.shape.uvSet.name, 'map1')
-
-        mc.delete(node)
 
 
 class TestBoundingBox(unittest.TestCase):
@@ -1649,6 +1597,8 @@ class TestUVSets(unittest.TestCase):
     def testExists(self):
         self.assertEqual(self.node.uvSet, 'map1')
         self.assertEqual(self.node.uvSets, ['map1', 'map2'])
+        self.assertTrue(self.node.uvSet.exists)
+        self.assertFalse(UVSet(self.node, 'map3').exists)
 
     def testLength(self):
         self.assertTrue(self.node.uvSets)
@@ -1662,6 +1612,21 @@ class TestUVSets(unittest.TestCase):
     def testRenameInUse(self):
         with self.assertRaises(exceptions.UVSetExistsError):
             self.node.uvSet.name = 'map2'
+
+    def testModifierRename(self):
+        with MayaNode() as context:
+            dgMod = context.dgModifier = om2.MDGModifier()
+            self.node.uvSet.name = 'map3'
+        self.assertEqual(self.node.uvSet, 'map3')
+        dgMod.undoIt()
+        self.assertEqual(self.node.uvSet, 'map1')
+
+    def testModifierRenameInUse(self):
+        with MayaNode() as context:
+            context.dgModifier = om2.MDGModifier()
+            with self.assertRaises(exceptions.UVSetExistsError):
+                self.node.uvSet.name = 'map2'
+        self.assertEqual(self.node.uvSet, 'map1')
 
     def testSet(self):
         self.node.uvSet = 'map2'
@@ -1683,6 +1648,14 @@ class TestUVSets(unittest.TestCase):
         self.assertEqual(self.node.uvSet, 'map2')
         self.assertEqual(self.node.uvSets, ['map1', 'map2'])
 
+    def testModifierSet(self):
+        with MayaNode() as context:
+            dgMod = context.dgModifier = om2.MDGModifier()
+            self.node.uvSet = 'map2'
+        self.assertEqual(self.node.uvSet, 'map2')
+        dgMod.undoIt()
+        self.assertEqual(self.node.uvSet, 'map1')
+
     def testDelete(self):
         with self.assertRaises(exceptions.UVSetDeleteDefaultError):
             self.node.uvSet.delete()
@@ -1690,6 +1663,14 @@ class TestUVSets(unittest.TestCase):
         self.node.uvSet.delete()
         self.assertEqual(self.node.uvSet, 'map1')
         self.assertEqual(self.node.uvSets, ['map1'])
+
+    def testModifierDelete(self):
+        with MayaNode() as context:
+            dgMod = context.dgModifier = om2.MDGModifier()
+            del self.node.uvSets['map2']
+        self.assertEqual(self.node.uvSets, ['map1'])
+        dgMod.undoIt()
+        self.assertEqual(self.node.uvSets, ['map1', 'map2'])
 
     def testFaces(self):
         for face in self.node.faces:

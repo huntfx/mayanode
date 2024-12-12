@@ -149,6 +149,7 @@ __all__ = [
     'Scene',
     'Time',
     'Undo',
+    'UVSet',
 ]
 
 from . import exceptions
@@ -168,3 +169,4 @@ from .core.reference import Reference
 from .core.scene import Scene
 from .core.time import Time
 from .core.undo import Undo
+from .core.uv_set import UVSet
