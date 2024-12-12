@@ -1,3 +1,4 @@
+import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
@@ -45,6 +46,11 @@ class UVSetList(types.MappedLazyList):
         if mesh is None:
             return 0
         return mesh.numUVSets
+
+    def __delitem__(self, item):
+        # type: (Union[int, str]) -> None
+        """Delete a UV set."""
+        self.__getitem__(item).delete()
 
     @property
     def node(self):
@@ -180,11 +186,11 @@ class UVSet(types.StrMixin):
         Raises:
             UVSetNotFoundError
         """
-        mesh = self.node.api.mesh
-        if mesh is None:
+        fnMesh = self.node.api.mesh
+        if fnMesh is None:
             raise exceptions.UVSetNotFoundError(self.node, self.name)
         try:
-            return mesh.getUVSetNames().index(self.name)
+            return fnMesh.getUVSetNames().index(self.name)
         except ValueError:
             raise exceptions.UVSetNotFoundError(self.node, self.name)
 
@@ -211,10 +217,10 @@ class UVSet(types.StrMixin):
     def current(self):
         # type: () -> bool
         """Determine if this UV set is the current one."""
-        mesh = self.node.api.mesh
-        if mesh is None:
+        fnMesh = self.node.api.mesh
+        if fnMesh is None:
             return False
-        return self.name == mesh.currentUVSetName()
+        return self.name == fnMesh.currentUVSetName()
 
     def delete(self):
         # type: () -> None
@@ -225,14 +231,31 @@ class UVSet(types.StrMixin):
             UVSetDeleteDefaultError(UVSetError): If deleting the default UV set.
         """
         utils.logger.info('Deleting UV set: %s.%s', self.node, self.name)
-        try:
-            mc.polyUVSet(self.node, delete=True, uvSet=self.name)
-        except RuntimeError as e:
-            if 'The default uv set cannot be deleted.' in str(e):
-                raise exceptions.UVSetDeleteDefaultError(self.node, self.name)
-            if 'Specified color set does not exist on the polygonal object.' in str(e):
+
+        dgMod = MayaNode.dgModifier
+        if dgMod is None:
+            try:
+                mc.polyUVSet(self.node, delete=True, uvSet=self.name)
+            except RuntimeError as e:
+                if 'The default uv set cannot be deleted.' in str(e):
+                    raise exceptions.UVSetDeleteDefaultError(self.node, self.name)
+                if 'Specified uv set does not exist on the polygonal object.' in str(e):
+                    raise exceptions.UVSetNotFoundError(self.node, self.name)
+                raise
+
+        else:
+            fnMesh = self.node.api.mesh
+            if fnMesh is None:
                 raise exceptions.UVSetNotFoundError(self.node, self.name)
-            raise
+            allSets = fnMesh.getUVSetNames()
+            if self.name not in allSets:
+                raise exceptions.UVSetNotFoundError(self.node, self.name)
+            if self.name == allSets[0]:
+                raise exceptions.UVSetDeleteDefaultError(self.node, self.name)
+
+            sl = om2.MSelectionList()
+            sl.add(self.node.api.getShapeDagPath())
+            fnMesh.deleteUVSet(self.name, dgMod, sl)
 
     @property
     def textures(self):
@@ -259,4 +282,5 @@ class UVSet(types.StrMixin):
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .attribute import Attribute
+from .mayanode import MayaNode
 from .node import Node

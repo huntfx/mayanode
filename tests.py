@@ -767,7 +767,7 @@ class TestDgModifier(unittest.TestCase):
         MayaNode.dgModifier = None
 
     def testUVSet(self):
-        node = Node(mc.polyCube(name='dgModifierTest')[0])
+        node = Node(mc.polyCube(name='uvDgModTest')[0])
         mc.polyUVSet(node, create=True, uvSet='map2')
         mc.polyUVSet(node, currentUVSet=True, uvSet='map1')
 
@@ -782,7 +782,7 @@ class TestDgModifier(unittest.TestCase):
             context.dgModifier = om2.MDGModifier()
 
             mc.undoInfo(openChunk=True)
-            self.node.shape.uvSet = 'map2'
+            node.shape.uvSet = 'map2'
             mc.undoInfo(openChunk=False)
             self.assertTrue(node.shape.uvSet, 'map2')
             with self.assertRaises(RuntimeError):
@@ -791,7 +791,16 @@ class TestDgModifier(unittest.TestCase):
             context.dgModifier.undoIt()
             self.assertTrue(node.shape.uvSet, 'map1')
 
-        self.assertIsNone(MayaNode.dgModifier)
+        with MayaNode() as context:
+            context.dgModifier = om2.MDGModifier()
+
+            self.assertIn('map2', node.shape.uvSets)
+            self.assertTrue(node.shape.uvSets['map2'].exists)
+            node.shape.uvSets['map2'].delete()
+            self.assertNotIn('map2', node.shape.uvSets)
+            context.dgModifier.undoIt()
+            self.assertIn('map2', node.shape.uvSets)
+
         mc.delete(node)
 
 
