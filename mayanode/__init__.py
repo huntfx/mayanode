@@ -140,6 +140,7 @@ __all__ = [
     'File',
     'FileInfo',
     'Maya',
+    'MayaNode',
     'Namespace',
     'Plugin',
     'Profiler',
@@ -158,6 +159,7 @@ from .core.bounding_box import BoundingBox
 from .core.camera import Camera
 from .core.file import File
 from .core.file_info import FileInfo
+from .core.mayanode import MayaNode
 from .core.namespace import Namespace
 from .core.plugin import Plugin
 from .core.profiler import Profiler

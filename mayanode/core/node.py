@@ -10,7 +10,6 @@ from ..type_hints import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Any, Dict, Generator, List, Optional, Tuple, Union
     from ..types import StrLike
-    ModifierType = Optional[Union['Modifiers', om2.MDGModifier, om2.MDagModifier]]
 
 
 class Ancestors(types.MappedLazyList):
@@ -26,26 +25,19 @@ class Ancestors(types.MappedLazyList):
         use `node.longName.startswith('|topLevelNode|')`.
     """
 
-    __slots__ = ['_node', '_ancestors', '_loadedAllAncestors', '_modifiers']
+    __slots__ = ['_node', '_ancestors', '_loadedAllAncestors']
 
-    def __init__(self, node, modifier=None):
-        # type: (Node, Optional[ModifierType]) -> None
+    def __init__(self, node):
+        # type: (Node) -> None
         self._node = node
         self._ancestors = []  # type: List[om2.MDagPath]
         self._loadedAllAncestors = False
-        self._modifiers = Modifiers.fromValue(modifier)
         super(Ancestors, self).__init__(None if node.api.dagPath.isValid() else [])
 
     @property
     def node(self):
         # type: () -> Node
         return self._node
-
-    @property
-    def modifiers(self):
-        # type: () -> Modifiers
-        """Get the DG/DAG modifiers."""
-        return self._modifiers
 
     def __bool__(self):
         # type: () -> bool
@@ -148,34 +140,9 @@ class Ancestors(types.MappedLazyList):
 
         # Map nodes to indexes
         for index in indexes:
-            self._setitem(index, Node(self._ancestors[index], modifier=self.modifiers))
+            self._setitem(index, Node(self._ancestors[index]))
 
         return not isinstance(key, int)
-
-
-class Modifiers(object):
-    """Hold the DG and DAG modifiers.
-    This can be passed to multiple Node instances.
-    """
-
-    __slots__ = ['dg', 'dag']
-
-    def __init__(self, dgModifier=None, dagModifier=None):
-        # type: (Optional[om2.MDGModifier], Optional[om2.MDagModifier]) -> None
-        self.dg = dgModifier
-        self.dag = dagModifier
-
-    @classmethod
-    def fromValue(cls, modifier):
-        # type: (Optional[ModifierType]) -> Modifiers
-        """Build the class from an input value."""
-        if isinstance(modifier, Modifiers):
-            return modifier
-        if isinstance(modifier, om2.MDGModifier):
-            return cls(dgModifier=modifier)
-        if isinstance(modifier, om2.MDagModifier):
-            return cls(dagModifier=modifier)
-        return cls()
 
 
 class _ApiData(object):
@@ -610,18 +577,14 @@ class Node(types._NodeType):
     then it will raise `TypeError: Object  is invalid`.
     """
 
-    __slots__ = ['api', '_attrs', '_modifiers']
+    __slots__ = ['api', '_attrs']
 
-    def __init__(self, name, modifier=None, _instanceNumber=-1):
-        # type: (Any, Optional[ModifierType], int) -> None
+    def __init__(self, name, _instanceNumber=-1):
+        # type: (Any, int) -> None
         """Setup the data.
 
         Parameters:
             name: Name of the node.
-            modifier: Optionally use an MDGModifier or MDagModifier.
-                This is a lot more efficient, but does not work with
-                undo, so should be used with care.
-                Not all commands are supported.
             _instanceNumber: MObject instance number.
                 This should not be set manually. It only applies when
                 loading with an MObject.
@@ -640,7 +603,6 @@ class Node(types._NodeType):
             self.api = _ApiData.fromName(name, instanceNumber=_instanceNumber)
 
         self._attrs = NodeAttributes(self)
-        self._modifiers = Modifiers.fromValue(modifier)
 
     def __eq__(self, other):
         # type: (Any) -> bool
@@ -885,9 +847,9 @@ class Node(types._NodeType):
         elif not name.startswith(':'):
             name = ':' + name
 
-        mod = self.modifiers.dg
+        mod = MayaNode.dgModifier
         if mod is None:
-            mod = self.modifiers.dag
+            mod = MayaNode.dagModifier
 
         if mod is None:
             mc.rename(self, name)
@@ -931,12 +893,6 @@ class Node(types._NodeType):
         """Get the attr dict."""
         utils.raiseIfNodeNotFound(self)
         return self._attrs
-
-    @property
-    def modifiers(self):
-        # type: () -> Modifiers
-        """Get the DG/DAG modifiers."""
-        return self._modifiers
 
     def select(self, add=None, replace=None):
         # type(Optional[bool], Optional[bool]) -> None
@@ -1187,7 +1143,7 @@ class Node(types._NodeType):
         parentDagPath = om2.MDagPath(dagPath).pop()
         if parentDagPath == utils.getWorldDagPath():
             return None
-        return Node(parentDagPath, modifier=self.modifiers)
+        return Node(parentDagPath)
 
     @parent.setter
     def parent(self, parent):
@@ -1207,7 +1163,8 @@ class Node(types._NodeType):
             raise exceptions.NotADagNodeError(self)
 
         targetMObj = None
-        if self.modifiers.dag is not None:
+        dagModifier = MayaNode.dagModifier
+        if dagModifier is not None:
             targetMObj = utils.toMObject(parent)
 
         if targetMObj is None:
@@ -1227,7 +1184,7 @@ class Node(types._NodeType):
                 raise
 
         else:
-            self.modifiers.dag.reparentNode(self.api.object, om2.MObject.kNullObj)
+            dagModifier.reparentNode(self.api.object, om2.MObject.kNullObj)
 
     @property
     def children(self):
@@ -1301,7 +1258,7 @@ class Node(types._NodeType):
             ...         yield parent
             ...         parent = parent.parent
         """
-        return Ancestors(self, modifier=self.modifiers)
+        return Ancestors(self)
 
     @property
     def connections(self):
@@ -1324,7 +1281,7 @@ class Node(types._NodeType):
         shapeDagPath = api.getShapeDagPath()
         if shapeDagPath == api.dagPath:
             return None
-        return Node(shapeDagPath, modifier=self.modifiers)
+        return Node(shapeDagPath)
 
     @property
     def transform(self):
@@ -1340,7 +1297,7 @@ class Node(types._NodeType):
         transform = self.api.getTransformObject()
         if transform is None:
             return None
-        return Node(transform, modifier=self.modifiers)
+        return Node(transform)
 
     @property
     def keyframes(self):
@@ -1363,7 +1320,7 @@ class Node(types._NodeType):
         """
         utils.raiseIfNodeNotFound(self)
         inst = mc.instance(self, **kwargs)[0]
-        return Node(inst, modifier=self.modifiers)
+        return Node(inst)
 
     @property
     def instanced(self):
@@ -1384,7 +1341,7 @@ class Node(types._NodeType):
             return [self]
 
         instanceNumber = self.instanceNumber
-        return [self if instanceNumber == i else Node(self, _instanceNumber=i, modifier=self.modifiers)
+        return [self if instanceNumber == i else Node(self, _instanceNumber=i)
                 for i, dagPath in enumerate(self.api.dagPaths) if dagPath.isValid()]
 
     @property
@@ -1436,7 +1393,7 @@ class Node(types._NodeType):
             sg = utils.getShadingGroup(self.api.object)
         if sg is None:
             return None
-        return Node(sg, modifier=self.modifiers)
+        return Node(sg)
 
     @shadingGroup.setter
     def shadingGroup(self, shadingEngine):
@@ -1473,7 +1430,7 @@ class Node(types._NodeType):
         connections = plug.connectedTo(True, False)
         if not connections:
             return None
-        return Node(connections[0].node(), modifier=self.modifiers)
+        return Node(connections[0].node())
 
     @property
     def _texture(self):
@@ -1492,7 +1449,7 @@ class Node(types._NodeType):
         connections = plug.connectedTo(True, False)
         if not connections:
             return None
-        return Node(connections[0].node(), modifier=self.modifiers)
+        return Node(connections[0].node())
 
     @property
     def visible(self):
@@ -1630,10 +1587,11 @@ class Node(types._NodeType):
             raise exceptions.UVSetNotFoundError(self, uvSet)
 
         # Set UV set
-        if self.modifiers.dg is None:
+        dgModifier = MayaNode.dgModifier
+        if dgModifier is None:
             mc.polyUVSet(self, currentUVSet=True, uvSet=uvSet)
         else:
-            mesh.setCurrentUVSetName(uvSet, self.modifiers.dg)
+            mesh.setCurrentUVSetName(uvSet, dgModifier)
 
     @property
     def uvSets(self):
@@ -1952,6 +1910,7 @@ from .color_set import ColorSet
 from .connection import NodeConnectionProxy
 from .face import FaceList
 from .keyframes import NodeKeyframes
+from .mayanode import MayaNode
 from .namespace import Namespace
 from .node_type import NodeType
 from .plugin import Plugin

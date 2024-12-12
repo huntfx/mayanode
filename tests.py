@@ -6,7 +6,7 @@ import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from mayanode import Node, Namespace, ProgressBar, exceptions, File, Reference, Maya
+from mayanode import Node, Namespace, ProgressBar, exceptions, File, Reference, Maya, MayaNode
 from mayanode.version import tokeniseVersion, standardiseVersions
 
 
@@ -727,38 +727,72 @@ class TestNode(unittest.TestCase):
         mc.delete(cube1, cube2, inst, set1, set2)
 
 
+
 class TestDgModifier(unittest.TestCase):
-    def setUp(self):
-        cube = mc.polyCube(name='dgModifierTest')[0]
-        mc.polyUVSet(cube, create=True, uvSet='map2')
-        mc.polyUVSet(cube, currentUVSet=True, uvSet='map1')
+    def testContext(self):
+        dg1 = om2.MDGModifier()
+        dg2 = om2.MDGModifier()
+        dg3 = om2.MDGModifier()
+        dag1 = om2.MDagModifier()
+        dag2 = om2.MDagModifier()
 
-        self.withoutMod = Node(cube)
-        self.dgMod = om2.MDGModifier()
-        self.withDgMod = Node(cube, modifier=self.dgMod)
-        self.dagMod = om2.MDagModifier()
-        self.withDagMod = Node(cube, modifier=self.dagMod)
+        self.assertIsNone(MayaNode.dgModifier)
+        MayaNode.dgModifier = dg1
+        with MayaNode() as context1:
+            self.assertIs(MayaNode.dgModifier, dg1)
+            self.assertIsNone(context1.dgModifier)
+            context1.dgModifier = dg2
+            self.assertIs(MayaNode.dgModifier, dg2)
+            self.assertIs(context1.dgModifier, dg2)
 
-    def tearDown(self):
-        mc.delete(self.withoutMod)
+            with MayaNode() as context2:
+                self.assertIs(MayaNode.dgModifier, dg2)
+                context2.dgModifier = dg3
+                self.assertIs(context1.dgModifier, dg2)
+                self.assertIs(MayaNode.dgModifier, dg3)
+                context1.dgModifier = None
+
+            self.assertIs(MayaNode.dgModifier, dg1)
+            self.assertIs(MayaNode.modifier, dg1)
+            context1.dagModifier = dag1
+            self.assertIs(MayaNode.modifier, dag1)
+
+            with MayaNode() as context2:
+                context2.dagModifier = dag2
+                self.assertIs(MayaNode.modifier, dag2)
+                context2.dgModifier = dg3
+                self.assertIs(MayaNode.modifier, dag2)
+                self.assertIs(context1.modifier, dag1)
+
+        MayaNode.dgModifier = None
 
     def testUVSet(self):
-        mc.undoInfo(openChunk=True)
-        self.withoutMod.shape.uvSet = 'map2'
-        mc.undoInfo(openChunk=False)
-        self.assertTrue(self.withoutMod.shape.uvSet, 'map2')
-        mc.undo()
-        self.assertTrue(self.withoutMod.shape.uvSet, 'map1')
+        node = Node(mc.polyCube(name='dgModifierTest')[0])
+        mc.polyUVSet(node, create=True, uvSet='map2')
+        mc.polyUVSet(node, currentUVSet=True, uvSet='map1')
 
         mc.undoInfo(openChunk=True)
-        self.withDgMod.shape.uvSet = 'map2'
+        node.shape.uvSet = 'map2'
         mc.undoInfo(openChunk=False)
-        self.assertTrue(self.withDgMod.shape.uvSet, 'map2')
-        with self.assertRaises(RuntimeError):
-            mc.undo()
-        self.assertTrue(self.withDgMod.shape.uvSet, 'map2')
-        self.dgMod.undoIt()
-        self.assertTrue(self.withDgMod.shape.uvSet, 'map1')
+        self.assertTrue(node.shape.uvSet, 'map2')
+        mc.undo()
+        self.assertTrue(node.shape.uvSet, 'map1')
+
+        with MayaNode() as context:
+            context.dgModifier = om2.MDGModifier()
+
+            mc.undoInfo(openChunk=True)
+            self.node.shape.uvSet = 'map2'
+            mc.undoInfo(openChunk=False)
+            self.assertTrue(node.shape.uvSet, 'map2')
+            with self.assertRaises(RuntimeError):
+                mc.undo()
+            self.assertTrue(node.shape.uvSet, 'map2')
+            context.dgModifier.undoIt()
+            self.assertTrue(node.shape.uvSet, 'map1')
+
+        self.assertIsNone(MayaNode.dgModifier)
+        mc.delete(node)
 
 
 class TestBoundingBox(unittest.TestCase):
