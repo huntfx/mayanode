@@ -149,6 +149,11 @@ class NodeKeyframes(KeyframeBase):
         # type: () -> None
         Keyframe(self.node).delete()
 
+    def offset(self, value, relative=True):
+        # type: (float, bool) -> int
+        """Offset the frames."""
+        return self.frames.offset(value, relative=relative)
+
 
 class KeyframeList(list):
     def __init__(self, attr, frame, frames):
@@ -179,7 +184,7 @@ class KeyframeList(list):
         return self._node
 
     def offset(self, value, relative=True):
-        # type: (float, bool) -> None
+        # type: (float, bool) -> int
         """Offset the frames."""
         item = self.attr
         if item is None:
@@ -248,9 +253,9 @@ class NodeKeyframeList(KeyframeBase):
         Keyframe(self.node, self._frame).delete()
 
     def offset(self, value, relative=True):
-        # type: (float, bool) -> None
+        # type: (float, bool) -> int
         """Offset the frames."""
-        Keyframe(self.node, self._frame).offset(value, relative=relative)
+        return Keyframe(self.node, self._frame).offset(value, relative=relative)
 
 
 class AttributeKeyframes(KeyframeBase):
@@ -382,6 +387,11 @@ class AttributeKeyframes(KeyframeBase):
             KeyframeLockError
         """
         self.locked = False
+
+    def offset(self, value, relative=True):
+        # type: (float, bool) -> int
+        """Offset the frames."""
+        return self.frames.offset(value, relative=relative)
 
 
 class Keyframe(KeyframeBase):
