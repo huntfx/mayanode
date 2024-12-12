@@ -1655,6 +1655,15 @@ class TestUVSets(unittest.TestCase):
         self.assertEqual(self.node.uvSet, 'map1')
         self.assertEqual(self.node.uvSets, ['map1', 'map2'])
 
+    def testSetCurrent(self):
+        self.assertFalse(self.node.uvSets['map2'].current)
+        self.node.uvSets['map2'].current = True
+        self.assertEqual(self.node.uvSet, 'map2')
+        with self.assertRaises(ValueError):
+            self.node.uvSets['map2'].current = False
+        self.assertEqual(self.node.uvSet, 'map2')
+        self.assertEqual(self.node.uvSets, ['map1', 'map2'])
+
     def testDelete(self):
         with self.assertRaises(exceptions.UVSetDeleteDefaultError):
             self.node.uvSet.delete()

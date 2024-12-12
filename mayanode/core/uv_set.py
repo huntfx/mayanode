@@ -222,6 +222,14 @@ class UVSet(types.StrMixin):
             return False
         return self.name == fnMesh.currentUVSetName()
 
+    @current.setter
+    def current(self, current):
+        # type: (bool) -> None
+        """Set this UV set as the current one."""
+        if not current:
+            raise ValueError('can only set a uv set to current')
+        self.node.uvSet = self
+
     def delete(self):
         # type: () -> None
         """Delete a UV set.
