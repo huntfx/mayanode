@@ -107,7 +107,7 @@ class _Scene(object):
             mc.optionVar(stringValue=('preloadRefEdTopLevelFile', path))
             mel.eval('PreloadReferenceEditor;')
 
-    def save(self, force=True):
+    def save(self, force=False):
         # type: (bool) -> None
         """Save the scene."""
         if force or not mc.about(batch=True):
