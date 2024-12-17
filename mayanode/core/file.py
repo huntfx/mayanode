@@ -35,7 +35,7 @@ class File(str):
     def name(self):
         # type: () -> str
         """Get the name of the file."""
-        return os.path.splitext(self)[0]
+        return os.path.splitext(self.filename)[0]
 
     @property
     def filename(self):
@@ -44,9 +44,9 @@ class File(str):
         return os.path.basename(self)
 
     @property
-    def extension(self):
+    def ext(self):
         # type: () -> str
-        """Get the file extension without the period."""
+        """Get the file extension (without the period)."""
         return os.path.splitext(self)[1][1:].lower()
 
     @property
@@ -148,9 +148,9 @@ class File(str):
         }
 
         try:
-            params['type'] = {'ma': 'mayaAscii', 'mb': 'mayaBinary'}[self.extension.lower()]
+            params['type'] = {'ma': 'mayaAscii', 'mb': 'mayaBinary'}[self.ext.lower()]
         except KeyError:
-            raise exceptions.FileExtensionError('unsupported file type (expected "ma" or "mb", got "{}")'.format(self.extension))
+            raise exceptions.FileExtensionError('unsupported file type (expected "ma" or "mb", got "{}")'.format(self.ext))
 
         if selected:
             params['exportSelected'] = True
@@ -162,6 +162,8 @@ class File(str):
             params['exportAll'] = True
 
         utils.logger.info('Exporting file "%s"', self)
+        if not self.parent.exists:
+            os.makedirs(self.parent)
         mc.file(self, **params)
         return self
 

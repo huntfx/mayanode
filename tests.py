@@ -2280,6 +2280,7 @@ class TestReference(unittest.TestCase):
 class TestFile(unittest.TestCase):
     def testEquality(self):
         self.assertEqual(File('C:/a/b'), 'C:/a/b')
+        self.assertEqual(File('C:/a/b'), 'c:/A/B')
         self.assertEqual(File('C:/a/b'), 'C:/a/b/')
         self.assertEqual(File('C:/a/b/'), 'C:/a/b/')
         self.assertEqual(File('C:/a/b/'), 'C:/a/b')
@@ -2292,6 +2293,17 @@ class TestFile(unittest.TestCase):
 
     def testOS(self):
         self.assertEqual(os.path.join(File('C:/a'), 'b'), r'C:\a\b')
+
+    def testName(self):
+        self.assertEqual(File('c:/a').name, 'a')
+        self.assertEqual(File('c:/a').filename, 'a')
+        self.assertEqual(File('c:/a').ext, '')
+        self.assertEqual(File('c:/a.txt').name, 'a')
+        self.assertEqual(File('c:/a.txt').filename, 'a.txt')
+        self.assertEqual(File('c:/a.txt').ext, 'txt')
+        self.assertEqual(File('c:/a.b.txt').name, 'a.b')
+        self.assertEqual(File('c:/a.b.txt').filename, 'a.b.txt')
+        self.assertEqual(File('c:/a.b.txt').ext, 'txt')
 
 
 class TestVersion(unittest.TestCase):
