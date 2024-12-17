@@ -52,82 +52,56 @@ class _Time(object):
         return float(unit[:-3])
 
     @property
-    def playbackStart(self):
+    def min(self):
         # type: () -> float
         """Get the playback start time."""
         return mc.playbackOptions(query=True, minTime=True)
 
-    @playbackStart.setter
-    def playbackStart(self, minTime):
+    @min.setter
+    def min(self, minTime):
         # type: (float) -> None
         """Set the playback start time."""
-        utils.logger.info('Setting playback start time to %s', minTime)
+        utils.logger.info('Setting min time to %s', minTime)
         mc.playbackOptions(minTime=minTime)
 
     @property
-    def playbackEnd(self):
+    def max(self):
         # type: () -> float
         """Get the playback end time."""
         return mc.playbackOptions(query=True, maxTime=True)
 
-    @playbackEnd.setter
-    def playbackEnd(self, maxTime):
+    @max.setter
+    def max(self, maxTime):
         # type: (float) -> None
         """Set the playback end time."""
-        utils.logger.info('Setting playback end time to %s', maxTime)
+        utils.logger.info('Setting max time to %s', maxTime)
         mc.playbackOptions(maxTime=maxTime)
 
     @property
-    def animationStart(self):
+    def start(self):
         # type: () -> float
         """Get the animation start time."""
         return mc.playbackOptions(query=True, animationStartTime=True)
 
-    @animationStart.setter
-    def animationStart(self, animationStartTime):
+    @start.setter
+    def start(self, animationStartTime):
         # type: (float) -> None
         """Set the animation start time."""
         utils.logger.info('Setting animation start time to %s', animationStartTime)
         mc.playbackOptions(animationStartTime=animationStartTime)
 
     @property
-    def animationEnd(self):
+    def end(self):
         # type: () -> float
         """Get the animation end time."""
         return mc.playbackOptions(query=True, animationEndTime=True)
 
-    @animationEnd.setter
-    def animationEnd(self, animationEndTime):
+    @end.setter
+    def end(self, animationEndTime):
         # type: (float) -> None
         """Set the animation end time."""
         utils.logger.info('Setting animation end time to %s', animationEndTime)
         mc.playbackOptions(animationEndTime=animationEndTime)
-
-    @property
-    def start(self):
-        # type: () -> float
-        """Get the animation start time."""
-        return self.animationStart
-
-    @start.setter
-    def start(self, startTime):
-        # type: (float) -> None
-        """Set both the minimum time and animation start time."""
-        utils.logger.info('Setting start time to %s', startTime)
-        mc.playbackOptions(minTime=startTime, animationStartTime=startTime)
-
-    @property
-    def end(self):
-        # type: () -> float
-        """Get the animation end time."""
-        return self.animationEnd
-
-    @end.setter
-    def end(self, endTime):
-        # type: (float) -> None
-        """Set both the maximum time and and animation end time."""
-        utils.logger.info('Setting end time to %s', endTime)
-        mc.playbackOptions(maxTime=endTime, animationEndTime=endTime)
 
     @property
     def playing(self):
