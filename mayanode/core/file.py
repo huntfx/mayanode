@@ -8,7 +8,7 @@ from .. import exceptions, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Optional, Union
+    from typing import Any, List, Optional, Union
     from ..type_hints import StrLike
 
 
@@ -18,6 +18,18 @@ class File(str):
     def __new__(cls, path):
         # type: (str) -> str
         return str.__new__(cls, os.path.normpath(path) if path else '')
+
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        """Determine if the string is a match.
+        This will ignore any trailing slashes.
+        """
+        current = self.lower()
+        if isinstance(other, File):
+            normalised = other.lower()
+        else:
+            normalised = os.path.normpath(str(other)).lower()
+        return current == normalised or (current[-1] == os.path.sep and current[:-1] == normalised)
 
     @property
     def name(self):
