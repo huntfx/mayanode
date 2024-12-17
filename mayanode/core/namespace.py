@@ -233,8 +233,8 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
             NamespaceInvalidNameError
             NamespaceNotUniqueError
         """
-        utils.logger.info('Renaming "%s" to "%s"', self, name)
         name = namespace = utils.validateNamespace(name)
+        utils.logger.info('Renaming "%s" to "%s"', self, name)
         name = name.lstrip(':')
 
         if not name:
@@ -251,7 +251,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
             parent, name = name.rsplit(':', 1)
 
             # Ensure the parent is not a child of the current namespace
-            if parent.lstrip(':').startswith(self.lstrip(':')):
+            if parent.startswith(self.lstrip(':')):
                 raise exceptions.NamespaceParentError(self)
 
             parent = Namespace(parent)
@@ -284,6 +284,14 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         if self.name == ':':
             return None
         return Namespace(om2.MNamespace.getNamespaceFromName(self.name))
+
+    @parent.setter
+    def parent(self, parent):
+        # type: (Optional[Namespace]) -> None
+        """Set a namespace parent."""
+        if not parent:
+            parent = ''
+        self.name = '{}:{}'.format(parent, self.rsplit(':', 1)[-1])
 
     @property
     def children(self):

@@ -1823,10 +1823,23 @@ class TestNamespace(unittest.TestCase):
             Namespace(self.ns3).name = ':'
         with self.assertRaises(exceptions.NamespaceParentError):
             Namespace(self.ns1).name = self.ns3 + ':' + 'ns4'
+        with self.assertRaises(exceptions.NamespaceParentError):
+            Namespace(self.ns1).name = self.ns3.strip(':') + ':' + 'ns4'
 
     def testReparent(self):
-        with self.assertRaises(AttributeError):
-            Namespace(self.ns3).parent = self.ns1
+        ns3 = Namespace(self.ns3)
+
+        ns3.parent = self.ns1
+        self.assertTrue(Namespace(self.ns1).exists)
+        self.assertFalse(Namespace(self.ns3).exists)
+        self.assertEqual(len(Namespace(self.ns1).children), 2)
+
+        ns3.parent = self.ns2
+        self.assertEqual(len(Namespace(self.ns1).children), 1)
+        self.assertTrue(Namespace(self.ns3).exists)
+
+        with self.assertRaises(exceptions.NamespaceParentError):
+            Namespace(self.ns1).parent = self.ns2
 
     def testDeleteSimple(self):
         mc.delete(self.node)
