@@ -2294,6 +2294,9 @@ class TestFile(unittest.TestCase):
     def testOS(self):
         self.assertEqual(os.path.join(File('C:/a'), 'b'), r'C:\a\b')
 
+    def testParent(self):
+        self.assertEqual(File('C:/a/b').parent, 'C:/a')
+
     def testName(self):
         self.assertEqual(File('c:/a').name, 'a')
         self.assertEqual(File('c:/a').filename, 'a')

@@ -44,6 +44,12 @@ class File(str):
         return os.path.basename(self)
 
     @property
+    def parent(self):
+        # type: () -> File
+        """Get the parent folder."""
+        return File(os.path.dirname(self))
+
+    @property
     def ext(self):
         # type: () -> str
         """Get the file extension (without the period)."""
