@@ -20,7 +20,7 @@ class _Scene(object):
 
     @property
     def path(self):
-        # type: () -> Optional[str]
+        # type: () -> Optional[File]
         """Get the full scene path.
 
         Returns:
@@ -28,16 +28,16 @@ class _Scene(object):
         """
         path = mc.file(query=True, sceneName=True)
         if path:
-            return os.path.normpath(path)
+            return File(path)
         return None
 
     @path.setter
     def path(self, path):
-        # type: (str) -> None
+        # type: (StrLike) -> None
         """Set a new scene path.
         This does not save the scene.
         """
-        mc.file(rename=path)
+        mc.file(rename=str(path))
 
     @property
     def name(self):
@@ -50,7 +50,7 @@ class _Scene(object):
         path = self.path
         if path is None:
             return None
-        return os.path.splitext(os.path.basename(path))[0]
+        return path.name
 
     @property
     def modified(self):
@@ -215,6 +215,7 @@ Scene = _Scene()
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
+from .file import File
 from .file_info import FileInfo, _FileInfo
 from .node import Node
 from .plugin import Plugin
