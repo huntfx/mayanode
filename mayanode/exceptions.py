@@ -168,6 +168,10 @@ class NamespaceNotUniqueError(NamespaceError):
     MESSAGE = 'Namespace name is not unique: {namespace}'
 
 
+class NamespaceParentError(NamespaceError):
+    MESSAGE = 'Namespace "{namespace}" cannot be parented a child of itself'
+
+
 class InvalidUuidError(BaseError):
     MESSAGE = '"{uuid}" is not a valid UUID'
 

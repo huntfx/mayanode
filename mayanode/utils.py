@@ -474,4 +474,5 @@ def getMelGlobal(name):
 def validateNamespace(namespace):
     # type: (str) -> str
     """Validate a namespace input."""
-    return ':' + ':'.join(map(om2.MNamespace.validateName, str(namespace).lstrip(':').split(':')))
+    split = str(namespace).strip(':').split(':')
+    return ':' + ':'.join(filter(bool, map(om2.MNamespace.validateName, split)))
