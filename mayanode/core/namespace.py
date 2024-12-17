@@ -249,6 +249,11 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         # Handle parents
         if ':' in name:
             parent, name = name.rsplit(':', 1)
+
+            # Ensure the parent is not a child of the current namespace
+            if parent.lstrip(':').startswith(self.lstrip(':')):
+                raise exceptions.NamespaceParentError(self)
+
             parent = Namespace(parent)
             if not parent.exists:
                 parent.create()

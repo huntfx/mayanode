@@ -1817,11 +1817,12 @@ class TestNamespace(unittest.TestCase):
         ns1.name = ns1
 
     def testRenameInvalid(self):
-        ns3 = Namespace(self.ns3)
         with self.assertRaises(exceptions.NamespaceNotUniqueError):
-            Namespace(ns3).name = self.ns1
+            Namespace(self.ns3).name = self.ns1
         with self.assertRaises(exceptions.NamespaceInvalidNameError):
-            Namespace(ns3).name = ':'
+            Namespace(self.ns3).name = ':'
+        with self.assertRaises(exceptions.NamespaceParentError):
+            Namespace(self.ns1).name = self.ns3 + ':' + 'ns4'
 
     def testReparent(self):
         with self.assertRaises(AttributeError):
