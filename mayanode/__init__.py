@@ -150,6 +150,7 @@ __all__ = [
     'Time',
     'Undo',
     'UVSet',
+    'Viewport',
 ]
 
 from . import exceptions
@@ -170,3 +171,4 @@ from .core.scene import Scene
 from .core.time import Time
 from .core.undo import Undo
 from .core.uv_set import UVSet
+from .core.viewport import Viewport

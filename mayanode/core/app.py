@@ -44,6 +44,12 @@ class _Maya(object):
         """Get the value of time."""
         return Time
 
+    @property
+    def viewport(self):
+        # type: () -> Viewport
+        """Get the active viewport."""
+        return Viewport.active
+
 
 Maya = _Maya()
 
@@ -51,3 +57,4 @@ Maya = _Maya()
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .time import Time, _Time
+from .viewport import Viewport

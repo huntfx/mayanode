@@ -262,3 +262,15 @@ class LockedKeyframeError(KeyframeError):
 
 class KeyframeLockError(KeyframeError):
     MESSAGE = '"{node}.{attr}" has no attached curves so it cannot be locked.'
+
+
+class ViewportError(BaseError):
+    MESSAGE = 'Viewport error.'
+
+
+class InvalidViewportError(ViewportError):
+    MESSAGE = 'No valid viewport found.'
+
+
+class ViewportDeletedError(ViewportError):
+    MESSAGE = 'The viewport has been deleted.'
