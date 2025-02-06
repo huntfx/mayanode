@@ -320,21 +320,9 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
     def reference(self):
         # type: () -> Optional[Reference]
         """Get the associated reference node."""
-        depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
-        for _ in depNodeIt:
-            refNode = om2.MFnReference(depNodeIt.thisNode())
-
-            # If the namespace exists then it can be directly queried
-            if self.exists:
-                namespace = refNode.associatedNamespace(False)
-
-            # If it doesn't exist, then it's still possible a reference has it
-            else:
-                filename = refNode.fileName(resolvedName=True, includePath=False, includeCopyNumber=True)
-                namespace = mc.file(filename, query=True, namespace=True)
-
-            if namespace == self:
-                return Reference(refNode)
+        for refNode in Reference.ls():
+            if self == refNode.namespace:
+                return refNode
         return None
 
 
