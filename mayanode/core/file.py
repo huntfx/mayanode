@@ -134,16 +134,22 @@ class File(str):
         mc.file(self, **params)
         return namespace
 
-    def export(self, selected=False):
-        # type: (bool) -> File
+    def export(self, selected=False, shader=True, constructionHistory=True,
+               channels=True, constraints=True, expressions=True):
+        # type: (bool, bool, bool, bool, bool, bool) -> File
         """Export a file.
 
         Parameters:
             selected: Export the current selection.
-                This will include any selected shaders.
+            shader: Export attached shaders.
+            constructionHistory: Export construction history.
+            channels: Export channels.
+            constraints: Export constraints.
+            expressions: Export expressions.
 
         Raises:
             ValueError: unsupported file type
+            ValueError: unable to disable export without `selection=True`
 
         TODO:
             Tests
@@ -151,6 +157,11 @@ class File(str):
         params = {
             'preserveReferences': True,
             'force': True,
+            'shader': shader,
+            'constructionHistory': constructionHistory,
+            'channels': channels,
+            'constraints': constraints,
+            'expressions': expressions,
         }
 
         try:
@@ -161,11 +172,19 @@ class File(str):
         if selected:
             params['exportSelected'] = True
 
-            # Export the shader since the user can deselect if needed
-            params['shader'] = True
-
         else:
             params['exportAll'] = True
+
+            if not shader:
+                raise ValueError('unable to disable shader export without `selection=True`')
+            if not constructionHistory:
+                raise ValueError('unable to disable construction history export without `selection=True`')
+            if not channels:
+                raise ValueError('unable to disable channels export without `selection=True`')
+            if not constraints:
+                raise ValueError('unable to disable constraints export without `selection=True`')
+            if not expressions:
+                raise ValueError('unable to disable expressions export without `selection=True`')
 
         utils.logger.info('Exporting file "%s"', self)
         if not self.parent.exists:
