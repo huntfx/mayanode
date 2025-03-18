@@ -33,6 +33,8 @@ def _toTime(value, setKeyframe=False):
         yield float(value),
 
     elif isinstance(value, slice):
+        _validateSlice(value)
+
         if setKeyframe and (value.start is None or value.stop is None):
             raise ValueError('incomplete slice not compatible with setKeyframe')
 
@@ -43,16 +45,14 @@ def _toTime(value, setKeyframe=False):
                 else:
                     yield (value.start, value.stop)
             else:
-                frames = range(int((value.stop - value.start) // value.step))
+                frames = range(int((value.stop + value.step) // value.step))
                 if setKeyframe:
-                    yield tuple(frames)
+                    yield tuple(value.start + i * value.step for i in frames)
                 else:
                     for i in frames:
                         yield value.start + i * value.step,
 
-        elif (value.step or 1) != 1:
-            raise ValueError('step not supported with incomplete slice')
-
+        # TODO: Add below code to tests or determine if it's not needed
         elif value.start is None:
             if value.stop is None:
                 yield ()
@@ -63,6 +63,21 @@ def _toTime(value, setKeyframe=False):
 
     else:
         raise TypeError(type(value))
+
+
+def _validateSlice(value):
+    # type: (slice) -> None
+    """Check a slice is valid.
+    For the time being, if a slice is missing a start or end value,
+    then steps are not supported.
+    """
+    if not isinstance(value, slice):
+        return
+    if value.start is not None and value.stop is not None:
+        return
+    if value.step in (None, 1):
+        return
+    raise ValueError('step not supported with incomplete slice')
 
 
 class KeyframeBase(object):
@@ -135,6 +150,7 @@ class NodeKeyframes(KeyframeBase):
 
     def __init__(self, node, frame=None):
         # type: (Union[Node, NodeKeyframes], Optional[Union[float, slice]]) -> None
+        _validateSlice(frame)
         self._data = []  # type: List[AttributeKeyframes]
 
         if isinstance(node, NodeKeyframes):
@@ -539,7 +555,6 @@ class Keyframe(KeyframeBase):
 
         count = 0
         for time in _toTime(frame, setKeyframe=True):
-            print(node, time, kwargs)
             count += mc.setKeyframe(node, time=time, **kwargs)
         return count
 
