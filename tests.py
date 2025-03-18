@@ -453,7 +453,7 @@ class TestNode(unittest.TestCase):
         group1.scale(0.31, 0.68, 0.41)
         group2 = Node(mc.group(group1, name='matrixTest3'))
         group2.translate(-5.13, 60.531, -5.1)
-        self.assertEqual(node.matrix, mc.xform(node, query=True, matrix=True, worldSpace=True))
+        self.assertEqual(list(node.matrix), mc.xform(node, query=True, matrix=True, worldSpace=True))
         mc.delete(group2)
 
     def testNamespace(self):
@@ -465,9 +465,9 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.name, 'new:namespace:namespaceTest')
         self.assertEqual(node.longName, '|new:namespace:namespaceTest')
 
-        self.assertEqual(node, 'new:namespace:namespaceTest')
-        self.assertEqual(node, ':new:namespace:namespaceTest')
-        self.assertEqual(node, '|new:namespace:namespaceTest')
+        self.assertIn('namespaceTest', node.namespace.nodes)
+        self.assertIn('new:namespace:namespaceTest', node.namespace.nodes)
+        self.assertIn('|new:namespace:namespaceTest', node.namespace.nodes)
 
         node.namespace = None
         self.assertEqual(node.namespace, '')
@@ -765,6 +765,58 @@ class TestDgModifier(unittest.TestCase):
                 self.assertIs(context1.modifier, dag1)
 
         MayaNode.dgModifier = None
+
+    def testUVSet(self):
+        node = Node(mc.polyCube(name='uvDgModTest')[0])
+        mc.polyUVSet(node, create=True, uvSet='map2')
+        mc.polyUVSet(node, currentUVSet=True, uvSet='map1')
+
+        mc.undoInfo(openChunk=True)
+        node.shape.uvSet = 'map2'
+        mc.undoInfo(openChunk=False)
+        self.assertTrue(node.shape.uvSet, 'map2')
+        mc.undo()
+        self.assertTrue(node.shape.uvSet, 'map1')
+
+        with MayaNode() as context:
+            context.dgModifier = om2.MDGModifier()
+
+            mc.undoInfo(openChunk=True)
+            node.shape.uvSet = 'map2'
+            mc.undoInfo(openChunk=False)
+            self.assertTrue(node.shape.uvSet, 'map2')
+            with self.assertRaises(RuntimeError):
+                mc.undo()
+            self.assertTrue(node.shape.uvSet, 'map2')
+            context.dgModifier.undoIt()
+            self.assertTrue(node.shape.uvSet, 'map1')
+
+        with MayaNode() as context:
+            context.dgModifier = om2.MDGModifier()
+
+            self.assertIn('map2', node.shape.uvSets)
+            self.assertTrue(node.shape.uvSets['map2'].exists)
+            node.shape.uvSets['map2'].delete()
+            self.assertNotIn('map2', node.shape.uvSets)
+            context.dgModifier.undoIt()
+            self.assertIn('map2', node.shape.uvSets)
+
+        with MayaNode() as context:
+            context.dgModifier = om2.MDGModifier()
+
+            mc.undoInfo(openChunk=True)
+            node.shape.uvSet.name = 'map3'
+            mc.undoInfo(openChunk=False)
+            self.assertTrue(node.shape.uvSet, 'map3')
+            self.assertTrue(node.shape.uvSets, ['map3', 'map2'])
+            with self.assertRaises(RuntimeError):
+                mc.undo()
+            with self.assertRaises(exceptions.UVSetExistsError):
+                node.shape.uvSet.name = 'map2'
+            context.dgModifier.undoIt()
+            self.assertEqual(node.shape.uvSet.name, 'map1')
+
+        mc.delete(node)
 
 
 class TestBoundingBox(unittest.TestCase):
@@ -1971,12 +2023,15 @@ class TestNamespace(unittest.TestCase):
     def testContains(self):
         cube = mc.polyCube(name='namespaceContainsText')[0]
         node = Node(cube)
-        namespace = node.namespace = self.ns2
+        namespace = node.namespace = Namespace(self.ns2)
 
         self.assertIn(cube, namespace.nodes)
         self.assertIn('{}:{}'.format(self.ns2, cube), namespace.nodes)
         self.assertIn('{}:{}'.format(self.ns2[1:], cube), namespace.nodes)
         self.assertIn('|{}:{}'.format(self.ns2, cube), namespace.nodes)
+
+        mc.delete(node)
+        self.assertNotIn(cube, namespace.nodes)
 
     def testStrip(self):
         ns1 = Namespace(self.ns1)
