@@ -1385,6 +1385,44 @@ class TestAttr(unittest.TestCase):
             n.shape.attrs['face'].value
         mc.delete(n)
 
+    def testRange(self):
+        cube = Node(mc.polyCube(name='attrRangeTest1')[0])
+        attr = cube.shape.attrs['currentUVSet']
+        self.assertIsNone(attr.min)
+        self.assertIsNone(attr.max)
+
+        attr = cube.shape.attrs['maxTriangles']
+        self.assertEqual(attr.min, 1.0)
+        self.assertIsNone(attr.softMin)
+        self.assertIsNone(attr.softMax)
+        self.assertIsNone(attr.max)
+        value = attr.value
+        with self.assertRaises(exceptions.AttributeTooLowError):
+            attr.value = 0
+        self.assertEqual(attr.value, value)
+        attr.value = 1
+        self.assertNotEqual(attr.value, value)
+
+        cam = Node(mc.camera(name='attrRangeTest2')[0])
+        attr = cam.shape.attrs['verticalFilmAperture']
+        self.assertEqual(round(attr.min, 5), 4e-05)
+        self.assertEqual(attr.max, 1200.0)
+        self.assertEqual(attr.softMax, 10.0)
+        self.assertEqual(attr.softMin, 0.1)
+
+        attr.value = 4e-05
+        self.assertEqual(attr.value, 4e-05)
+        with self.assertRaises(exceptions.AttributeTooLowError):
+            attr.value = 3e-05
+        self.assertEqual(attr.value, 4e-05)
+        attr.value = 1200
+        self.assertEqual(attr.value, 1200)
+        with self.assertRaises(exceptions.AttributeTooHighError):
+            attr.value = 1201
+        self.assertEqual(attr.value, 1200)
+
+        mc.delete(cube, cam)
+
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):

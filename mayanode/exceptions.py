@@ -80,8 +80,8 @@ class RenameLockedNodeError(ReadOnlyNodeError):
 class NodeAttributeError(NodeError):
     MESSAGE = 'Error: {node}.{attr}'
 
-    def __init__(self, node, attr):
-        super(NodeAttributeError, self).__init__(node, attr=attr)
+    def __init__(self, node, attr, **kwargs):
+        super(NodeAttributeError, self).__init__(node, attr=attr, **kwargs)
 
 
 class AttributeNotFoundError(NodeAttributeError):
@@ -102,6 +102,19 @@ class ConnectToSelfError(NodeAttributeError):
 
 class InvalidAttributeTypeError(NodeAttributeError):
     MESSAGE = 'The value for the attribute "{node}.{attr}" could not be retrieved.'
+
+
+class AttributOutOfRangeError(NodeAttributeError):
+    def __init__(self, node, attr, value, **kwargs):
+        super(AttributOutOfRangeError, self).__init__(node, attr, value=value, **kwargs)
+
+
+class AttributeTooLowError(AttributOutOfRangeError):
+    MESSAGE = 'Cannot set the attribute "{node}.{attr}" below its minimum value of {value}.'
+
+
+class AttributeTooHighError(AttributOutOfRangeError):
+    MESSAGE = 'Cannot set the attribute "{node}.{attr}" above its maximum value of {value}.'
 
 
 class NoBoundingBoxError(NodeError):

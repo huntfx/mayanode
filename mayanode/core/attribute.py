@@ -347,7 +347,7 @@ class Attribute(types.StrMixin):
     class ApiData(object):
         """Hold the OpenMaya API objects."""
 
-        __slots__ = ['_plug', '_attribute']
+        __slots__ = ['_plug', '_attribute', '_numericAttribute']
 
         def __init__(self, plug):
             # type: (om2.MPlug) -> None
@@ -359,6 +359,7 @@ class Attribute(types.StrMixin):
             """
             self._plug = utils.unnetworkPlug(plug)
             self._attribute = None
+            self._numericAttribute = None
 
         @classmethod
         def fromNode(cls, node, attr):
@@ -434,6 +435,33 @@ class Attribute(types.StrMixin):
             if self._attribute is None:
                 self._attribute = om2.MFnAttribute(self.plug.attribute())
             return self._attribute
+
+        @property
+        def numericAttribute(self):
+            # type: () -> om2.MFnNumericAttribute
+            """Get the `MFnNumericAttribute`.
+
+            Notable methods:
+                `unitType`
+                `getMin`
+                `hasMin`
+                `getMax`
+                `hasMax`
+                `getSoftMin`
+                `hasSoftMin`
+                `getSoftMax`
+                `hasSoftMax`
+            """
+            if self._numericAttribute is None:
+                attribute = self.plug.attribute()
+                if attribute.apiType() == om2.MFn.kNumericAttribute:
+                    self._numericAttribute = om2.MFnNumericAttribute(attribute)
+                else:
+                    self._numericAttribute = -1
+
+            if self._numericAttribute == -1:
+                return None
+            return self._numericAttribute
 
     def __init__(self, node, attr):
         # type: (Node, Union[str, om2.MPlug]) -> None
@@ -670,6 +698,7 @@ class Attribute(types.StrMixin):
             NodeDeletedError
             AttributeLockedError
             AttributeConnectedError
+            AttributeTooLowError
         """
         utils.logger.info('Setting %s value: %r', self, value)
         utils.raiseIfNodeNotFound(self.node)
@@ -688,6 +717,13 @@ class Attribute(types.StrMixin):
         elif isinstance(value, (tuple, list)):
             mc.setAttr(self, *value)
         else:
+            if isinstance(value, (float, int)):
+                minValue = self.min
+                if minValue is not None and value < minValue:
+                    raise exceptions.AttributeTooLowError(self.node, self.attr, minValue)
+                maxValue = self.max
+                if maxValue is not None and value > maxValue:
+                    raise exceptions.AttributeTooHighError(self.node, self.attr, maxValue)
             mc.setAttr(self, value)
 
     @property
@@ -878,6 +914,42 @@ class Attribute(types.StrMixin):
         """
         links = mc.uvLink(query=True, uvSet=self.name)
         return [Node(link) for link in links]
+
+    @property
+    def min(self):
+        # type: () -> Optional[float]
+        """Get the minimum value if set."""
+        nattr = self.api.numericAttribute
+        if nattr is not None and nattr.hasMin():
+            return nattr.getMin()
+        return None
+
+    @property
+    def max(self):
+        # type: () -> Optional[float]
+        """Get the maximum value if set."""
+        nattr = self.api.numericAttribute
+        if nattr is not None and nattr.hasMax():
+            return nattr.getMax()
+        return None
+
+    @property
+    def softMin(self):
+        # type: () -> Optional[float]
+        """Get the soft minimum value if set."""
+        nattr = self.api.numericAttribute
+        if nattr is not None and nattr.hasSoftMin():
+            return nattr.getSoftMin()
+        return None
+
+    @property
+    def softMax(self):
+        # type: () -> Optional[float]
+        """Get the soft maximum value if set."""
+        nattr = self.api.numericAttribute
+        if nattr is not None and nattr.hasSoftMax():
+            return nattr.getSoftMax()
+        return None
 
 
 # Handle circular dependencies
