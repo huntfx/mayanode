@@ -81,7 +81,7 @@ def _validateSlice(value):
 
 
 class KeyframeBase(object):
-    __slots__ = []  # type: List[str]
+    __slots__ = ['_frame']  # type: List[str]
 
     def __bool__(self):
         # type: () -> bool
@@ -107,46 +107,47 @@ class KeyframeBase(object):
         """Get the associated attribute."""
         return None
 
-
-class KeyframeList(list):
-    def __init__(self, attr, frame, frames):
-        # type: (Union[Node, Attribute], Optional[Union[float, slice]], Iterator[float]) -> None
-        if TYPE_CHECKING:
-            self._attr = None  # type: Optional[Attribute]
-
-        self._frame = frame
-        if isinstance(attr, Attribute):
-            self._node = attr.node
-            self._attr = attr
-        elif isinstance(attr, Node):
-            self._node = attr
-            self._attr = None
-
-        super(KeyframeList, self).__init__(frames)
-
     @property
-    def attr(self):
-        # type: () -> Optional[Attribute]
-        """Get the associated attribute."""
-        return self._attr
+    def _frames(self):
+        # type: () -> List[float]
+        """Get all available frames."""
+        return []
 
-    @property
-    def node(self):
-        # type: () -> Node
-        """Get the associated node."""
-        return self._node
+    def keys(self):
+        # type: () -> List[float]
+        """Get the keys."""
+        if self._frame is None:
+            return self._frames
 
-    def offset(self, value, relative=True):
-        # type: (float, bool) -> int
-        """Offset the frames."""
-        item = self.attr
-        if item is None:
-            item = self.node
-        return Keyframe(item, self._frame).offset(value, relative=relative)
+        if isinstance(self._frame, (float, int)):
+            return [frame for frame in self._frames if frame == self._frame]
+
+        if isinstance(self._frame, slice):
+            if self._frame.start is None:
+                if self._frame.stop is None:
+                    validKeys = self._frames
+                else:
+                    validKeys = [frame for frame in self._frames if frame <= self._frame.stop]
+            elif self._frame.stop is None:
+                validKeys = [frame for frame in self._frames if self._frame.start <= frame]
+            else:
+                validKeys = [frame for frame in self._frames if self._frame.start <= frame <= self._frame.stop]
+            return [frame for frame in self._frames if frame in validKeys]
+        raise TypeError(type(self._frame))
+
+    def values(self):
+        # type: () -> List[Attribute]
+        """Get the values."""
+        return [value for frame, value in self.items()]
+
+    def items(self):
+        # type: () -> List[Tuple[float, Any]]
+        """Get the keys and values."""
+        return []
 
 
 class NodeKeyframes(KeyframeBase):
-    __slots__ = ['_node', '_data', '_frame']
+    __slots__ = ['_node', '_data']
 
     def __init__(self, node, frame=None):
         # type: (Union[Node, NodeKeyframes], Optional[Union[float, slice]]) -> None
@@ -208,33 +209,6 @@ class NodeKeyframes(KeyframeBase):
         frames.sort()
         return frames
 
-    def keys(self):
-        # type: () -> List[float]
-        """Get all the keyed frames."""
-        if self._frame is None:
-            return self._frames
-
-        if isinstance(self._frame, (float, int)):
-            return [frame for frame in self._frames if frame == self._frame]
-
-        if isinstance(self._frame, slice):
-            if self._frame.start is None:
-                if self._frame.stop is None:
-                    validKeys = self._frames
-                else:
-                    validKeys = [frame for frame in self._frames if frame <= self._frame.stop]
-            elif self._frame.stop is None:
-                validKeys = [frame for frame in self._frames if self._frame.start <= frame]
-            else:
-                validKeys = [frame for frame in self._frames if self._frame.start <= frame <= self._frame.stop]
-            return [frame for frame in self._frames if frame in validKeys]
-        raise TypeError(type(self._frame))
-
-    def values(self):
-        # type: () -> List[Attribute]
-        """Get all the keyed attributes."""
-        return [attr for frame, attr in self.items()]
-
     def items(self):
         # type: () -> List[Tuple[float, Attribute]]
         """Get the keyed frames and attributes."""
@@ -287,19 +261,27 @@ class NodeKeyframes(KeyframeBase):
 class AttributeKeyframes(KeyframeBase):
     __slots__ = ['_attr', '_keyframes']
 
-    def __init__(self, attr):
-        # type: (Attribute) -> None
-        self._attr = attr
-        self._keyframes = {}
+    def __init__(self, attr, frame=None):
+        # type: (Union[Attribute, AttributeKeyframes], Optional[Union[float, slice]]) -> None
+        _validateSlice(frame)
+        if isinstance(attr, AttributeKeyframes):
+            self._attr = attr.attr
+            self._keyframes = attr._keyframes
 
-        plug = attr.api.plug
-        for otherPlug in plug.connectedTo(True, False):
-            otherNode = otherPlug.node()
-            if otherNode.hasFn(om2.MFn.kAnimCurve):
-                animCurveFn = oma2.MFnAnimCurve(otherNode)
-                numKeys = animCurveFn.numKeys
-                for i in range(numKeys):
-                    self._keyframes[animCurveFn.input(i).value] = animCurveFn.value(i)
+        else:
+            self._attr = attr
+            self._keyframes = {}
+
+            plug = attr.api.plug
+            for otherPlug in plug.connectedTo(True, False):
+                otherNode = otherPlug.node()
+                if otherNode.hasFn(om2.MFn.kAnimCurve):
+                    animCurveFn = oma2.MFnAnimCurve(otherNode)
+                    numKeys = animCurveFn.numKeys
+                    for i in range(numKeys):
+                        self._keyframes[animCurveFn.input(i).value] = animCurveFn.value(i)
+
+        self._frame = frame
 
     @property
     def attr(self):
@@ -330,10 +312,23 @@ class AttributeKeyframes(KeyframeBase):
         """Determine if a keyframe exists."""
         return frame in self._keyframes
 
+    @property
+    def _frames(self):
+        # type: () -> List[float]
+        """Get all available keyframe frames."""
+        return list(sorted(self._keyframes))
+
+    def items(self):
+        # type: () -> List[Tuple[float, Any]]
+        """Get the keyed frames and values."""
+        return [(frame, self._keyframes[frame]) for frame in self.keys()]
+
     def __getitem__(self, frame):
         # type: (Union[float, slice]) -> Keyframe
         """Get a keyframe."""
-        return Keyframe(self.attr, frame)
+        if isinstance(frame, (int, float)):
+            return Keyframe(self.attr, frame)
+        return AttributeKeyframes(self, frame)
 
     def __setitem__(self, frame, value):
         # type: (Union[float, slice], float) -> None
@@ -342,7 +337,7 @@ class AttributeKeyframes(KeyframeBase):
 
     def set(self, value=None, **kwargs):
         # type: (Optional[float], **Any) -> None
-        Keyframe(self.attr).set(value, **kwargs)
+        Keyframe(self.attr, self._frame).set(value, **kwargs)
 
     def __delitem__(self, frame):
         # type: (Union[float, slice]) -> None
@@ -351,27 +346,7 @@ class AttributeKeyframes(KeyframeBase):
 
     def delete(self):
         # type: () -> None
-        Keyframe(self.attr).delete()
-
-    @property
-    def frames(self):
-        # type: () -> List[float]
-        """Get all the keyframes on the attribute.
-
-        Equivalent:
-            `mc.keyframe(self.node, attribute=self.attr.attr, query=True, timeChange=True)`
-        """
-        return KeyframeList(self.attr, None, sorted(self._keyframes.keys()))
-
-    @property
-    def values(self):
-        # type: () -> List[float]
-        """Get all the keyframe values on the attribute.
-
-        Equivalent:
-            `mc.keyframe(self.node, attribute=self.attr.attr, query=True, valueChange=True)`
-        """
-        return list(self._keyframes.values())
+        Keyframe(self.attr, self._frame).delete()
 
     @property
     def locked(self):
@@ -417,15 +392,17 @@ class AttributeKeyframes(KeyframeBase):
     def offset(self, value, relative=True):
         # type: (float, bool) -> int
         """Offset the frames."""
-        return self.frames.offset(value, relative=relative)
+        return Keyframe(self.attr, self._frame).offset(value, relative=relative)
 
 
 class Keyframe(KeyframeBase):
     """Keyframe for a specific attribute.
     May be for a single frame or multiple.
+
+    TODO: Change to only accept a single frame.
     """
 
-    __slots__ = ['_node', '_attr', '_frame']
+    __slots__ = ['_node', '_attr']
 
     def __init__(self, attr, frame=None):
         # type: (Union[Node, Attribute], Optional[Union[float, slice]]) -> None
@@ -467,12 +444,6 @@ class Keyframe(KeyframeBase):
         if item is None:
             item = self.node
         return '{} ({})'.format(item, self.frame)
-
-    def __bool__(self):
-        # type: () -> bool
-        """Determine if any keyframes are set."""
-        return bool(self.__len__())
-    __nonzero__ = __bool__
 
     def __len__(self):
         # type: () -> Union[List[int], int]
@@ -571,7 +542,10 @@ class Keyframe(KeyframeBase):
             utils.logger.info('Deleting keyframe on "%s" (frame %s)', attr if attr is not None else node, frame)
 
         if attr is not None:
-            if _getKtvPlug(attr.api.plug).isLocked:
+            ktvPlug = _getKtvPlug(attr.api.plug)
+            if ktvPlug is None:
+                return 0
+            if ktvPlug.isLocked:
                 raise exceptions.LockedKeyframeError(attr.node, attr.attr)
             kwargs['attribute'] = attr.attr
 
@@ -598,7 +572,8 @@ class Keyframe(KeyframeBase):
 
         kwargs = {'edit': True, 'relative': relative, 'timeChange': value}
         if attr is not None:
-            if _getKtvPlug(attr.api.plug).isLocked:
+            ktvPlug = _getKtvPlug(attr.api.plug)
+            if ktvPlug is not None and _getKtvPlug(attr.api.plug).isLocked:
                 raise exceptions.LockedKeyframeError(attr.node, attr.attr)
             kwargs['attribute'] = attr.attr
 

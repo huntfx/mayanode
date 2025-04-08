@@ -1455,7 +1455,7 @@ class TestKeyframes(unittest.TestCase):
 
     def testFrames(self):
         self.assertEqual(self.node.keyframes.keys(), [0.0, 0.0, 1.0, 2.0, 2.0, 3.0, 5.0, 7.0])
-        self.assertEqual(self.node.attrs['tx'].keyframes.frames, [0.0, 1.0, 2.0, 3.0, 5.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes.keys(), [0.0, 1.0, 2.0, 3.0, 5.0])
 
     # def testIter(self):
     #     seenAttrs = []
@@ -1493,29 +1493,16 @@ class TestKeyframes(unittest.TestCase):
         self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -1.0)
         self.assertEqual(self.node.attrs['tx'].keyframes[2.0].value, -2.0)
         self.assertIsNone(self.node.attrs['tx'].keyframes[4].value)
-        self.assertEqual(self.node.attrs['tx'].keyframes.values, [0.0, -1.0, -2.0, 10.0, 10.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes.values(), [0.0, -1.0, -2.0, 10.0, 10.0])
 
     def testNodeGet(self):
         self.assertEqual(list(self.node.keyframes[0])[0].value, 0.0)
         self.assertFalse(list(self.node.keyframes[10]))
         self.assertEqual(list(self.node.keyframes[1])[0].value, -1.0)
 
-    def testNodeGetSliceIncomplete(self):
-        self.assertEqual(self.node.keyframes[:5].keys(), [0.0, 0.0, 1.0, 2.0, 2.0, 3.0, 5.0])
-        self.assertEqual(self.node.keyframes[5:].keys(), [5.0, 7.0])
-        self.assertEqual(self.node.keyframes[5:].values(), ['tx', 'fl'])
-        self.assertEqual(self.node.keyframes[5:].items(), [(5.0, 'tx'), (7.0, 'fl')])
-        with self.assertRaises(ValueError):
-            self.node.keyframes[5::2].keys()
-        with self.assertRaises(ValueError):
-            self.node.keyframes[:5:2].keys()
-        with self.assertRaises(ValueError):
-            self.node.keyframes[::2].keys()
-
     def testAttrGetSlice(self):
         self.assertEqual(self.node.attrs['tx'].keyframes[0:3].value, [0.0, -1.0, -2.0, 10.0])
         self.assertEqual(self.node.attrs['tx'].keyframes[4:5].value, [10.0])
-        self.assertEqual(self.node.attrs['tx'].keyframes[1:10:2].value, [-1.0, 10.0, 10.0])
 
     def testNodeGetSlice(self):
         self.assertEqual(self.node.keyframes[1:6].keys(), [1.0, 2.0, 2.0, 3.0, 5.0])
@@ -1524,6 +1511,18 @@ class TestKeyframes(unittest.TestCase):
         self.assertEqual(list(self.node.keyframes[1:6])[0].frame, 1.0)
         self.assertEqual(list(self.node.keyframes[1:6])[1].frame, 2.0)
         self.assertEqual(list(self.node.keyframes[1:6])[2].frame, 2.0)
+
+    def testAttrGetSliceIncomplete(self):
+        self.assertEqual(self.node.attrs['tx'].keyframes[:3].keys(), [0.0, 1.0, 2.0, 3.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes[3:].keys(), [3.0, 5.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes[3:].values(), [10.0, 10.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes[3:].items(), [(3.0, 10.0), (5.0, 10.0)])
+        with self.assertRaises(ValueError):
+            self.node.attrs['tx'].keyframes[5::2].keys()
+        with self.assertRaises(ValueError):
+            self.node.attrs['tx'].keyframes[:5:2].keys()
+        with self.assertRaises(ValueError):
+            self.node.attrs['tx'].keyframes[::2].keys()
 
     def testNodeGetSliceIncomplete(self):
         self.assertEqual(self.node.keyframes[:5].keys(), [0.0, 0.0, 1.0, 2.0, 2.0, 3.0, 5.0])
@@ -1555,6 +1554,14 @@ class TestKeyframes(unittest.TestCase):
         self.assertEqual(len(values), len(keyable))
         self.assertEqual(set(values), {-5})
 
+    def testSetAttrFrame(self):
+        self.node.attrs['tx'].keyframes[2] = -10
+        self.node.attrs['tx'].keyframes[3].set(-20, outTangentType='step')
+        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -1)
+        self.assertEqual(self.node.attrs['tx'].keyframes[2].value, -10)
+        self.assertEqual(self.node.attrs['tx'].keyframes[3].value, -20)
+        self.assertIsNone(self.node.attrs['tx'].keyframes[4].value)
+
     def testSetNodeSlice(self):
         self.node.keyframes[10:15].set(-5)
         values = [kf.value for kf in self.node.keyframes[11:12]]
@@ -1562,6 +1569,12 @@ class TestKeyframes(unittest.TestCase):
         keyable.extend(attr for attr in self.node.shape.attrs.values() if attr.keyable)
         self.assertEqual(len(values), len(keyable) * 2)
         self.assertEqual(set(values), {-5})
+
+    def testSetAttrSlice(self):
+        self.node.attrs['tx'].keyframes[1:3] = -10
+        self.node.attrs['tx'].keyframes[3:5].set(-20, outTangentType='step')
+        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -10)
+        self.assertEqual(self.node.attrs['tx'].keyframes[3:5].value, [-20, -20, -20])
 
     def testSetNodeIncompleteSlice(self):
         with self.assertRaises(ValueError):
@@ -1571,26 +1584,6 @@ class TestKeyframes(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.node.keyframes[:].set(-5)
 
-    def testSetAttrFrame(self):
-        self.node.attrs['tx'].keyframes[2] = -10
-        self.node.attrs['tx'].keyframes[3].set(-20, outTangentType='step')
-        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -1)
-        self.assertEqual(self.node.attrs['tx'].keyframes[2].value, -10)
-        self.assertEqual(self.node.attrs['tx'].keyframes[3].value, -20)
-        self.assertIsNone(self.node.attrs['tx'].keyframes[4].value)
-
-    def testSetAttrSlice(self):
-        self.node.attrs['tx'].keyframes[1:3] = -10
-        self.node.attrs['tx'].keyframes[3:5].set(-20, outTangentType='step')
-        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -10)
-        self.assertEqual(self.node.attrs['tx'].keyframes[3:5].value, [-20, -20, -20])
-
-    def testSetAttrSliceStep(self):
-        self.node.attrs['tx'].keyframes[1:3] = -10
-        self.node.attrs['tx'].keyframes[3:5:2].set(-20, outTangentType='step')
-        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -10)
-        self.assertEqual(self.node.attrs['tx'].keyframes[3:5].value, [-20, -20])
-
     def testSetAttrSliceStepIncomplete(self):
         with self.assertRaises(ValueError):
             self.node.attrs['tx'].keyframes[:3] = -10
@@ -1598,6 +1591,12 @@ class TestKeyframes(unittest.TestCase):
             self.node.attrs['tx'].keyframes[1:] = -10
         with self.assertRaises(ValueError):
             self.node.attrs['tx'].keyframes[:] = -10
+
+    def testSetAttrSliceStep(self):
+        self.node.attrs['tx'].keyframes[1:3] = -10
+        self.node.attrs['tx'].keyframes[3:5:2].set(-20, outTangentType='step')
+        self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -10)
+        self.assertEqual(self.node.attrs['tx'].keyframes[3:5].value, [-20, -20])
 
     def testAttrDelete(self):
         self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -1)
@@ -1637,11 +1636,10 @@ class TestKeyframes(unittest.TestCase):
         self.assertFalse(self.node.shape.attrs['focalLength'].keyframes)
 
     def testDeleteSlice(self):
-        frames = self.node.attrs['tx'].keyframes.frames
-        self.assertNotEqual(self.node.attrs['tx'].keyframes[1:10:2].value, [])
+        frames = self.node.attrs['tx'].keyframes.keys()
+        self.assertNotEqual(self.node.attrs['tx'].keyframes[1:10:2].values(), [])
         del self.node.attrs['tx'].keyframes[1:10:2]
-        self.assertEqual(set(self.node.attrs['tx'].keyframes.frames), set(frames) - set(range(1, 10, 2)))
-        self.assertEqual(self.node.attrs['tx'].keyframes[1:10:2].value, [])
+        self.assertEqual(set(self.node.attrs['tx'].keyframes.keys()), set(frames) - set(range(1, 10, 2)))
 
     def testOffsetNode(self):
         frames = list(self.node.keyframes.keys())
@@ -1658,27 +1656,29 @@ class TestKeyframes(unittest.TestCase):
         self.assertEqual(len(self.node.keyframes[0:2].keys()), 0)
         self.node.keyframes.offset(-3)
         self.assertEqual(len(self.node.keyframes[0:2].keys()), 4)
+        self.assertEqual([round(k) for k in self.node.keyframes[-1:0].keys()], [0, 0, 0, 0, 0])
 
     def testOffsetAttr(self):
-        frames = list(self.node.attrs['tx'].keyframes.frames)
-        self.node.attrs['tx'].keyframes.frames.offset(1)
-        self.assertEqual(self.node.attrs['tx'].keyframes.frames, [i + 1 for i in frames])
+        frames = list(self.node.attrs['tx'].keyframes.keys())
         self.node.attrs['tx'].keyframes.offset(1)
-        self.assertEqual(self.node.attrs['tx'].keyframes.frames, [i + 2 for i in frames])
+        self.assertEqual(self.node.attrs['tx'].keyframes.keys(), [i + 1 for i in frames])
+        self.node.attrs['tx'].keyframes.offset(1)
+        self.assertEqual(self.node.attrs['tx'].keyframes.keys(), [i + 2 for i in frames])
 
     def testOffsetAttrInt(self):
         self.node.attrs['tx'].keyframes[3].offset(1)
-        self.assertIn(4, self.node.attrs['tx'].keyframes.frames)
-        self.assertNotIn(3, self.node.attrs['tx'].keyframes.frames)
+        self.assertIn(4, self.node.attrs['tx'].keyframes.keys())
+        self.assertNotIn(3, self.node.attrs['tx'].keyframes.keys())
 
-    # def testOffsetAttrSlice(self):
-    #     self.assertEqual(self.node.attrs['tx'].keyframes[2:6].frames, [2, 3, 5])
-    #     self.node.attrs['tx'].keyframes[2:6].frames.offset(3)
-    #     self.assertEqual(self.node.attrs['tx'].keyframes[2:6].frames, [5])
-    #     self.node.attrs['tx'].keyframes[2:6].frames.offset(1)
-    #     self.assertEqual(self.node.attrs['tx'].keyframes[2:6].frames, [])
-    #     self.node.attrs['tx'].keyframes.frames.offset(-4)
-    #     self.assertEqual(len(self.node.attrs['tx'].keyframes[2:6].frames), 2)
+    def testOffsetAttrSlice(self):
+        self.assertEqual(self.node.attrs['tx'].keyframes.keys(), [0, 1, 2, 3, 5])
+        self.assertEqual(self.node.attrs['tx'].keyframes[2:6].keys(), [2, 3, 5])
+        self.node.attrs['tx'].keyframes[2:6].offset(3)
+        self.assertEqual(self.node.attrs['tx'].keyframes[2:6].keys(), [5, 6])
+        self.node.attrs['tx'].keyframes[2:6].offset(1)
+        self.assertEqual(self.node.attrs['tx'].keyframes[2:6].keys(), [6])
+        self.node.attrs['tx'].keyframes.offset(-4)
+        self.assertEqual(self.node.attrs['tx'].keyframes.keys(), [-4, -3, 2, 3, 4])
 
     def testAdd(self):
         r = lambda lst: [round(i, 4) for i in lst]
@@ -1687,10 +1687,10 @@ class TestKeyframes(unittest.TestCase):
             keyframe.frame += 0.5
         self.assertEqual(r(self.node.keyframes.keys()), [i + 0.5 for i in frames])
 
-        frames = r(self.node.attrs['tx'].keyframes.frames)
+        frames = r(self.node.attrs['tx'].keyframes.keys())
         for keyframe in self.node.attrs['tx'].keyframes:
             keyframe.frame += 0.5
-        self.assertEqual(r(self.node.attrs['tx'].keyframes.frames), [i + 0.5 for i in frames])
+        self.assertEqual(r(self.node.attrs['tx'].keyframes.keys()), [i + 0.5 for i in frames])
 
     def testLockedAttr(self):
         attr = self.node.attrs['tx']
