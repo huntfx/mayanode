@@ -699,6 +699,7 @@ class Attribute(types.StrMixin):
             AttributeLockedError
             AttributeConnectedError
             AttributeTooLowError
+            AttributeTooHighError
         """
         utils.logger.info('Setting %s value: %r', self, value)
         utils.raiseIfNodeNotFound(self.node)
