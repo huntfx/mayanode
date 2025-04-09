@@ -7,6 +7,7 @@ import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
+from ..types import StrLike
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union
@@ -464,7 +465,7 @@ class Attribute(types.StrMixin):
             return self._numericAttribute
 
     def __init__(self, node, attr):
-        # type: (Node, Union[str, om2.MPlug]) -> None
+        # type: (StrLike, Union[str, om2.MPlug]) -> None
         """Create the attribute proxy.
 
         Parameters:
@@ -473,11 +474,11 @@ class Attribute(types.StrMixin):
                 If using a networked plug that is attached to an
                 attribute that no longer exists, then Maya will crash.
         """
-        self.node = node
+        self.node = Node(node)
+
         if isinstance(attr, om2.MPlug):
             self.api = Attribute.ApiData(attr)
             self.attr = self.api.plug.partialName(useLongNames=True, includeInstancedIndices=True)
-
         else:
             self.attr = attr
             self.api = Attribute.ApiData.fromNode(self.node, attr)
