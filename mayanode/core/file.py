@@ -239,6 +239,12 @@ class File(str):
         """Get all references matching a file path."""
         return Reference.fromFile(self)
 
+    @property
+    def resolved(self):
+        # type: () -> File
+        """Get the resolved file path."""
+        return File(mc.file(self, query=True, expandName=True))
+
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position

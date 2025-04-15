@@ -2470,6 +2470,15 @@ class TestFile(unittest.TestCase):
         self.assertEqual(File('c:/a.b.txt').filename, 'a.b.txt')
         self.assertEqual(File('c:/a.b.txt').ext, 'txt')
 
+    def testResolved(self):
+        os.environ['MN_TEST'] = 'C:/folder'
+        self.assertEqual(File('$MN_TEST/subfolder'), '$MN_TEST/subfolder')
+        self.assertNotEqual(File('$MN_TEST/subfolder'), 'C:/folder/subfolder')
+        self.assertNotEqual(File('$MN_TEST/subfolder').resolved, '$MN_TEST/subfolder')
+        self.assertEqual(File('$MN_TEST/subfolder').resolved, 'C:/folder/subfolder')
+        self.assertEqual(File('$MN_TEST/subfolder').resolved.resolved, 'C:/folder/subfolder')
+        del os.environ['MN_TEST']
+
 
 class TestVersion(unittest.TestCase):
     def setUp(self):

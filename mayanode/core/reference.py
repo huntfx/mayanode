@@ -158,17 +158,18 @@ class Reference(Node):
     @property
     def path(self):
         # type: () -> Optional[File]
-        """Get the resolved reference file path.
+        """Get the raw unresolved reference file path.
+        Use `.resolve()` to get the resolved path.
 
         Equivalent:
-            `mc.referenceQuery(self, filename=True, withoutCopyNumber=True)`
+            `mc.referenceQuery(self, filename=True, unresolvedName=True, withoutCopyNumber=True)`
 
         Returns:
             The resolved filepath or None.
         """
         utils.raiseIfNodeNotFound(self.refNode)
         try:
-            filepath = self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=False)
+            filepath = self.api.reference.fileName(resolvedName=False, includePath=False, includeCopyNumber=False)
         except RuntimeError as e:
             if '(kFailure): Object does not exist' in str(e):
                 return None
@@ -186,17 +187,17 @@ class Reference(Node):
     @property
     def refPath(self):
         # type: () -> Optional[File]
-        """Get the resolved reference file path.
+        """Get the unresolved reference file path with copy numbers.
 
         Equivalent:
-            `mc.referenceQuery(self, filename=True)`
+            `mc.referenceQuery(self, filename=True, unresolvedName=True)`
 
         Returns:
             The unresolved filepath or None.
         """
         utils.raiseIfNodeNotFound(self.refNode)
         try:
-            filepath = self.api.reference.fileName(resolvedName=True, includePath=False, includeCopyNumber=True)
+            filepath = self.api.reference.fileName(resolvedName=False, includePath=False, includeCopyNumber=True)
         except RuntimeError as e:
             if '(kFailure): Object does not exist' in str(e):
                 return None
