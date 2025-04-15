@@ -9,7 +9,7 @@ from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Generator, List, Optional, Tuple, Union
-    from ..types import StrLike
+    from ..type_hints import StrLike
 
 
 class Ancestors(types.MappedLazyList):

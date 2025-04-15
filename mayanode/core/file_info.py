@@ -6,7 +6,7 @@ from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, List, Iterator, Optional, Tuple
-    from ..types import StrLike
+    from ..type_hints import StrLike
 
 
 class _FileInfo(object):

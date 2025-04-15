@@ -9,7 +9,7 @@ from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Dict, Optional, Union
-    from ..types import StrLike
+    from ..type_hints import StrLike
 
 
 class _Scene(object):

@@ -7,11 +7,11 @@ import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
-from ..types import StrLike
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union
     from typing import KeysView, ValuesView, ItemsView
+    from ..type_hints import StrLike
 
 
 if str is not bytes:
