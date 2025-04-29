@@ -1,11 +1,11 @@
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator, List, Optional, Union
+    from typing import Any, Iterator
 
 
 class Connection(types.StrMixin):
@@ -27,13 +27,13 @@ class Connection(types.StrMixin):
         """
         self._reverse = reverse
         self._srcNode = srcNode
-        self._dstNode = None  # type: Optional[Node]
+        self._dstNode = None  # type: Node | None
 
         self._srcPlug = utils.unnetworkPlug(srcPlug)
         self._dstPlug = utils.unnetworkPlug(dstPlug)
 
-        self._dstAttr = None  # type: Optional[Attribute]
-        self._srcAttr = None  # type: Optional[Attribute]
+        self._dstAttr = None  # type: Attribute | None
+        self._srcAttr = None  # type: Attribute | None
 
     def __repr__(self):
         # type: () -> str
@@ -209,7 +209,7 @@ class ConnectionList(types.MappedLazyList):
 
     @property
     def nodes(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get a deduplicated list of all connected nodes.
 
         Equivalent:
@@ -221,7 +221,7 @@ class ConnectionList(types.MappedLazyList):
 
     @property
     def attrs(self):
-        # type: () -> List[Attribute]
+        # type: () -> list[Attribute]
         """Get a deduplicated list of all connected attributes.
 
         Equivalent:
@@ -245,8 +245,8 @@ class ConnectionProxy(ConnectionList):
 
     def __init__(self):
         # type: () -> None
-        self._sourceConnections = None  # type: Optional[List[Connection]]
-        self._destinationConnections = None  # type: Optional[List[Connection]]
+        self._sourceConnections = None  # type: list[Connection] | None
+        self._destinationConnections = None  # type: list[Connection] | None
         super(ConnectionProxy, self).__init__()
 
     def __bool__(self):
@@ -281,14 +281,14 @@ class ConnectionProxy(ConnectionList):
 
     @property
     def nodes(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get all connected nodes."""
         self.loadConnections(source=True, destination=True)
         return super(ConnectionProxy, self).nodes
 
     @property
     def attrs(self):
-        # type: () -> List[Attribute]
+        # type: () -> list[Attribute]
         """Get all connected attributes."""
         self.loadConnections(source=True, destination=True)
         return super(ConnectionProxy, self).attrs
@@ -302,7 +302,7 @@ class ConnectionProxy(ConnectionList):
         raise NotImplementedError
 
     def loadData(self, key=None):  # pylint: disable=unused-argument, no-self-use
-        # type: (Optional[Union[int, str]]) -> bool
+        # type: (int | str | None) -> bool
         self.loadConnections()
         return False
 

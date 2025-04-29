@@ -1,6 +1,6 @@
 import itertools
 
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
@@ -8,7 +8,7 @@ from ..ext import classutilities
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, List, Optional, Union
+    from typing import Any
     from ..type_hints import StrLike
 
 
@@ -41,7 +41,7 @@ class NamespaceNodes(types.MappedLazyList):
         return str(value).split(':')[-1]
 
     def loadData(self, key=None):
-        # type: (Optional[Union[int, str]]) -> bool
+        # type: (int | str | None) -> bool
         """Get the node objects."""
         self._set(map(Node, om2.MNamespace.getNamespaceObjects(str(self.namespace))))
         return True
@@ -57,7 +57,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
     __slots__ = ['_namespace']
 
     def __init__(self, namespace=':'):  # pylint: disable=super-init-not-called
-        # type: (str) -> None
+        # type: (StrLike) -> None
         self._namespace = utils.validateNamespace(namespace)
 
     def __eq__(self, other):
@@ -80,21 +80,21 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         return other.rstrip(':') + self.name
 
     def strip(self, value=None):
-        # type: (Optional[str]) -> str
+        # type: (str | None) -> str
         name = super(Namespace, self).strip(value)
         if value is None:
             return name.strip(':')
         return name
 
     def lstrip(self, value=None):
-        # type: (Optional[str]) -> str
+        # type: (str | None) -> str
         name = super(Namespace, self).lstrip(value)
         if value is None:
             return name.lstrip(':')
         return name
 
     def rstrip(self, value=None):
-        # type: (Optional[str]) -> str
+        # type: (str | None) -> str
         name = super(Namespace, self).rstrip(value)
         if value is None:
             return name.rstrip(':')
@@ -102,7 +102,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
 
     @classmethod
     def ls(cls):
-        # type: () -> List[Namespace]
+        # type: () -> list[Namespace]
         """Get all namespaces within the scene."""
         return [cls(ns) for ns in om2.MNamespace.getNamespaces(recurse=True)]
 
@@ -134,8 +134,9 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
     @current.setter
     @classmethod
     def _currentSet(cls, value):
-        # type: (Optional[StrLike]) -> None
+        # type: (StrLike | None) -> None
         """Set the current namespace."""
+        value = str(value)
         if not value:
             value = ':'
         elif not value.startswith(':'):
@@ -179,7 +180,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         return True
 
     def delete(self, recursive=False, nodes=False):
-        # type: (bool, bool) -> List[Namespace]
+        # type: (bool, bool) -> list[Namespace]
         """Delete the namespace.
 
         Raises:
@@ -190,7 +191,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         """
         utils.logger.info('Deleting namespace: %s (recursive: %s, nodes: %s)', self, recursive, nodes)
         if not self.exists:
-            return 0
+            return []
 
         # Check if any child namespaces exist
         childNamespaces = om2.MNamespace.getNamespaces(parentNamespace=self.name, recurse=recursive)
@@ -202,7 +203,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
         namespaces = [self.name] + childNamespaces
 
         # Check if any nodes exist
-        nodesToDelete = []
+        nodesToDelete = []  # type: list[str]
         for namespace in namespaces:
             nsObjects = om2.MNamespace.getNamespaceObjects(namespace)
             if nsObjects:
@@ -215,7 +216,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
             mc.delete(nodesToDelete)
         for namespace in reversed(namespaces):
             mc.namespace(removeNamespace=namespace)
-        return namespaces
+        return [Namespace(ns) for ns in namespaces]
 
     @property
     def name(self):
@@ -279,7 +280,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
 
     @property
     def parent(self):
-        # type: () -> Optional[Namespace]
+        # type: () -> Namespace | None
         """Get the namespace parent."""
         if self.name == ':':
             return None
@@ -287,7 +288,7 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
 
     @parent.setter
     def parent(self, parent):
-        # type: (Optional[Namespace]) -> None
+        # type: (StrLike) -> None
         """Set a namespace parent."""
         if not parent:
             parent = ''
@@ -295,13 +296,13 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
 
     @property
     def children(self):
-        # type: () -> List[Namespace]
+        # type: () -> list[Namespace]
         """Get the direct children of the current namespace."""
         return [Namespace(child) for child in om2.MNamespace.getNamespaces(parentNamespace=self.name)]
 
     @property
     def ancestors(self):
-        # type: () -> List[Namespace]
+        # type: () -> list[Namespace]
         """Get all ancestor namespaces starting with the parent and ending with ":"."""
         result = []
         new = self
@@ -312,13 +313,13 @@ class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):
 
     @property
     def descendents(self):
-        # type: () -> List[Namespace]
+        # type: () -> list[Namespace]
         """Get all descendant namespaces."""
         return [Namespace(child) for child in om2.MNamespace.getNamespaces(parentNamespace=self.name, recurse=True)]
 
     @property
     def reference(self):
-        # type: () -> Optional[Reference]
+        # type: () -> Reference | None
         """Get the associated reference node."""
         for refNode in Reference.ls():
             if self == refNode.namespace:

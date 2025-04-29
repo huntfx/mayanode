@@ -3,12 +3,12 @@ import re
 from .type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, List, Tuple, TypeVar, Union
+    from typing import Any, TypeVar, Union
 
     Token = Union[int, '_StrCmp']
-    TokenisedVersion = List[Token]
+    TokenisedVersion = list[Token]
     StandardisedToken = TypeVar('StandardisedToken', Token, TokenisedVersion)
-    StandardisedVersion = Tuple[StandardisedToken, StandardisedToken]
+    StandardisedVersion = tuple[StandardisedToken, StandardisedToken]
 
 
 class _StrCmp(str):

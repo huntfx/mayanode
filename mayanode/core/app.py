@@ -1,6 +1,4 @@
-import operator
-
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from ..version import Version

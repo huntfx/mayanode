@@ -1,6 +1,5 @@
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
-import maya.mel as mel  # type: ignore
 
 
 # Mapping of MEL to API types

@@ -1,10 +1,10 @@
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from types import TracebackType
-    from typing import List, Literal, Optional, Type, Union
+    from typing import Literal, Type
 
 
 class _MayaNode(object):
@@ -34,16 +34,16 @@ class _MayaNode(object):
 
     __slots__ = ['_dgModifier', '_dagModifier']
 
-    _Stack = []  # type: List[_MayaNode]
+    _Stack = []  # type: list[_MayaNode]
 
     def __init__(self):
         # type: () -> None
-        self._dgModifier = None  # type: Optional[om2.MDGModifier]
-        self._dagModifier = None  # type: Optional[om2.MDagModifier]
+        self._dgModifier = None  # type: om2.MDGModifier | None
+        self._dagModifier = None  # type: om2.MDagModifier | None
 
     @property
     def dgModifier(self):
-        # type: () -> Optional[om2.MDGModifier]
+        # type: () -> om2.MDGModifier | None
         """Get the DG modifier for the current context.
         If in the global context, then get the DG modifier of the
         latest context instead.
@@ -56,7 +56,7 @@ class _MayaNode(object):
 
     @dgModifier.setter
     def dgModifier(self, dgModifier):
-        # type: (Optional[om2.MDGModifier]) -> None
+        # type: (om2.MDGModifier | None) -> None
         """Set the DG modifier for this context.
 
         This is very efficient but does not work with undo, so it should
@@ -66,7 +66,7 @@ class _MayaNode(object):
 
     @property
     def dagModifier(self):
-        # type: () -> Optional[om2.MDagModifier]
+        # type: () -> om2.MDagModifier | None
         """Get the DAG modifier for the current context.
         If in the global context, then get the DAG modifier of the
         latest context instead.
@@ -79,7 +79,7 @@ class _MayaNode(object):
 
     @dagModifier.setter
     def dagModifier(self, dagModifier):
-        # type: (Optional[om2.MDagModifier]) -> None
+        # type: (om2.MDagModifier | None) -> None
         """Set the DAG modifier for this context.
 
         This is very efficient but does not work with undo, so it should
@@ -89,7 +89,7 @@ class _MayaNode(object):
 
     @property
     def modifier(self):
-        # type: () -> Optional[Union[om2.MDagModifier, om2.MDGModifier]]
+        # type: () -> om2.MDagModifier | om2.MDGModifier | None
         """Get the DG or DAG modifier for the current context.
         This should be used when either is valid, as it will prioritise
         the latest context.
@@ -116,7 +116,7 @@ class _MayaNode(object):
         return self
 
     def __exit__(self, excType, excVal, excTraceback):
-        # type: (Optional[Type[Exception]], Optional[Exception], Optional[TracebackType]) -> Literal[False]
+        # type: (Type[Exception] | None, Exception | None, TracebackType | None) -> Literal[False]
         """Exit the current context, removing this instance from the stack."""
         self._Stack.pop()
         return False

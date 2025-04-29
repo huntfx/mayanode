@@ -8,10 +8,6 @@ implementation. Future changes may be made if I dig more into it.
 import maya.cmds as mc  # type: ignore
 
 from .. import types, utils
-from ..type_hints import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Optional, Union
 
 
 class ConstructionHistory(types.MappedLazyList):
@@ -58,7 +54,7 @@ class ConstructionHistory(types.MappedLazyList):
         return ConstructionHistory(self.node, future=True)
 
     def loadData(self, key=None):
-        # type: (Optional[Union[int, str]]) -> bool
+        # type: (int | str | None) -> bool
         history = utils.iterConstructionHistory(self.node.api.object, future=self._future)
         self._set(map(Node, history))
         return True

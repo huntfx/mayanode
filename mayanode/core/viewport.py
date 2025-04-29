@@ -1,7 +1,7 @@
 from functools import partial
 
-import maya.api.OpenMaya as om2  # type: ignore
-import maya.api.OpenMayaUI as omui2  # type: ignore
+import maya.api.OpenMaya as om2
+import maya.api.OpenMayaUI as omui2
 import maya.OpenMayaUI as omui  # type: ignore
 import maya.cmds as mc  # type: ignore
 
@@ -10,7 +10,6 @@ from ..ext import classutilities
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Optional, Union
     from ..type_hints import StrLike
 
 
@@ -26,7 +25,7 @@ class Viewport(object):
     __slots__ = ['_view']
 
     def __init__(self, vp):
-        # type: (Union[int, str, omui2.M3dView, Viewport]) -> None
+        # type: (int | StrLike | omui2.M3dView | Viewport) -> None
         """Get the M3dView object.
 
         If an integer, then the index will be looked up.
@@ -36,7 +35,6 @@ class Viewport(object):
             self._view = vp._view  # type: omui2.M3dView
         elif isinstance(vp, omui2.M3dView):
             self._view = vp
-
         else:
             try:
                 if isinstance(vp, int):
@@ -90,7 +88,7 @@ class Viewport(object):
 
     @classmethod
     def ls(cls, visible=None):
-        # type: (Optional[bool]) -> List[Viewport]
+        # type: (bool | None) -> list[Viewport]
         """Get all the viewports.
 
         Parameters:
@@ -186,7 +184,7 @@ class Viewport(object):
         mc.modelEditor(self.panel, edit=True, camera=camera)
 
     def snapshot(self, filepath, size=(None, None)):
-        # type: (StrLike, tuple[Optional[int], Optional[int]]) -> None
+        # type: (StrLike, tuple[int | None, int | None]) -> None
         """Take a snapshot of the viewport and save it to disk.
 
         Parameters:

@@ -5,7 +5,7 @@ from ..exceptions import MultipleFileInfoResultsError, ReadOnlyFileInfoError
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, List, Iterator, Optional, Tuple
+    from typing import Any, Iterator
     from ..type_hints import StrLike
 
 
@@ -49,7 +49,7 @@ class _FileInfo(object):
     __slots__ = ['_refNode']
 
     def __init__(self, refNode=None):
-        # type: (Optional[StrLike]) -> None
+        # type: (StrLike | None) -> None
         if refNode is None:
             refNode = ''
         self._refNode = refNode
@@ -71,7 +71,7 @@ class _FileInfo(object):
         return '<FileInfo({})>'.format(', '.join(self.keys()))
 
     def __getitem__(self, item, index=None):
-        # type: (str, Optional[int]) -> str
+        # type: (str, int | None) -> str
         """Get a fileInfo value.
 
         By default, multiple fileInfo keys will result in an error.
@@ -116,17 +116,17 @@ class _FileInfo(object):
         mc.fileInfo(remove=item)
 
     def keys(self):
-        # type: () -> List[str]
+        # type: () -> list[str]
         """Get all fileInfo keys."""
         return mc.fileInfo(query=True, referenceNode=self._refNode)[::2]
 
     def values(self):
-        # type: () -> List[str]
+        # type: () -> list[str]
         """Get all fileInfo values."""
         return mc.fileInfo(query=True, referenceNode=self._refNode)[1::2]
 
     def items(self):
-        # type: () -> List[Tuple[str, str]]
+        # type: () -> list[tuple[str, str]]
         """Get all fileInfo items."""
         result = mc.fileInfo(query=True, referenceNode=self._refNode)
         return list(zip(result[::2], result[1::2]))
@@ -143,7 +143,7 @@ class _FileInfo(object):
 
     @property
     def reference(self):
-        # type: () -> Optional[Reference]
+        # type: () -> Reference | None
         """Get the associated reference."""
         if self._refNode:
             return Reference(self._refNode)

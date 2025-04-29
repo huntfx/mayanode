@@ -2,14 +2,13 @@ from __future__ import absolute_import
 
 from collections import deque
 
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from ..types import Coordinate
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import List, Union
     from ..type_hints import StrLike
 
 

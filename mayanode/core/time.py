@@ -1,10 +1,6 @@
 import maya.cmds as mc  # type: ignore
 
 from .. import constants, exceptions, utils
-from ..type_hints import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Optional, Tuple
 
 
 class _Time(object):
@@ -128,7 +124,7 @@ class _Time(object):
 
     @property
     def selection(self):
-        # type: () -> Optional[Tuple[float, float]]
+        # type: () -> tuple[float, float] | None
         """Get the selected time range."""
         playbackSlider = utils.getMelGlobal('PlayBackSlider')
         if mc.timeControl(playbackSlider, rangeVisible=True, query=True):

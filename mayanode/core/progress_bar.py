@@ -11,16 +11,14 @@ Example:
     ...         ProgressBar.value += 1
 """
 
-import maya.api.OpenMaya as om2  # type: ignore
 import maya.cmds as mc  # type: ignore
-import maya.mel as mel  # type: ignore
 
 from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from types import TracebackType
-    from typing import Any, Iterator, Optional, Tuple, Type, TypeVar
+    from typing import Iterator, Type, TypeVar
     T = TypeVar('T')
 
 
@@ -29,7 +27,7 @@ class _ProgressBar(types.StrMixin):
     __slots__ = ['_name']
 
     def __init__(self, name=None):
-        # type: (Optional[str]) -> None
+        # type: (str | None) -> None
         if name is None:
             try:
                 name = utils.getMelGlobal('MainProgressBar')
@@ -50,7 +48,7 @@ class _ProgressBar(types.StrMixin):
         return self
 
     def __exit__(self, excType, excVal, excTraceback):
-        # type: (Optional[Type[Exception]], Optional[Exception], Optional[TracebackType]) -> bool
+        # type: (Type[Exception] | None, Exception | None, TracebackType | None) -> bool
         """Use the progress bar as a context manager."""
         self.hide()
         return excType is excVal is excTraceback is None
@@ -131,13 +129,13 @@ class _ProgressBar(types.StrMixin):
 
     @property
     def limits(self):
-        # type: () -> Tuple[int, int]
+        # type: () -> tuple[int, int]
         """Get the minimum and maximum progress bar values."""
         return (self.min, self.max)
 
     @limits.setter
     def limits(self, limits):
-        # type: (Tuple[int, int]) -> None
+        # type: (tuple[int, int]) -> None
         """Set the minimum and maximum progress bar values."""
         minValue, maxValue = limits
         mc.progressBar(self, edit=True, minValue=minValue, maxValue=maxValue)
@@ -160,7 +158,7 @@ class _ProgressBar(types.StrMixin):
         self.value += value
 
     def range(self, start, end=None, step=1):
-        # type: (int, Optional[int], int) -> Iterator[int]
+        # type: (int, int | None, int) -> Iterator[int]
         """Wrap the progress bar with a `range()` call."""
         if end is None:
             start, end = 0, start
@@ -179,7 +177,7 @@ class _ProgressBar(types.StrMixin):
             self.value, self.min, self.max = old
 
     def enumerate(self, iterator, start=0):
-        # type: (Iterator[T], int) -> Iterator[Tuple[int, T]]
+        # type: (Iterator[T], int) -> Iterator[tuple[int, T]]
         """Wrap the progress bar with an `enumerate()` call."""
         old = self.value, self.min, self.max
         data = tuple(iterator)

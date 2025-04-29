@@ -1,14 +1,11 @@
-import os
-
-import maya.api.OpenMaya as om2  # type: ignore
-import maya.api.OpenMayaUI as om2ui  # type: ignore
-import maya.cmds as mc  # type: ignore
+import maya.api.OpenMaya as om2
+import maya.api.OpenMayaUI as om2ui
 
 from .. import exceptions, types
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, List, Optional
+    from typing import Any
     from ..type_hints import StrLike
 
 
@@ -18,7 +15,7 @@ class _CameraAPI(object):
     __slots__ = ['_parent', '_dagPath', '_camera']
 
     def __init__(self, parent, dagPath=None, camera=None):
-        # type: (Camera, Optional[om2.MDagPath], Optional[om2.MFnCamera]) -> None
+        # type: (Camera, om2.MDagPath | None, om2.MFnCamera | None) -> None
         self._parent = parent
         self._dagPath = dagPath
         self._camera = camera
@@ -72,7 +69,7 @@ class _CameraAPI(object):
             if dagPath is None:
                 raise exceptions.NotACameraError(self._parent.node)
 
-            dagPath = dagPath.extendToShape()
+            dagPath.extendToShape()
             if not dagPath.hasFn(om2.MFn.kCamera):
                 raise exceptions.NotACameraError(self._parent.node)
 
@@ -97,13 +94,13 @@ class Camera(types.StrMixin):
     __slots__ = ['_api', '_node']
 
     def __init__(self, node, _dagPath=None, _camera=None):
-        # type: (StrLike, Optional[om2.MDagPath], Optional[om2.MFnCamera]) -> None
+        # type: (StrLike, om2.MDagPath | None, om2.MFnCamera | None) -> None
         self._node = Node(node)
         self._api = _CameraAPI(self, dagPath=_dagPath, camera=_camera)
 
     @classmethod
     def ls(cls, *args, **kwargs):
-        # type: (*Any, **Any) -> List[Camera]
+        # type: (*Any, **Any) -> list[Camera]
         """Get all cameras in the scene."""
         kwargs['cameras'] = True
         return [Camera(node) for node in Node.ls(*args, **kwargs)]

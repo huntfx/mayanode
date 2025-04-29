@@ -1,15 +1,13 @@
-from __future__ import absolute_import
-
 import re
 
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union
+    from typing import Any, Iterator, Type, Literal
     from typing import KeysView, ValuesView, ItemsView
     from ..type_hints import StrLike
 
@@ -46,7 +44,7 @@ ATTR_TYPES = {
 
 
 def _getPlugData(attr, plug=None, value=True):
-    # type: (Attribute, Optional[om2.MPlug], bool) -> Optional[Any]
+    # type: (Attribute, om2.MPlug | None, bool) -> Any
     """Get the type or value of a plug."""
     if plug is None:
         plug = attr.api.plug
@@ -124,9 +122,9 @@ def _setPlugValue(plug, value):
     Warning: Does not work with undo.
     """
     if isinstance(value, (str, unicode, types.StrMixin)):
-        plug.setString(value)
+        plug.setString(str(value))
     elif isinstance(value, float):
-        plug.setFloat(value)
+        plug.setDouble(value)
     elif isinstance(value, int):
         plug.setInt(value)
     elif isinstance(value, bool):
@@ -242,7 +240,7 @@ class NodeAttributes(dict):
         return default
 
     def _ensureAttr(self, attr, reload=False):
-        # type: (Union[om2.MPlug, str], bool) -> bool
+        # type: (om2.MPlug | str, bool) -> bool
         """Load in the attribute proxy if required."""
         if isinstance(attr, om2.MPlug):
             attrName = attr.partialName(useLongNames=True)
@@ -283,7 +281,7 @@ class NodeAttributes(dict):
         self._loaded = True
 
     def create(self, longName, type=None, **kwargs):
-        # type: (str, Optional[str], **Any) -> Attribute
+        # type: (str, str | None, **Any) -> Attribute
         """Create the attribute."""
         if type is not None:
             if type is bool:
@@ -301,7 +299,7 @@ class NodeAttributes(dict):
 
 
 def _getPlugFromDepNode(depNode, attr):
-    # type: (om2.MFnDependencyNode, str) -> Optional[om2.MPlug]
+    # type: (om2.MFnDependencyNode, str) -> om2.MPlug | None
     """Follow a valid attribute path to the correct plug.
     Returns None in the case of failure.
     """
@@ -359,8 +357,8 @@ class Attribute(types.StrMixin):
             by holding the plug in memory.
             """
             self._plug = utils.unnetworkPlug(plug)
-            self._attribute = None
-            self._numericAttribute = None
+            self._attribute = None  # type: om2.MFnAttribute | None
+            self._numericAttribute = None  # type: om2.MFnNumericAttribute | utils.NotSet | None
 
         @classmethod
         def fromNode(cls, node, attr):
@@ -414,7 +412,7 @@ class Attribute(types.StrMixin):
 
         @property
         def plugs(self):
-            # type: () -> List[om2.MPlug]
+            # type: () -> list[om2.MPlug]
             """Get all the `MPlug` objects associated with this attribute.
             Only array attributes contain multiple plugs.
             """
@@ -439,7 +437,7 @@ class Attribute(types.StrMixin):
 
         @property
         def numericAttribute(self):
-            # type: () -> om2.MFnNumericAttribute
+            # type: () -> om2.MFnNumericAttribute | None
             """Get the `MFnNumericAttribute`.
 
             Notable methods:
@@ -453,19 +451,20 @@ class Attribute(types.StrMixin):
                 `getSoftMax`
                 `hasSoftMax`
             """
-            if self._numericAttribute is None:
+            nAttr = self._numericAttribute
+            if nAttr is None:
                 attribute = self.plug.attribute()
                 if attribute.apiType() == om2.MFn.kNumericAttribute:
-                    self._numericAttribute = om2.MFnNumericAttribute(attribute)
+                    nAttr = self._numericAttribute = om2.MFnNumericAttribute(attribute)
                 else:
-                    self._numericAttribute = -1
+                    nAttr = self._numericAttribute = utils.NOT_SET
 
-            if self._numericAttribute == -1:
+            if isinstance(nAttr, utils.NotSet):
                 return None
-            return self._numericAttribute
+            return nAttr
 
     def __init__(self, node, attr):
-        # type: (StrLike, Union[str, om2.MPlug]) -> None
+        # type: (StrLike, str | om2.MPlug) -> None
         """Create the attribute proxy.
 
         Parameters:
@@ -483,11 +482,11 @@ class Attribute(types.StrMixin):
             self.attr = attr
             self.api = Attribute.ApiData.fromNode(self.node, attr)
 
-        self._compoundChildren = None  # type: Optional[Dict[str, Attribute]]
+        self._compoundChildren = None  # type: dict[str, Attribute] | None
 
     @classmethod
     def ls(self, attr):
-        # type: (str) -> List[Attribute]
+        # type: (str) -> list[Attribute]
         """Search the scene for an attribute."""
         result = mc.ls('*.' + attr)
         split = (item.split('.', 1) for item in result)
@@ -557,7 +556,7 @@ class Attribute(types.StrMixin):
         return int(self.value)
 
     def __rshift__(self, connection):
-        # type: (Union[str, Attribute, om2.MPlug]) -> bool
+        # type: (ConnectionType) -> bool
         """Create an outgoing connection.
 
         >>> Attribute('node.attr') >> 'othernode.attr'
@@ -565,7 +564,7 @@ class Attribute(types.StrMixin):
         return self.connect(connection)
 
     def __rrshift__(self, connection):
-        # type: (Union[str, Attribute, om2.MPlug]) -> bool
+        # type: (ConnectionType) -> bool
         """Create an incoming connection.
 
         >>> 'othernode.attr' >> Attribute('node.attr')
@@ -573,7 +572,7 @@ class Attribute(types.StrMixin):
         return self.connect(connection, reverse=True)
 
     def __floordiv__(self, connection):
-        # type: (Union[str, Attribute, om2.MPlug]) -> bool
+        # type: (ConnectionType) -> bool
         """Break an outgoing connection.
 
         >>> Attribute('node.attr') // 'othernode.attr'
@@ -581,7 +580,7 @@ class Attribute(types.StrMixin):
         return self.disconnect(connection)
 
     def __rfloordiv__(self, connection):
-        # type: (Union[str, Attribute, om2.MPlug]) -> bool
+        # type: (ConnectionType) -> bool
         """Break an incoming connection.
 
         >>> 'othernode.attr' // Attribute('node.attr')
@@ -589,7 +588,7 @@ class Attribute(types.StrMixin):
         return self.disconnect(connection, reverse=True)
 
     def split(self, *args, **kwargs):
-        # type: (*Any, **Any) -> List[str]
+        # type: (*Any, **Any) -> list[str]
         """Add the ability to split for backwards compatibility."""
         return self.name.split(*args, **kwargs)
 
@@ -614,7 +613,7 @@ class Attribute(types.StrMixin):
 
         # Walk through the plugs until the top one
         plug = self.api.plug
-        checkElementIn = [] # type: List[Tuple[om2.MPlug, om2.MPlug]]
+        checkElementIn = [] # type: list[tuple[om2.MPlug, om2.MPlug]]
         while True:
             if plug.isNull:
                 return False
@@ -779,7 +778,7 @@ class Attribute(types.StrMixin):
         mc.setAttr(self, keyable=value)
 
     def connect(self, target, reverse=False):
-        # type: (Union[str, Attribute, om2.MPlug], bool) -> bool
+        # type: (ConnectionType, bool) -> bool
         """Create a connection.
         Set `reverse` to reverse the connection direction.
 
@@ -804,7 +803,7 @@ class Attribute(types.StrMixin):
         return Connection(self.node, self.api.plug, plug, reverse=reverse).connect()
 
     def disconnect(self, target, reverse=False):
-        # type: (Union[str, Attribute, om2.MPlug], bool) -> bool
+        # type: (ConnectionType, bool) -> bool
         """Remove a connection.
         Set `reverse` to reverse the direction.
 
@@ -835,7 +834,7 @@ class Attribute(types.StrMixin):
         return AttributeConnectionProxy(self)
 
     def create(self, type=None, **kwargs):
-        # type: (Optional[str], **Any) -> None
+        # type: (str | None, **Any) -> None
         """Create the attribute."""
         try:
             if type is None:
@@ -908,7 +907,7 @@ class Attribute(types.StrMixin):
 
     @property
     def uvLinks(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get the nodes linked to this UV set attribute.
 
         TODO:
@@ -919,7 +918,7 @@ class Attribute(types.StrMixin):
 
     @property
     def min(self):
-        # type: () -> Optional[float]
+        # type: () -> float | None
         """Get the minimum value if set."""
         nattr = self.api.numericAttribute
         if nattr is not None and nattr.hasMin():
@@ -928,7 +927,7 @@ class Attribute(types.StrMixin):
 
     @property
     def max(self):
-        # type: () -> Optional[float]
+        # type: () -> float | None
         """Get the maximum value if set."""
         nattr = self.api.numericAttribute
         if nattr is not None and nattr.hasMax():
@@ -937,7 +936,7 @@ class Attribute(types.StrMixin):
 
     @property
     def softMin(self):
-        # type: () -> Optional[float]
+        # type: () -> float | None
         """Get the soft minimum value if set."""
         nattr = self.api.numericAttribute
         if nattr is not None and nattr.hasSoftMin():
@@ -946,7 +945,7 @@ class Attribute(types.StrMixin):
 
     @property
     def softMax(self):
-        # type: () -> Optional[float]
+        # type: () -> float | None
         """Get the soft maximum value if set."""
         nattr = self.api.numericAttribute
         if nattr is not None and nattr.hasSoftMax():
@@ -959,3 +958,4 @@ class Attribute(types.StrMixin):
 from .connection import AttributeConnectionProxy, Connection
 from .keyframes import AttributeKeyframes
 from .node import Node
+ConnectionType = om2.MPlug

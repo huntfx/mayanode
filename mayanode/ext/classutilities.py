@@ -1,10 +1,6 @@
 """Python 2 compatible version of David Salac's `classutilities`."""
 
 from . import six
-from ..type_hints import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Any, Callable, Optional, Type
 
 
 class ClassPropertyContainer(object):

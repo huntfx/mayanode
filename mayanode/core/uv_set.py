@@ -1,11 +1,7 @@
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
-from ..type_hints import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import List, Optional, Union
 
 
 class UVSetList(types.MappedLazyList):
@@ -17,11 +13,11 @@ class UVSetList(types.MappedLazyList):
     __slots__ = ['_node', '_faceIndex', '_uvSetNames']
 
     def __init__(self, node, faceIndex=None):
-        # type: (Node, Optional[int]) -> None
+        # type: (Node, int | None) -> None
         """Store the origin mesh and optionally the index of the mesh face."""
         self._node = node
         self._faceIndex = faceIndex
-        self._uvSetNames = None  # type: Optional[List[str]]
+        self._uvSetNames = None  # type: list[str] | None
         super(UVSetList, self).__init__()
 
     def __bool__(self):
@@ -48,7 +44,7 @@ class UVSetList(types.MappedLazyList):
         return mesh.numUVSets
 
     def __delitem__(self, item):
-        # type: (Union[int, str]) -> None
+        # type: (int | str) -> None
         """Delete a UV set."""
         self.__getitem__(item).delete()
 
@@ -59,7 +55,7 @@ class UVSetList(types.MappedLazyList):
         return self._node
 
     def loadData(self, key=None):
-        # type: (Optional[Union[int, str]]) -> bool
+        # type: (int | str | None) -> bool
         """Load all data or for a specific index."""
         if self._uvSetNames is None:
             if self.node.exists and self.node.api.mesh is not None:
@@ -71,7 +67,7 @@ class UVSetList(types.MappedLazyList):
                 self._uvSetNames = []
             self._set(None for _ in self._uvSetNames)
 
-        indexes = []  # type: List[int]
+        indexes = []  # type: list[int]
         loadedAll = False
 
         # Load all
@@ -278,7 +274,7 @@ class UVSet(types.StrMixin):
 
     @property
     def textures(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get a list of texture nodes which are using the UV set.
         If the texture has a 2D texture placement, then the texture and
         not the placement will be returned.

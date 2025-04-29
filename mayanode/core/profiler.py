@@ -53,7 +53,7 @@ from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from types import TracebackType
-    from typing import Callable, Iterator, List, Optional, Type
+    from typing import Callable, Iterator, Type
     from ..type_hints import StrLike
 
 
@@ -64,10 +64,10 @@ class _Profiler(object):
     __slots__ = ['profiler']
 
     def ls(self):
-        # type: () -> List[Category]
+        # type: () -> list[Category]
         """Get all profilers/categories."""
-        categoryNames = []  # type: List[str]
-        categoryInfo = []  # type: List[str]
+        categoryNames = []  # type: list[str]
+        categoryInfo = []  # type: list[str]
         om.MProfiler.getAllCategories(categoryNames, categoryInfo)
         return [Category(name, _info=info) for name, info in zip(categoryNames, categoryInfo)]
 
@@ -124,7 +124,7 @@ class Category(types.StrMixin):
     _RUNNING = False
 
     def __init__(self, name, color=om.MProfiler.kColorE_L2, _info=None):
-        # type: (StrLike, int, Optional[str]) -> None
+        # type: (StrLike, int, str | None) -> None
         self._id = -1
         self._category = str(name)
         self._info = _info
@@ -132,12 +132,12 @@ class Category(types.StrMixin):
         self.create()
 
     def event(self, name, description=None):
-        # type: (str, Optional[str]) -> Event
+        # type: (str, str | None) -> Event
         """Create a profile event."""
         return Event(self._id, self._color, name, description)
 
     def signal(self, name, description=None):
-        # type: (str, Optional[str]) -> None
+        # type: (str, str | None) -> None
         """Send out a profiling signal.
         This can be used when the duration does not matter.
         """
@@ -145,7 +145,7 @@ class Category(types.StrMixin):
 
     @property
     def id(self):
-        # type: () -> Optional[int]
+        # type: () -> int | None
         """Get the category ID."""
         if self._id < 0:
             return None
@@ -201,7 +201,7 @@ class Event(types.StrMixin):
     __slots__ = ['_id', '_category', '_color', '_name', '_description']
 
     def __init__(self, category, color, name, description=None):
-        # type: (int, int, str, Optional[str]) -> None
+        # type: (int, int, str, str | None) -> None
         self._id = -1
         self._category = category
         self._color = color
@@ -220,13 +220,13 @@ class Event(types.StrMixin):
         return self
 
     def __exit__(self, excType, excVal, excTraceback):
-        # type: (Optional[Type[Exception]], Optional[Exception], Optional[TracebackType]) -> bool
+        # type: (Type[Exception] | None, Exception | None, TracebackType | None) -> bool
         self.end()
         return excType is excVal is excTraceback is None
 
     @property
     def id(self):
-        # type: () -> Optional[int]
+        # type: () -> int | None
         """Get the event ID."""
         if self._id < 0:
             return None
@@ -243,7 +243,7 @@ class Event(types.StrMixin):
 
     @property
     def description(self):
-        # type: () -> Optional[str]
+        # type: () -> str | None
         """Get the event name."""
         eventID = self.id
         if eventID is None:

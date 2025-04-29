@@ -8,7 +8,7 @@ from .. import exceptions, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, List, Optional, Union
+    from typing import Any
     from ..type_hints import StrLike
 
 
@@ -16,7 +16,7 @@ class File(str):
     """Handle individual filepaths."""
 
     def __new__(cls, path):
-        # type: (str) -> str
+        # type: (str) -> File
         return str.__new__(cls, os.path.normpath(path) if path else '')
 
     def __eq__(self, other):
@@ -69,7 +69,7 @@ class File(str):
 
     @classmethod
     def currentScene(cls):
-        # type: () -> Optional[File]
+        # type: () -> File | None
         """Get the path to the current scene."""
         path = mc.file(query=True, sceneName=True)
         if path:
@@ -77,7 +77,7 @@ class File(str):
         return None
 
     def open(self, force=False, selectivePreload=None):
-        # type: (bool, Optional[bool]) -> None
+        # type: (bool, bool | None) -> None
         """Open the file as a Maya scene.
 
         Raises:
@@ -104,7 +104,7 @@ class File(str):
             utils.addToRecentFiles(self)
 
     def import_(self, namespace=None):
-        # type: (Optional[StrLike]) -> Optional[Namespace]
+        # type: (StrLike | None) -> Namespace | None
         """Import a file into the scene.
 
         A namespace will be returned which can be used to get a list of
@@ -162,7 +162,7 @@ class File(str):
             'channels': channels,
             'constraints': constraints,
             'expressions': expressions,
-        }
+        }  # type: dict[str, Any]
 
         try:
             params['type'] = {'ma': 'mayaAscii', 'mb': 'mayaBinary'}[self.ext.lower()]
@@ -193,7 +193,7 @@ class File(str):
         return self
 
     def reference(self, namespace=utils.NOT_SET, group=None, defer=False):
-        # type: (Union[None, StrLike, utils.NotSet], Optional[str], bool) -> Optional[Reference]
+        # type: (StrLike | utils.NotSet | None, str | None, bool) -> Reference | None
         """Reference a file into the scene.
 
         Warnings:
@@ -235,7 +235,7 @@ class File(str):
 
     @property
     def references(self):
-        # type: () -> List[Reference]
+        # type: () -> list[Reference]
         """Get all references matching a file path."""
         return Reference.fromFile(self)
 

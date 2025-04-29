@@ -1,10 +1,4 @@
-from __future__ import absolute_import
-
 from .. import types
-from ..type_hints import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import List, Optional, Union
 
 
 class FaceList(types.MappedLazyList, types.StrMixin):
@@ -23,7 +17,13 @@ class FaceList(types.MappedLazyList, types.StrMixin):
         self._node = node
         super(FaceList, self).__init__(None for _ in range(self.__len__()))
 
+    def __bool__(self):
+        # type: () -> bool
+        return not len(self)
+    __nonzero__ = __bool__
+
     def __len__(self):
+        # type: () -> int
         mesh = self.node.api.mesh
         if mesh is None:
             return 0
@@ -45,7 +45,7 @@ class FaceList(types.MappedLazyList, types.StrMixin):
         return self._node
 
     def _loadData(self, key=None):
-        # type: (Optional[Union[int, str]]) -> bool
+        # type: (int | str | None) -> bool
         """Load the `Face` objects when needed."""
         indexes = []
         if isinstance(key, int):
@@ -75,7 +75,7 @@ class Face(types.StrMixin):
 
     @classmethod
     def fromNode(cls, node):
-        # type: (Node) -> List[Face]
+        # type: (Node) -> list[Face]
         """Get a list of faces for a node."""
         mesh = node.api.mesh
         if mesh is None:

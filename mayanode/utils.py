@@ -1,9 +1,11 @@
+from __future__ import absolute_import
+
 import logging
 import math
 import os
 from types import GeneratorType
 
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
@@ -11,7 +13,7 @@ from . import constants, exceptions, types
 from .type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator, List, Optional, Union
+    from typing import Any, Iterator
     from .type_hints import StrLike
     from .core.node import Node
 
@@ -144,7 +146,7 @@ def iterShadingGroups(mObject):
 
 
 def getShadingGroup(mObject):
-    # type: (Union[om2.MObject, om2.MDagPath]) -> Optional[om2.MObject]
+    # type: (om2.MObject | om2.MDagPath) -> om2.MObject | None
     """Get the shading group for a specific node.
     Instances are supported if an `MDagPath` is given.
 
@@ -184,7 +186,7 @@ def getChildPlugs(plug):
 
 
 def calculateTexelDensity(faces):
-    # type: (Union[List[StrLike], StrLike]) -> float
+    # type: (list[StrLike] | StrLike) -> float
     """Get the texel density value for the current UV set.
     Multiply the result to get the value for different map sizes.
 
@@ -199,7 +201,7 @@ def calculateTexelDensity(faces):
 
 
 def setTexelDensity(faces, density):
-    # type: (Union[List[StrLike], StrLike], float) -> None
+    # type: (list[StrLike] | StrLike, float) -> None
     """Set the texel density value for the current UV set.
 
     The map size used is 1, so divide the density by the map size if
@@ -255,11 +257,12 @@ def getWorldDagPath():
     global _WORLD_DAG_PATH
     if _WORLD_DAG_PATH is None:
         getWorldHandle()
+        assert _WORLD_DAG_PATH is not None
     return _WORLD_DAG_PATH
 
 
 def toMObject(item):
-    # type: (Any) -> Optional[om2.MObject]
+    # type: (Any) -> om2.MObject | None
     """Get the MObject from an input value if possible."""
     if item is None:
         return om2.MObject.kNullObj
@@ -279,6 +282,7 @@ def iterAssemblies():
     # type: () -> Iterator[om2.MObject]
     """Get all assembly objects (top level transforms) in the scene."""
     worldDagPath = getWorldDagPath()
+
     for item in map(worldDagPath.child, range(worldDagPath.childCount())):
         if not item.hasFn(om2.MFn.kTransform) or item.hasFn(om2.MFn.kManipulator3D):
             continue
@@ -306,30 +310,39 @@ def iterDG(apiType=om2.MFn.kInvalid):
             yield iterator.thisNode()
 
 
+class _IterDAGHelper(object):
+    __slots__ = ['dagPaths', 'instanceNumber', 'getAllPaths']
+
+    def __init__(self, dagIterator, getAllPaths):
+        # type: (om2.MItDag, bool) -> None
+        self.getAllPaths = getAllPaths
+        if getAllPaths:
+            self.dagPaths = dagIterator.getAllPaths()
+        else:
+            self.dagPaths = [dagIterator.getPath()]
+        self.instanceNumber = 0
+
+    def next(self):
+        # type: () -> om2.MDagPath
+        """Get the next instance."""
+        dagPath = self.dagPaths[self.instanceNumber]
+        self.instanceNumber += self.getAllPaths
+        return dagPath
+
+
 def iterDAG(apiType=om2.MFn.kInvalid, allPaths=True):
     # type: (int, bool) -> Iterator[om2.MDagPath]
     """Get all DAG nodes (including instances) for an API type."""
     dagIterator = om2.MItDag(om2.MItDag.kDepthFirst, apiType)
-    dagPathData = {}
+    dagPathData = {}  # type: dict[int, _IterDAGHelper]
     for _ in dagIterator:
         item = dagIterator.currentItem()
 
         if dagIterator.isInstanced():
             handle = om2.MObjectHandle(item).hashCode()
-
-            if allPaths:
-                if handle not in dagPathData:
-                    dagPathData[handle] = [dagIterator.getAllPaths(), 0]
-                dagPaths, instanceNum = dagPathData[handle]
-
-                yield dagPaths[instanceNum]
-                dagPathData[handle][1] += 1
-
-            else:
-                if handle not in dagPathData:
-                    dagPathData[handle] = [dagIterator.getPath(), 0]
-                dagPath, instanceNum = dagPathData[handle]
-                yield dagPath
+            if handle not in dagPathData:
+                dagPathData[handle] = _IterDAGHelper(dagIterator, allPaths)
+            yield dagPathData[handle].next()
 
         else:
             yield dagIterator.getPath()
@@ -346,7 +359,7 @@ class Ls(object):
         self.kwargs = kwargs
 
     def __call__(self):
-        # type: () -> Optional[om2.MSelectionList]
+        # type: () -> om2.MSelectionList | None
         """Generate a selection list from parameters.
         Returns None if unable to.
 
@@ -434,15 +447,15 @@ class Ls(object):
         # type: () -> om2.MSelectionList
         """Get all types matching the search."""
         apiType = constants.MEL_API_TYPE[self.type]
+        selectionList = om2.MSelectionList()
         if self.type in constants.DAG_TYPES:
             allPaths = self.kwargs.get('allPaths', self.kwargs.get('ap', False))
-            generator = iterDAG(apiType, allPaths=allPaths)
+            for dagNode in iterDAG(apiType, allPaths=allPaths):
+                selectionList.add(dagNode)
         else:
-            generator = iterDG(apiType)
+            for mObject in iterDG(apiType):
+                selectionList.add(mObject)
 
-        selectionList = om2.MSelectionList()
-        for item in generator:
-            selectionList.add(item)
         if self.args:
             selectionList.intersect(self._search())
         return selectionList
@@ -472,7 +485,7 @@ def getMelGlobal(name):
 
 
 def validateNamespace(namespace):
-    # type: (str) -> str
+    # type: (StrLike) -> str
     """Validate a namespace input."""
     split = str(namespace).strip(':').split(':')
     return ':' + ':'.join(filter(bool, map(om2.MNamespace.validateName, split)))

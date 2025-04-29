@@ -2,26 +2,25 @@ from __future__ import absolute_import, division
 
 import sys
 from collections import namedtuple
-from types import GeneratorType
 
 import imath  # type: ignore
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 
 from .type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Type, Union
+    from typing import Any, Iterable, Iterator, Type
     from .type_hints import StrLike
     MappingKey = Any
     MappingKeyType = Type[MappingKey]
-    Matrix16x1Type = Tuple[float, float, float, float,
+    Matrix16x1Type = tuple[float, float, float, float,
                            float, float, float, float,
                            float, float, float, float,
                            float, float, float, float]
-    Matrix4x4Type = Tuple[Tuple[float, float, float, float],
-                          Tuple[float, float, float, float],
-                          Tuple[float, float, float, float],
-                          Tuple[float, float, float, float]]
+    Matrix4x4Type = tuple[tuple[float, float, float, float],
+                          tuple[float, float, float, float],
+                          tuple[float, float, float, float],
+                          tuple[float, float, float, float]]
 
 if sys.version_info.major != 2:
     unicode = str  # pylint: disable=invalid-name
@@ -34,17 +33,19 @@ class Matrix4D(object):
     """Hold a 4D matrix."""
 
     def __init__(self, matrix=None):
-        # type: (Optional[Union[om2.MMatrix, Matrix16x1Type, Matrix4x4Type]]) -> None
+        # type: (om2.MMatrix | Matrix16x1Type | Matrix4x4Type | None) -> None
         if matrix is None:
             self._matrix = imath.M44d()
         elif isinstance(matrix, imath.M44d):
             self._matrix = imath.M44d(matrix)
         elif isinstance(matrix, om2.MMatrix):
             self._matrix = imath.M44d(*matrix)
-        else:
-            if len(matrix) == 4:
-                matrix = map(tuple, matrix)
+        elif len(matrix) == 4:
+            self._matrix = imath.M44d(*map(tuple, matrix))
+        elif len(matrix) == 16:
             self._matrix = imath.M44d(*matrix)
+        else:
+            raise TypeError('unsupported matrix format')
 
     def __repr__(self):
         return '{}(({}, {}, {}, {}))'.format(type(self).__name__, *self.rows)
@@ -67,7 +68,7 @@ class Matrix4D(object):
     def rows(self):
         # type: () -> Matrix4x4Type
         """Iterate over each row of the matrix."""
-        # Well this was a right pain to keep mypy happy
+        # Well this was a pain to keep mypy happy
         if TYPE_CHECKING:
             rows = ((self._matrix[0][1], self._matrix[0][2], self._matrix[0][3], self._matrix[0][4]),
                     (self._matrix[1][1], self._matrix[1][2], self._matrix[1][3], self._matrix[1][4]),
@@ -81,7 +82,7 @@ class Matrix4D(object):
 class StrMixin(object):  # pylint: disable=useless-object-inheritance
     """Add methods to make the classes behave like strings."""
 
-    __slots__ = []  # type: List[str]
+    __slots__ = []  # type: list[str]
 
     @property
     def name(self):
@@ -143,11 +144,11 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
         return value + self.name
 
     def split(self, *args, **kwargs):
-        # type: (*Any, **Any) -> List[str]
+        # type: (*Any, **Any) -> list[str]
         return self.name.split(*args, **kwargs)
 
     def rsplit(self, *args, **kwargs):
-        # type: (*Any, **Any) -> List[str]
+        # type: (*Any, **Any) -> list[str]
         return self.name.rsplit(*args, **kwargs)
 
     def startswith(self, value):
@@ -159,15 +160,15 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
         return self.name.endswith(value)
 
     def strip(self, value=None):
-        # type: (Optional[str]) -> str
+        # type: (str | None) -> str
         return self.name.strip(value)
 
     def lstrip(self, value=None):
-        # type: (Optional[str]) -> str
+        # type: (str | None) -> str
         return self.name.lstrip(value)
 
     def rstrip(self, value=None):
-        # type: (Optional[str]) -> str
+        # type: (str | None) -> str
         return self.name.rstrip(value)
 
     def replace(self, old, new):
@@ -191,7 +192,7 @@ class MappedLazyList(object):
     __slots__ = ['_data', '_mapping', '_unmapped', '_isDataLoaded', '_expectedLength', '_keyType']
 
     def __init__(self, data=None, keyType=None):
-        # type: (Optional[Iterable[Any]], Optional[Union[MappingKeyType, Tuple[MappingKeyType, ...]]]) -> None
+        # type: (Iterable[Any] | None, MappingKeyType | tuple[MappingKeyType, ...] | None) -> None
         """Set up the list.
 
         Parameters:
@@ -204,13 +205,13 @@ class MappedLazyList(object):
         """
         self._isDataLoaded = False
         if data is None:
-            self._data = []  # type: List[Any]
+            self._data = []  # type: list[Any]
             self._expectedLength = None
         else:
             self._data = list(data)
             self._expectedLength = len(self._data)
-        self._unmapped = []  # type: List[int]
-        self._mapping = None  # type: Optional[Dict[str, MappingKey]]
+        self._unmapped = []  # type: list[int]
+        self._mapping = None  # type: dict[str, MappingKey] | None
 
         if not keyType or keyType in (str, unicode):
             keyType = (str, unicode)
@@ -282,7 +283,7 @@ class MappedLazyList(object):
             self._isDataLoaded = True
 
     def loadData(self, key=None):  # pylint: disable=unused-argument, no-self-use
-        # type: (Optional[Union[int, str]]) -> bool
+        # type: (int | str | None) -> bool
         """Load all data or for a specific index or key.
         Requires override.
 
@@ -372,7 +373,7 @@ class MappedLazyList(object):
 
     @property
     def mapping(self):
-        # type: () -> Dict[MappingKey, Any]
+        # type: () -> dict[MappingKey, Any]
         """Get the mapping of keys to indexes."""
         if self._mapping is None:
             self._mapping = {self.generateKey(item): i for i, item in enumerate(self._data)}
@@ -383,7 +384,7 @@ class MappedLazyList(object):
         return self._mapping
 
     def __getitem__(self, value):
-        # type: (Union[slice, int, str]) -> Any
+        # type: (slice | int | str) -> Any
         """Get the value at a specific key or index."""
         if isinstance(value, slice):
             for i in range(value.start, value.stop, value.step or 1):
@@ -412,17 +413,17 @@ class MappedLazyList(object):
             return default
 
     def keys(self):
-        # type: () -> List[MappingKey]
+        # type: () -> list[MappingKey]
         """Get all the mapped keys."""
         return list(self.mapping)
 
     def values(self):
-        # type: () -> List[Any]
+        # type: () -> list[Any]
         """Get all of the data."""
         return list(self._data)
 
     def items(self):
-        # type: () -> Iterator[Tuple[MappingKey, Any]]
+        # type: () -> Iterator[tuple[MappingKey, Any]]
         """Get all the mapped items."""
         for k, v in self.mapping.items():
             yield k, self._data[v]

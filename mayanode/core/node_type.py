@@ -3,13 +3,13 @@ try:
 except ImportError:
     from collections import MutableSequence  # type: ignore[attr-defined]
 
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from ..type_hints import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, List, Optional, Union
+    from typing import Any
 
 
 class NodeTypes(MutableSequence):
@@ -20,7 +20,7 @@ class NodeTypes(MutableSequence):
     __slots__ = ['_include', '_exclude', '_data']
 
     def __init__(self, include=None, exclude=None):
-        # type: (Optional[str], Optional[str]) -> None
+        # type: (str | None, str | None) -> None
         """Store the data required to load the node types.
         If no inputs are given then all types will be returned.
 
@@ -48,7 +48,7 @@ class NodeTypes(MutableSequence):
         else:
             self._include = ':' + include.lower()
         self._exclude = ':' + (exclude or '').lower()
-        self._data = None  # type: Optional[List[NodeType]]
+        self._data = None  # type: list[NodeType] | None
 
     def _ensureLoaded(self):
         # type: () -> None
@@ -123,11 +123,11 @@ class NodeTypes(MutableSequence):
 
     @overload
     def __getitem__(self, index):
-        # type: (slice) -> List[NodeType]
+        # type: (slice) -> list[NodeType]
         pass
 
     def __getitem__(self, index):
-        # type: (Union[int, slice]) -> Union[NodeType, List[NodeType]]
+        # type: (int | slice) -> NodeType | list[NodeType]
         """Get a node type at an index."""
         self._ensureLoaded()
         if TYPE_CHECKING:
@@ -155,10 +155,10 @@ class NodeTypes(MutableSequence):
 class NodeType(str):
     """Get the current node type or what it inherits."""
 
-    _TYPE_REGISTRY = {}  # type: Dict[str, NodeType]
+    _TYPE_REGISTRY = {}  # type: dict[str, NodeType]
 
     def __new__(cls, name):
-        # type: (Union[int, om2.MTypeId, str]) -> NodeType
+        # type: (int | om2.MTypeId | str) -> NodeType
         """Create a singleton for each node type."""
         if isinstance(name, int):
             name = om2.MTypeId(name)
@@ -170,13 +170,13 @@ class NodeType(str):
 
     def __init__(self, name):
         # type: (str) -> None
-        self._mNodeClass = None  # type: Optional[om2.MNodeClass]
-        self._inherited = None  # type: Optional[List[str]]
-        self._derived = None  # type: Optional[List[str]]
+        self._mNodeClass = None  # type: om2.MNodeClass | None
+        self._inherited = None  # type: list[str] | None
+        self._derived = None  # type: list[str] | None
 
     @classmethod
     def ls(cls, include=None, exclude=None):
-        # type: (Optional[str], Optional[str]) -> NodeTypes
+        # type: (str | None, str | None) -> NodeTypes
         """Get all matching node types."""
         return NodeTypes(include, exclude)
 
@@ -190,7 +190,7 @@ class NodeType(str):
 
     @property
     def inherited(self):
-        # type: () -> List[str]
+        # type: () -> list[str]
         """All base node types inherited by this type."""
         if self._inherited is None:
             # This is the same speed as `om2.MGlobal.getFunctionSetList()`
@@ -199,7 +199,7 @@ class NodeType(str):
 
     @property
     def derived(self):
-        # type: () -> List[str]
+        # type: () -> list[str]
         """All currently known node types deriving from this type."""
         if self._derived is None:
             self._derived = mc.nodeType(self, isTypeName=True, derived=True)

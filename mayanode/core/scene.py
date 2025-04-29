@@ -1,6 +1,6 @@
 import os
 
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
@@ -8,7 +8,6 @@ from .. import types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Dict, Optional, Union
     from ..type_hints import StrLike
 
 
@@ -20,7 +19,7 @@ class _Scene(object):
 
     @property
     def path(self):
-        # type: () -> Optional[File]
+        # type: () -> File | None
         """Get the full scene path.
 
         Returns:
@@ -41,7 +40,7 @@ class _Scene(object):
 
     @property
     def name(self):
-        # type: () -> Optional[str]
+        # type: () -> str | None
         """Get the scene name without its extension.
 
         Returns:
@@ -68,7 +67,7 @@ class _Scene(object):
         mc.file(new=True, force=force)
 
     def open(self, path, force=False, selectivePreload=None):
-        # type: (str, bool, Optional[bool]) -> None
+        # type: (str, bool, bool | None) -> None
         """Open a scene.
 
         Parameters:
@@ -139,7 +138,7 @@ class _Scene(object):
 
     @property
     def plugins(self):
-        # type: () -> Dict[str, Plugin]
+        # type: () -> dict[str, Plugin]
         """Get all the currently loaded plugins.
 
         Returns:
@@ -161,7 +160,7 @@ class _Scene(object):
 
     @property
     def audio(self):
-        # type: () -> Optional[Node]
+        # type: () -> Node | None
         """Get the current scene audio node."""
         audio = mc.timeControl(utils.getMelGlobal('PlayBackSlider'), query=True, sound=True)
         if not audio:
@@ -170,14 +169,16 @@ class _Scene(object):
 
     @audio.setter
     def audio(self, audio):
-        # type: (Optional[StrLike]) -> None
+        # type: (StrLike | None) -> None
         """Set new audio for the scene.
         If a path is given, then a new node will be created.
         """
         utils.logger.info('Setting scene audio: %s', audio)
-        if not audio:
+        if audio:
+            audio = str(audio)
+        else:
             audio = ''
-        elif not isinstance(audio, Node) and '.' in audio:
+        if not isinstance(audio, Node) and '.' in audio:
             audio = mc.sound(file=audio, name=os.path.splitext(os.path.basename(audio))[0])
         mc.timeControl(utils.getMelGlobal('PlayBackSlider'), edit=True, sound=audio, displaySound=bool(audio))
 
@@ -192,7 +193,7 @@ class SceneNodes(types.MappedLazyList):
     """Hold a dict of all nodes currently in the scene."""
 
     def loadData(self, key=None):
-        # type: (Optional[Union[int, str]]) -> bool
+        # type: (int | str | None) -> bool
         """Get the node objects."""
         if key is None or isinstance(key, int):
             self._extend(Node.ls())

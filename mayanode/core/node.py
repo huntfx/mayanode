@@ -1,14 +1,14 @@
 import math
 from uuid import UUID
 
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from .. import constants, exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+    from typing import Any
     from ..type_hints import StrLike
 
 
@@ -30,7 +30,7 @@ class Ancestors(types.MappedLazyList):
     def __init__(self, node):
         # type: (Node) -> None
         self._node = node
-        self._ancestors = []  # type: List[om2.MDagPath]
+        self._ancestors = []  # type: list[om2.MDagPath | None]
         self._loadedAllAncestors = False
         super(Ancestors, self).__init__(None if node.api.dagPath.isValid() else [])
 
@@ -67,7 +67,7 @@ class Ancestors(types.MappedLazyList):
         return ancestorLength
 
     def loadData(self, key=None):
-        # type: (Optional[Union[int, str]]) -> bool
+        # type: (int | str | None) -> bool
         """Load the ancestor data.
 
         If a negative index is requested, then all the DAG paths will
@@ -127,7 +127,7 @@ class Ancestors(types.MappedLazyList):
                 self._ancestors[key] = dagPath.pop(key - dagOffset)
 
         # Get the requested indexes
-        indexes = []  # type: List[int]
+        indexes = []  # type: list[int]
         if isinstance(key, int):
             # Ignore any index error here as it's only loading the data
             try:
@@ -163,13 +163,13 @@ class _ApiData(object):
         self._handle = om2.MObjectHandle(mObject)
         self._dependencyNode = om2.MFnDependencyNode(mObject)
 
-        self._transform = None  # type: Optional[om2.MFnTransform]
-        self._hasGeometry = None  # type: Optional[bool]
-        self._reference = None  # type: Optional[om2.MFnReference]
-        self._dagNode = None  # type: Optional[om2.MFnDagNode]
-        self._dagPaths = None  # type: Optional[List[om2.MDagPath]]
-        self._set = None  # type: Optional[om2.MFnSet]
-        self._camera = None  # type: Optional[om2.MFnCamera]
+        self._transform = None  # type: om2.MFnTransform | None
+        self._hasGeometry = None  # type: bool | None
+        self._reference = None  # type: om2.MFnReference | None
+        self._dagNode = None  # type: om2.MFnDagNode | None
+        self._dagPaths = None  # type: list[om2.MDagPath] | None
+        self._set = None  # type: om2.MFnSet | None
+        self._camera = None  # type: om2.MFnCamera | None
 
     def __bool__(self):
         # type: () -> bool
@@ -290,7 +290,7 @@ class _ApiData(object):
 
     @property
     def dagNode(self):
-        # type: () -> Optional[om2.MFnDagNode]
+        # type: () -> om2.MFnDagNode | None
         """Get the `MFnDagNode`.
 
         Notable methods:
@@ -315,7 +315,7 @@ class _ApiData(object):
 
     @property
     def dagPath(self):
-        # type: () -> om2.dagPath
+        # type: () -> om2.MDagPath
         """Get the `MDagPath` object, or None.
 
         Notable methods:
@@ -348,7 +348,7 @@ class _ApiData(object):
 
     @property
     def dagPaths(self):
-        # type: () -> List[om2.dagPath]
+        # type: () -> list[om2.MDagPath]
         """Get all `MDagPath` objects to this node and instances.
         Because instances can be created and deleted, it is recommended
         to run `recalculateDagPaths()` first.
@@ -364,7 +364,7 @@ class _ApiData(object):
         return dagPaths
 
     def recalculateDagPaths(self):
-        # type: () -> List[om2.MDagPath]
+        # type: () -> list[om2.MDagPath]
         """Recalculate all the `MDagPath` nodes.
         This should only be used when checking for instances, since they
         can be created or deleted at any time.
@@ -393,7 +393,7 @@ class _ApiData(object):
 
     @property
     def instanceNumber(self):
-        # type: () -> Optional[int]
+        # type: () -> int | None
         """Get the current instance number."""
         instNum = self._instanceNumber
 
@@ -405,7 +405,7 @@ class _ApiData(object):
         return instNum
 
     def getTransformObject(self):
-        # type: () -> Optional[om2.MObject]
+        # type: () -> om2.MObject | None
         """Get the transform dag path from a shape node."""
         dagPath = self.dagPath
         if not dagPath.isValid():
@@ -449,7 +449,7 @@ class _ApiData(object):
 
     @property
     def mesh(self):
-        # type: () -> Optional[om2.MFnMesh]
+        # type: () -> om2.MFnMesh | None
         """Get the `MFnMesh`.
 
         Note that the object has to be generated per call rather than
@@ -473,7 +473,7 @@ class _ApiData(object):
 
     @property
     def transform(self):
-        # type: () -> Optional[om2.MFnTransform]
+        # type: () -> om2.MFnTransform | None
         """Get the `MFnTransform`
 
         Notable methods:
@@ -484,7 +484,7 @@ class _ApiData(object):
 
             # Intercept when loading on deleted nodes
             if mobj.isNull():
-                return []
+                return None  # TODO: Add test
 
             # Load the MFnTransform if supported
             if mobj.hasFn(om2.MFn.kTransform):
@@ -498,7 +498,7 @@ class _ApiData(object):
 
     @property
     def reference(self):
-        # type: () -> Optional[om2.MFnReference]
+        # type: () -> om2.MFnReference | None
         """Get the `MFnReference`.
 
         Notable methods:
@@ -511,7 +511,7 @@ class _ApiData(object):
 
             # Intercept when loading on deleted nodes
             if mobj.isNull():
-                return []
+                return None  # TODO: Add test
 
             # Load the MFnReference if supported
             if mobj.hasFn(om2.MFn.kReference):
@@ -525,7 +525,7 @@ class _ApiData(object):
 
     @property
     def set(self):
-        # type: () -> Optional[om2.MFnSet]
+        # type: () -> om2.MFnSet | None
         """Get the `MFnSet`.
 
         Notable methods:
@@ -536,7 +536,7 @@ class _ApiData(object):
 
             # Intercept when loading on deleted nodes
             if mobj.isNull():
-                return []
+                return None  # TODO: Add test
 
             # Load the MFnSet if supported
             if mobj.hasFn(om2.MFn.kSet):
@@ -550,12 +550,12 @@ class _ApiData(object):
 
     @property
     def camera(self):
-        # type: () -> Optional[om2.MFnCamera]
+        # type: () -> om2.MFnCamera | None
         """Get the `MFnCamera`"""
         if self._camera is None:
             # Intercept when loading on deleted nodes
             if self.object.isNull():
-                return []
+                return None  # TODO: Add test
 
             # Load the MFnTransform if supported
             dagPath = self.getShapeDagPath()
@@ -667,7 +667,7 @@ class Node(types._NodeType):
 
     @classmethod
     def ls(cls, *args, **kwargs):
-        # type: (*Any, **Any) -> List[Node]
+        # type: (*Any, **Any) -> list[Node]
         """Shortcut to search the scene.
 
         This will use the API when possible.
@@ -762,7 +762,7 @@ class Node(types._NodeType):
 
     @uuid.setter
     def uuid(self, uuid):
-        # type: (Union[str, UUID]) -> None
+        # type: (str | UUID) -> None
         """Set a new UUID.
 
         Raises:
@@ -847,7 +847,7 @@ class Node(types._NodeType):
         elif not name.startswith(':'):
             name = ':' + name
 
-        mod = MayaNode.dgModifier
+        mod = MayaNode.dgModifier  # type: om2.MDGModifier | om2.MDagModifier | None
         if mod is None:
             mod = MayaNode.dagModifier
 
@@ -895,7 +895,7 @@ class Node(types._NodeType):
         return self._attrs
 
     def select(self, add=None, replace=None):
-        # type(Optional[bool], Optional[bool]) -> None
+        # type(bool | None, bool | None) -> None
         """Select the current node.
 
         Parameters:
@@ -934,7 +934,7 @@ class Node(types._NodeType):
 
     @property
     def translation(self):
-        # type: () -> Optional[types.Coordinate]
+        # type: () -> types.Coordinate | None
         """Get the translation of the node.
 
         Equivalent:
@@ -956,7 +956,7 @@ class Node(types._NodeType):
 
     @translation.setter
     def translation(self, value):
-        # type: (Tuple[float, float, float]) -> None
+        # type: (tuple[float, float, float]) -> None
         """Set a new node translation.
 
         Raises:
@@ -977,7 +977,7 @@ class Node(types._NodeType):
 
     @property
     def rotation(self):
-        # type: () -> Optional[types.Coordinate]
+        # type: () -> types.Coordinate | None
         """Get the rotation of the node.
 
         Equivalent:
@@ -999,7 +999,7 @@ class Node(types._NodeType):
 
     @rotation.setter
     def rotation(self, value):
-        # type: (Tuple[float, float, float]) -> None
+        # type: (tuple[float, float, float]) -> None
         """Set a new node rotation.
 
         Raises:
@@ -1020,7 +1020,7 @@ class Node(types._NodeType):
 
     @property
     def scaling(self):
-        # type: () -> Optional[types.Coordinate]
+        # type: () -> types.Coordinate | None
         """Get the scale of the node.
 
         Equivalent:
@@ -1042,7 +1042,7 @@ class Node(types._NodeType):
 
     @scaling.setter
     def scaling(self, value):
-        # type: (Tuple[float, float, float]) -> None
+        # type: (tuple[float, float, float]) -> None
         """Set a new node scale.
 
         Raises:
@@ -1053,7 +1053,7 @@ class Node(types._NodeType):
 
     @property
     def matrix(self):
-        # type: () -> types.Matrix4D
+        # type: () -> types.Matrix4D | None
         """Get the matrix of the node.
 
         Equivalent:
@@ -1111,14 +1111,14 @@ class Node(types._NodeType):
 
     @property
     def plugin(self):
-        # type: () -> Optional[Plugin]
+        # type: () -> Plugin | None
         """Get the plugin this node is from."""
         nodeClass = om2.MNodeClass(self.api.dependencyNode.typeId)
         return Plugin.fromPath(nodeClass.pluginName)
 
     @property
     def parents(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get the node parents."""
         if self.api.dagNode is None:
             return []
@@ -1132,7 +1132,7 @@ class Node(types._NodeType):
 
     @property
     def parent(self):
-        # type: () -> Optional[Node]
+        # type: () -> Node | None
         """Get the node parent."""
         if not self.exists:
             return None
@@ -1184,11 +1184,12 @@ class Node(types._NodeType):
                 raise
 
         else:
+            if TYPE_CHECKING: assert dagModifier is not None
             dagModifier.reparentNode(self.api.object, om2.MObject.kNullObj)
 
     @property
     def children(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get all node children.
 
         TODO:
@@ -1215,7 +1216,7 @@ class Node(types._NodeType):
 
     @property
     def descendents(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get all node descendents.
         Instances are deduplicated so this only returns unique nodes.
 
@@ -1268,7 +1269,7 @@ class Node(types._NodeType):
 
     @property
     def shape(self):
-        # type: () -> Optional[Node]
+        # type: () -> Node | None
         """Get the shape node.
 
         Equivalent:
@@ -1285,7 +1286,7 @@ class Node(types._NodeType):
 
     @property
     def transform(self):
-        # type: () -> Optional[Node]
+        # type: () -> Node | None
         """Get the transform node.
 
         Equivalent:
@@ -1333,7 +1334,7 @@ class Node(types._NodeType):
 
     @property
     def instances(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get all the node instances including this."""
         if not self.exists:
             return []
@@ -1346,7 +1347,7 @@ class Node(types._NodeType):
 
     @property
     def instanceNumber(self):
-        # type: () -> Optional[int]
+        # type: () -> int | None
         """Get the index of the current index."""
         self.api.recalculateDagPaths()
         return self.api.instanceNumber
@@ -1374,7 +1375,7 @@ class Node(types._NodeType):
 
     @property
     def shadingGroups(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get all the shading groups assigned to this node.
 
         Equivalent:
@@ -1384,7 +1385,7 @@ class Node(types._NodeType):
 
     @property
     def shadingGroup(self):
-        # type: () -> Optional[Node]
+        # type: () -> Node | None
         """Get the shading group assigned to the node."""
         dagPath = self.api.dagPath
         if dagPath.isValid():
@@ -1397,7 +1398,7 @@ class Node(types._NodeType):
 
     @shadingGroup.setter
     def shadingGroup(self, shadingEngine):
-        # type: (Union[str, Node]) -> None
+        # type: (str | Node) -> None
         """Set a new shading group on the current object instance.
 
         Warnings:
@@ -1414,7 +1415,7 @@ class Node(types._NodeType):
 
     @property
     def _material(self):
-        # type: () -> Optional[Node]
+        # type: () -> Node | None
         """Get the default material assigned to the node.
         Note that materials are usually assigned to meshes.
 
@@ -1434,7 +1435,7 @@ class Node(types._NodeType):
 
     @property
     def _texture(self):
-        # type: () -> Optional[Node]
+        # type: () -> Node | None
         """Get the default texture assigned to the node.
 
         TODO:
@@ -1547,7 +1548,7 @@ class Node(types._NodeType):
 
     @property
     def uvSet(self):
-        # type: () -> Optional[UVSet]
+        # type: () -> UVSet | None
         """Get the current UV set.
 
         Equivalent:
@@ -1559,18 +1560,16 @@ class Node(types._NodeType):
 
     @uvSet.setter
     def uvSet(self, uvSet):
-        # type: (Union[str, UVSet]) -> None
+        # type: (str | UVSet) -> None
         """Set the current UV set.
         This will be skipped if the requested UV set is the current one.
 
         Raises:
             UVSetNotFoundError
             NodeNotFoundError
-
-        TODO:
-            Test giving a UVSet instance
         """
         utils.raiseIfNodeNotFound(self)
+        uvSet = str(uvSet)
 
         # Checks
         mesh = self.api.mesh
@@ -1605,7 +1604,7 @@ class Node(types._NodeType):
 
     @property
     def uvLinks(self):
-        # type: () -> List[Attribute]
+        # type: () -> list[Attribute]
         """Get any UV links pointing to the current node.
 
         TODO:
@@ -1659,7 +1658,7 @@ class Node(types._NodeType):
 
     @property
     def _uvLinks(self):
-        # type: () -> List[Attribute]
+        # type: () -> list[Attribute]
         """WIP Implementation using OpenMaya.
         This is an attempt to understand what's going on under the hood
         as there's not a lot of information.
@@ -1734,7 +1733,7 @@ class Node(types._NodeType):
 
     @property
     def colorSet(self):
-        # type: () -> Optional[ColorSet]
+        # type: () -> ColorSet | None
         """Get the current color set.
 
         Equivalent:
@@ -1746,7 +1745,7 @@ class Node(types._NodeType):
 
     @colorSet.setter
     def colorSet(self, colorSet):
-        # type: (Union[str, ColorSet]) -> None
+        # type: (str | ColorSet) -> None
         """Set a new color set.
 
         Raises:
@@ -1767,7 +1766,7 @@ class Node(types._NodeType):
 
     @property
     def colorSets(self):
-        # type: () -> List[ColorSet]
+        # type: () -> list[ColorSet]
         """Get a list of color sets for the node.
 
         Equivalent:
@@ -1809,7 +1808,7 @@ class Node(types._NodeType):
 
     @property
     def reference(self):
-        # type: () -> Optional[Reference]
+        # type: () -> Reference | None
         """Get the associated reference if the node is referenced.
 
         Equivalent:
@@ -1827,7 +1826,7 @@ class Node(types._NodeType):
 
     @property
     def camera(self):
-        # type: () -> Optional[Camera]
+        # type: () -> Camera | None
         """Get the camera class if the current node is a camera."""
         dagPath = self.api.getShapeDagPath()
         if dagPath.hasFn(om2.MFn.kCamera):
@@ -1881,7 +1880,7 @@ class Node(types._NodeType):
 
     @property
     def members(self):
-        # type: () -> List[Node]
+        # type: () -> list[Node]
         """Get the members of the set if the object is a set.
         In the case of instanced shapes, the correct instance will be
         returned.

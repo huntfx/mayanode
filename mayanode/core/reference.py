@@ -1,6 +1,6 @@
 import os
 
-import maya.api.OpenMaya as om2  # type: ignore
+import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from .node import Node
@@ -8,7 +8,7 @@ from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, List, Union, Optional
+    from typing import Any, Iterable
     from ..type_hints import StrLike
 
 
@@ -25,7 +25,7 @@ class Reference(Node):
 
     @classmethod
     def ls(cls, *args, **kwargs):
-        # type: (*StrLike, **Any)  -> List[Reference]
+        # type: (*StrLike, **Any) -> list[Reference]
         """Get all valid references."""
         # Get all file references
         # Using `mc.ls` may return invalid references without files
@@ -33,13 +33,15 @@ class Reference(Node):
         # `mc.referenceQuery` is considerably slower
         if args:
             sl = utils.Ls(*args, type='reference')()
-            refNodeGen = map(sl.getDependNode, range(sl.length()))
+            if sl is None:
+                return []
+            refNodeGen = map(sl.getDependNode, range(sl.length()))  # type: Iterable[om2.MObject]
 
         # If no args, then it's faster just to do this
         else:
             refNodeGen = utils.iterDG(om2.MFn.kReference)
 
-        refNodes = []
+        refNodes = []  # type: list[Reference]
         for refNode in refNodeGen:
             # The second argument (includePath) is faster when True
             try:
@@ -49,7 +51,7 @@ class Reference(Node):
             refNodes.append(cls(refNode))
 
         # Filter by loaded refs
-        loaded = kwargs.get('loaded')  # type: Optional[bool]
+        loaded = kwargs.get('loaded')  # type: bool | None
         if loaded is not None:
             refNodes = [ref for ref in refNodes if ref.loaded == loaded]
 
@@ -57,7 +59,7 @@ class Reference(Node):
 
     @classmethod
     def fromFile(cls, filepath):
-        # type: (StrLike) -> List[Reference]
+        # type: (StrLike) -> list[Reference]
         """Get all references matching a file path."""
         filepath = os.path.normpath(str(filepath))
         matches = []
@@ -72,7 +74,7 @@ class Reference(Node):
 
     @classmethod
     def fromNamespace(cls, namespace):
-        # type: (StrLike) -> Optional[Reference]
+        # type: (StrLike) -> Reference | None
         """Get the reference matching the namespace."""
         return Namespace(namespace).reference
 
@@ -118,12 +120,14 @@ class Reference(Node):
             `mc.referenceQuery(self, namespace=True)`
         """
         utils.raiseIfNodeNotFound(self.refNode)
+        mfnReference = self.api.reference
+        assert mfnReference is not None
 
         # Get the associated namespace
         # If the namespace exists, it will return the namespace
         # If the namespace does not exist, it will return an empty string
         # If the reference has no namespace, it will return an empty string
-        associatedNamespace = self.api.reference.associatedNamespace(False)
+        associatedNamespace = mfnReference.associatedNamespace(False)
         if associatedNamespace:
             return Namespace(associatedNamespace)
 
@@ -139,7 +143,7 @@ class Reference(Node):
 
     @namespace.setter
     def namespace(self, namespace):
-        # type: (Union[Namespace, str]) -> None
+        # type: (Namespace | str) -> None
         """Set a new namespace for the reference.
 
         Raises:
@@ -157,7 +161,7 @@ class Reference(Node):
 
     @property
     def path(self):
-        # type: () -> Optional[File]
+        # type: () -> File | None
         """Get the raw unresolved reference file path.
         Use `.resolve()` to get the resolved path.
 
@@ -168,8 +172,10 @@ class Reference(Node):
             The resolved filepath or None.
         """
         utils.raiseIfNodeNotFound(self.refNode)
+        mfnReference = self.api.reference
+        assert mfnReference is not None
         try:
-            filepath = self.api.reference.fileName(resolvedName=False, includePath=False, includeCopyNumber=False)
+            filepath = mfnReference.fileName(resolvedName=False, includePath=False, includeCopyNumber=False)
         except RuntimeError as e:
             if '(kFailure): Object does not exist' in str(e):
                 return None
@@ -186,7 +192,7 @@ class Reference(Node):
 
     @property
     def refPath(self):
-        # type: () -> Optional[File]
+        # type: () -> File | None
         """Get the unresolved reference file path with copy numbers.
 
         Equivalent:
@@ -196,8 +202,10 @@ class Reference(Node):
             The unresolved filepath or None.
         """
         utils.raiseIfNodeNotFound(self.refNode)
+        mfnReference = self.api.reference
+        assert mfnReference is not None
         try:
-            filepath = self.api.reference.fileName(resolvedName=False, includePath=False, includeCopyNumber=True)
+            filepath = mfnReference.fileName(resolvedName=False, includePath=False, includeCopyNumber=True)
         except RuntimeError as e:
             if '(kFailure): Object does not exist' in str(e):
                 return None
@@ -206,7 +214,7 @@ class Reference(Node):
 
     @property
     def filename(self):
-        # type: () -> Optional[str]
+        # type: () -> str | None
         """Get the reference filename.
 
         Equivalent:
@@ -216,8 +224,10 @@ class Reference(Node):
             The filename or None.
         """
         utils.raiseIfNodeNotFound(self.refNode)
+        mfnReference = self.api.reference
+        assert mfnReference is not None
         try:
-            return self.api.reference.fileName(resolvedName=False, includePath=True, includeCopyNumber=False)
+            return mfnReference.fileName(resolvedName=False, includePath=True, includeCopyNumber=False)
         except RuntimeError as e:
             if '(kFailure): Object does not exist' in str(e):
                 return None
@@ -232,7 +242,9 @@ class Reference(Node):
             `mc.referenceQuery(self, isLoaded=True)`
         """
         utils.raiseIfNodeNotFound(self.refNode)
-        return self.api.reference.isLoaded()
+        mfnReference = self.api.reference
+        assert mfnReference is not None
+        return mfnReference.isLoaded()
 
     @loaded.setter
     def loaded(self, loaded):
@@ -274,13 +286,14 @@ class Reference(Node):
         """
         utils.logger.info('Deleting reference: %s', self)
         utils.raiseIfNodeNotFound(self.refNode)
-        mfnRef = self.api.reference
+        mfnReference = self.api.reference
+        assert mfnReference is not None
 
         namespacesToDelete = []
         if forceRemoveNamespaces:
             # Determine if the node is a reference with no namespace
             requiresExtraCleanup = False
-            if not mfnRef.associatedNamespace(False):
+            if not mfnReference.associatedNamespace(False):
                 try:
                     if mc.referenceQuery(self, namespace=True) == ':':
                         requiresExtraCleanup = True
@@ -289,12 +302,12 @@ class Reference(Node):
 
             # Get the namespace from all child ref nodes
             if requiresExtraCleanup:
-                for node in mfnRef.nodes():
+                for node in mfnReference.nodes():
                     if node.hasFn(om2.MFn.kReference):
                         namespacesToDelete.append(om2.MFnReference(node).associatedNamespace(False))
 
         # Delete the reference
-        filename = mfnRef.fileName(resolvedName=True, includePath=True, includeCopyNumber=True)
+        filename = mfnReference.fileName(resolvedName=True, includePath=True, includeCopyNumber=True)
         mc.file(filename, removeReference=True)
 
         # If no namespace, then child refnode namespaces will be left behind
@@ -321,7 +334,9 @@ class Reference(Node):
         # type: () -> bool
         """Get if the reference is locked."""
         utils.raiseIfNodeNotFound(self.refNode)
-        return self.api.reference.isLocked()
+        mfnReference = self.api.reference
+        assert mfnReference is not None
+        return mfnReference.isLocked()
 
     @locked.setter
     def locked(self, locked):
@@ -374,67 +389,70 @@ class Reference(Node):
         utils.raiseIfNodeNotFound(self.refNode)
         depth = 0
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
-        mobject = self.refNode.api.object
+        mObject = self.refNode.api.object
+        assert mObject is not None
         for _ in depNodeIt:
             refNode = depNodeIt.thisNode()
             fnRefNode = om2.MFnReference(refNode)
-            if fnRefNode.containsNode(mobject):
+            if fnRefNode.containsNode(mObject):
                 depth += 1
         return depth
 
     @property
     def parent(self):
-        # type: () -> Optional[Reference]
+        # type: () -> Reference | None
         """Get the parent reference."""
         utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
-        currentObject = self.refNode.api.object
+        mObject = self.refNode.api.object
         for _ in depNodeIt:
             refNode = om2.MFnReference(depNodeIt.thisNode())
             # TODO: Test RuntimeError: (kFailure): Object does not exist
-            if refNode.containsNodeExactly(currentObject):
+            if refNode.containsNodeExactly(mObject):
                 return Reference(refNode)
         return None
 
     @property
     def ancestors(self):
-        # type: () -> List[Reference]
+        # type: () -> list[Reference]
         """Get all parent references."""
         utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
-        currentObject = self.refNode.api.object
+        mObject = self.refNode.api.object
         ancestors = []
         for _ in depNodeIt:
             refNode = om2.MFnReference(depNodeIt.thisNode())
-            if refNode.containsNode(currentObject):
+            if refNode.containsNode(mObject):
                 ancestors.append(Reference(refNode))
         return ancestors
 
     @property
     def children(self):
-        # type: () -> List[Reference]
+        # type: () -> list[Reference]
         """Get the nested child references."""
         utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
-        currentRefNode = self.api.reference
+        mfnReference = self.api.reference
+        assert mfnReference is not None
         children = []
         for _ in depNodeIt:
             refNode = depNodeIt.thisNode()
-            if currentRefNode.containsNodeExactly(refNode):
+            if mfnReference.containsNodeExactly(refNode):
                 children.append(Reference(refNode))
         return children
 
     @property
     def descendents(self):
-        # type: () -> List[Reference]
+        # type: () -> list[Reference]
         """Get all nested child references and their children."""
         utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
-        currentRefNode = self.api.reference
+        mfnReference = self.api.reference
+        assert mfnReference is not None
         children = []
         for _ in depNodeIt:
             refNode = depNodeIt.thisNode()
-            if currentRefNode.containsNode(refNode):
+            if mfnReference.containsNode(refNode):
                 children.append(Reference(refNode))
         return children
 
@@ -484,7 +502,9 @@ class ReferenceNodes(types.MappedLazyList):
     def __init__(self, reference):
         # type: (Reference) -> None
         self._reference = reference
-        self._apiObjects = self.reference.api.reference.nodes()
+        mfnReference = self.reference.api.reference
+        assert mfnReference is not None
+        self._apiObjects = mfnReference.nodes()
         super(ReferenceNodes, self).__init__(None for _ in self._apiObjects)
 
     def __len__(self):
@@ -510,7 +530,7 @@ class ReferenceNodes(types.MappedLazyList):
         return str(value).split(':')[-1]
 
     def loadData(self, key=None):
-        # type: (Optional[Union[int, str]]) -> bool
+        # type: (int | str | None) -> bool
         """Get the node objects."""
         if self._apiObjects is None:
             self._apiObjects = self.reference.api.reference.nodes()
@@ -527,7 +547,9 @@ class ReferenceNodes(types.MappedLazyList):
 
     def reload(self):
         # type: () -> None
-        self._apiObjects = self.reference.api.reference.nodes()
+        mfnReference = self.reference.api.reference
+        assert mfnReference is not None
+        self._apiObjects = mfnReference.nodes()
         super(ReferenceNodes, self).reload()
 
 

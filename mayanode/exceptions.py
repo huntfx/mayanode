@@ -3,10 +3,6 @@
 import sys
 
 from . import constants
-from .type_hints import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import List
 
 
 if sys.version_info.major < 3:
@@ -200,7 +196,7 @@ class InvalidTimeUnitError(BaseError):
 
     @property
     def allowed(self):
-        # type: () -> List[str]
+        # type: () -> list[str]
         """Get the allowed time units.."""
         return list(constants.TIME_UNITS)
 

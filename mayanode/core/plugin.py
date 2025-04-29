@@ -3,10 +3,6 @@ import os
 import maya.cmds as mc  # type: ignore
 
 from .. import types
-from ..type_hints import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import List, Optional
 
 
 class Plugin(types.StrMixin):
@@ -20,14 +16,14 @@ class Plugin(types.StrMixin):
 
     @classmethod
     def ls(cls):
-        # type: () -> List[Plugin]
+        # type: () -> list[Plugin]
         """Get all namespaces within the scene."""
         pluginList = mc.pluginInfo(query=True, listPlugins=True)
         return [cls(plugin) for plugin in pluginList]
 
     @classmethod
     def fromPath(cls, path):
-        # type: (str) -> Optional[Plugin]
+        # type: (str) -> Plugin | None
         """Get the plugin from a given path."""
         if not path:
             return None
@@ -57,7 +53,7 @@ class Plugin(types.StrMixin):
 
     @property
     def commands(self):
-        # type: () -> List[str]
+        # type: () -> list[str]
         """Get all the commands provided by the plugin.
         Constraint, control, context and model editor commands are not included.
         """
