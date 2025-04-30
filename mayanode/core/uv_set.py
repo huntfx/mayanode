@@ -2,115 +2,14 @@ import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
+from ..type_hints import TYPE_CHECKING, Generic, TypeVar, overload
+
+if TYPE_CHECKING:
+    from typing import Any, Iterator
+    from ..type_hints import StrLike
 
 
-class UVSetList(types.MappedLazyList):
-    """Hold multiple UV sets.
-
-    TODO:
-        Allow uvSets[:].textures
-    """
-    __slots__ = ['_node', '_faceIndex', '_uvSetNames']
-
-    def __init__(self, node, faceIndex=None):
-        # type: (Node, int | None) -> None
-        """Store the origin mesh and optionally the index of the mesh face."""
-        self._node = node
-        self._faceIndex = faceIndex
-        self._uvSetNames = None  # type: list[str] | None
-        super(UVSetList, self).__init__()
-
-    def __bool__(self):
-        # type: () -> bool
-        """Determine if any UV sets are present."""
-        if self._uvSetNames is not None:
-            return bool(self._uvSetNames)
-
-        mesh = self.node.api.mesh
-        if mesh is None:
-            return False
-        return mesh.numUVSets > 0
-    __nonzero__ = __bool__
-
-    def __len__(self):
-        # type: () -> int
-        """Get the number of UV sets."""
-        if self._uvSetNames is not None:
-            return super(UVSetList, self).__len__()
-
-        mesh = self.node.api.mesh
-        if mesh is None:
-            return 0
-        return mesh.numUVSets
-
-    def __delitem__(self, item):
-        # type: (int | str) -> None
-        """Delete a UV set."""
-        self.__getitem__(item).delete()
-
-    @property
-    def node(self):
-        # type: () -> Node
-        """Get the node."""
-        return self._node
-
-    def loadData(self, key=None):
-        # type: (int | str | None) -> bool
-        """Load all data or for a specific index."""
-        if self._uvSetNames is None:
-            if self.node.exists and self.node.api.mesh is not None:
-                if self._faceIndex is None:
-                    self._uvSetNames = list(self.node.api.mesh.getUVSetNames())
-                else:
-                    self._uvSetNames = list(self.node.api.mesh.getFaceUVSetNames(self._faceIndex))
-            else:
-                self._uvSetNames = []
-            self._set(None for _ in self._uvSetNames)
-
-        indexes = []  # type: list[int]
-        loadedAll = False
-
-        # Load all
-        if key is None:
-            indexes.extend(i for i, item in enumerate(self._data) if item is None)
-            loadedAll = True
-
-        # Load at index
-        elif isinstance(key, int):
-            # Ignore any index error here as it's only loading the data
-            try:
-                if self._data[key] is None:
-                    indexes = [key]
-            except IndexError:
-                pass
-
-        # Load all data if the UV set name isn't in the mapping
-        elif self._mapping is not None:
-            if key not in self._mapping:
-                indexes.extend(i for i, item in enumerate(self._data) if item is None)
-                loadedAll = True
-
-        # Load specific data if the UV set name was found
-        # TODO: Test performance
-        elif key in self._uvSetNames:
-            idx = self._uvSetNames.index(key)
-            if self._data[idx] is None:
-                indexes.append(idx)
-
-        for idx in indexes:
-            self._setitem(idx, UVSet(self.node, self._uvSetNames[idx]))
-
-        return loadedAll
-
-    def create(self, name):
-        # type: (str) -> UVSet
-        """Add a new UV set to the node."""
-        uvSetName = mc.polyUVSet(self.node, create=True, uvSet=name)[0]
-        if self._uvSetNames is not None:
-            self._uvSetNames.append(uvSetName)
-        uvSet = UVSet(self.node, uvSetName)
-        self._append(uvSet)
-        return uvSet
+T = TypeVar('T')
 
 
 class UVSet(types.StrMixin):
@@ -281,17 +180,184 @@ class UVSet(types.StrMixin):
 
         Equivalent:
             `mc.uvLink(query=True, uvSet=self.attr)`
-
-        TODO:
-            `textures.append(texture)` (with `mc.uvLink`)
-            `textures.remove(texture)` (with `mc.uvLink`)
-            `textures = [texture]` (with `mc.uvLink`)
         """
+        # TODO: Add tests
+        # TODO: `textures.append(texture)` (with `mc.uvLink`)
+        # TODO: `textures.remove(texture)` (with `mc.uvLink`)
+        # TODO: `textures = [texture]` (with `mc.uvLink`)
         mesh = self.node.api.mesh
         if mesh is None:
             return []
         textures = mesh.getAssociatedUVSetTextures(self.name)
         return [Node(texture) for texture in textures]
+
+
+class UVSetCollection(object):
+    """Store a list of UV sets."""
+
+    __slots__ = ['_node', '_faceIndex', '_apiObjects', '_mappedObjects', '_unloadCount']
+
+    def __init__(self, node, faceIndex=None):
+        # type: (Node, int | None) -> None
+        """Store the origin mesh and optionally the index of the mesh face."""
+        self._node = node
+        self._faceIndex = faceIndex
+        self._apiObjects = None  # type: list[str] | None
+        self._mappedObjects = []  # type: list[UVSet | None]
+        self._unloadCount = 0
+
+    @property
+    def node(self):
+        # type: () -> Node
+        """Get the node."""
+        return self._node
+
+    @property
+    def faceIndex(self):
+        # type: () -> int | None
+        """Get the node."""
+        return self._faceIndex
+
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, UVSetCollection):
+            return self._node == other._node and self._faceIndex == other._faceIndex
+        if isinstance(other, list):
+            return self.apiObjects == other
+        return False
+
+    def __repr__(self):
+        # type: () -> str
+        return repr(self.apiObjects)
+
+    def __str__(self):
+        # type: () -> str
+        return str(self.apiObjects)
+
+    def __bool__(self):
+        # type: () -> bool
+        """Determine if any UV sets are present."""
+        if self._apiObjects is not None:
+            return bool(self._apiObjects)
+
+        mesh = self.node.api.mesh
+        if mesh is None:
+            return False
+        return mesh.numUVSets > 0
+    __nonzero__ = __bool__
+
+    def __len__(self):
+        # type: () -> int
+        """Get the number of UV sets."""
+        if self._apiObjects is not None:
+            return len(self._apiObjects)
+
+        mesh = self.node.api.mesh
+        if mesh is None:
+            return 0
+        return mesh.numUVSets
+
+    def __iter__(self):
+        # type: () -> Iterator[UVSet]
+        """Iterate through each node within the reference."""
+        return iter(self._getUVSet(i) for i in range(len(self)))
+
+    @overload
+    def __getitem__(self, index):
+        # type: (int | StrLike) -> UVSet
+        pass
+    @overload
+    def __getitem__(self, index):
+        # type: (slice) -> UVSetList[UVSet]
+        pass
+    def __getitem__(self, index):
+        # type: (int | slice | StrLike) -> UVSet | UVSetList[UVSet]
+        """Get a node from an index, name or slice."""
+        # Get a list of nodes from a slice
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self))
+            return UVSetList(self._getUVSet(i) for i in range(start, stop, step))
+
+        # Get the node at an index
+        if isinstance(index, int):
+            return self._getUVSet(index)
+
+        # Get the node from its name
+        for node in self:
+            if node == index:
+                return node
+
+        raise IndexError(index)
+
+    def __delitem__(self, index):
+        # type: (int | slice | StrLike) -> None
+        """Delete a UV set using an index, name or slice."""
+        result = self.__getitem__(index)
+        if isinstance(result, UVSet):
+            result.delete()
+        else:
+            for uvSet in result:
+                uvSet.delete()
+
+    @property
+    def apiObjects(self):
+        """Get the list of UV names."""
+        if self._apiObjects is None:
+            if self._faceIndex is None:
+                self._apiObjects = list(self.node.api.mesh.getUVSetNames())
+            else:
+                self._apiObjects = list(self.node.api.mesh.getFaceUVSetNames(self._faceIndex))
+            self._mappedObjects = [None for _ in self._apiObjects]
+            self._unloadCount = len(self._apiObjects)
+        return self._apiObjects
+
+    @apiObjects.deleter
+    def apiObjects(self):
+        """Refresh the list of UV names."""
+        self._apiObjects = None
+
+    def _getUVSet(self, index):
+        # type: (int) -> UVSet
+        """Get an individual node at an index.
+        Creates a mapping if one doesn't exist.
+        """
+        if self._apiObjects is None:
+            uvSet = None
+        else:
+            uvSet = self._mappedObjects[index]
+        if uvSet is None:
+            uvSet = UVSet(self.node, self.apiObjects[index])
+            self._mappedObjects[index] = uvSet
+            self._unloadCount -= 1
+        return uvSet
+
+    def create(self, name):
+        # type: (str) -> UVSet
+        """Add a new UV set to the node."""
+        uvSetName = mc.polyUVSet(self.node, create=True, uvSet=name)[0]
+        self.apiObjects.append(uvSetName)
+        uvSet = UVSet(self.node, uvSetName)
+        self._mappedObjects.append(uvSet)
+        return uvSet
+
+    def refresh(self):
+        # type (bool) -> None
+        """Refresh all the data."""
+        self.apiObjects = None
+
+
+class UVSetList(list, Generic[T]):
+    """Add extra methods to a sublist of UV Sets."""
+
+    def textures(self):
+        # type: () -> list[Node]
+        """Get a list of texture nodes which are using the UV set.
+        If the texture has a 2D texture placement, then the texture and
+        not the placement will be returned."""
+        result = []
+        for uvSet in self:
+            result.extend(uvSet.textures)
+        return result
 
 
 # Handle circular dependencies

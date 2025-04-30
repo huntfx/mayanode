@@ -102,7 +102,7 @@ class Face(types.StrMixin):
 
     @property
     def uvSets(self):
-        # type: () -> UVSetList
+        # type: () -> UVSetCollection
         """Get the UV sets assigned to the face.
 
         Optimisation:
@@ -111,10 +111,10 @@ class Face(types.StrMixin):
             If only the UV set names are needed, then consider using
             `map(mesh.getFaceUVSetNames, range(mesh.numPolygons))`.
         """
-        return UVSetList(self.node, self.index)
+        return UVSetCollection(self.node, self.index)
 
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .node import Node
-from .uv_set import UVSet, UVSetList
+from .uv_set import UVSetCollection

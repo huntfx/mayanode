@@ -1594,13 +1594,13 @@ class Node(types._NodeType):
 
     @property
     def uvSets(self):
-        # type: () -> UVSetList
+        # type: () -> UVSetCollection
         """Get a list of UV sets for the node.
 
         Equivalent:
             `mc.polyUVSet(self, query=True, allUVSets=True)`
         """
-        return UVSetList(self)
+        return UVSetCollection(self)
 
     @property
     def uvLinks(self):
@@ -1915,4 +1915,4 @@ from .node_type import NodeType
 from .plugin import Plugin
 from .reference import Reference
 from .scene import Scene, _Scene
-from .uv_set import UVSet, UVSetList
+from .uv_set import UVSet, UVSetCollection
