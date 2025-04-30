@@ -262,6 +262,10 @@ class Reference(Node):
         utils.raiseIfNodeNotFound(self.refNode)
         mc.file(loadReference=self)
 
+        and Reference Editor work this way.
+        """
+        self.load()
+
     def unload(self, force=False):
         # type: (bool) -> None
         """Unload a reference.
