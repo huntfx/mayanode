@@ -407,8 +407,11 @@ class Reference(Node):
         mObject = self.refNode.api.object
         for _ in depNodeIt:
             refNode = om2.MFnReference(depNodeIt.thisNode())
-            # TODO: Test RuntimeError: (kFailure): Object does not exist
-            if refNode.containsNodeExactly(mObject):
+            try:
+                containsNode = refNode.containsNodeExactly(mObject)
+            except RuntimeError:
+                containsNode = False
+            if containsNode:
                 return Reference(refNode)
         return None
 
@@ -422,7 +425,11 @@ class Reference(Node):
         ancestors = []
         for _ in depNodeIt:
             refNode = om2.MFnReference(depNodeIt.thisNode())
-            if refNode.containsNode(mObject):
+            try:
+                containsNode = refNode.containsNode(mObject)
+            except RuntimeError:
+                containsNode = False
+            if containsNode:
                 ancestors.append(Reference(refNode))
         return ancestors
 
@@ -432,13 +439,17 @@ class Reference(Node):
         """Get the nested child references."""
         utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
-        mfnReference = self.api.reference
-        assert mfnReference is not None
+        refNode = self.api.reference
+        assert refNode is not None
         children = []
         for _ in depNodeIt:
-            refNode = depNodeIt.thisNode()
-            if mfnReference.containsNodeExactly(refNode):
-                children.append(Reference(refNode))
+            mObject = depNodeIt.thisNode()
+            try:
+                containsNode = refNode.containsNodeExactly(mObject)
+            except RuntimeError:
+                containsNode = False
+            if containsNode:
+                children.append(Reference(mObject))
         return children
 
     @property
@@ -447,13 +458,17 @@ class Reference(Node):
         """Get all nested child references and their children."""
         utils.raiseIfNodeNotFound(self.refNode)
         depNodeIt = om2.MItDependencyNodes(om2.MFn.kReference)
-        mfnReference = self.api.reference
-        assert mfnReference is not None
+        refNode = self.api.reference
+        assert refNode is not None
         children = []
         for _ in depNodeIt:
-            refNode = depNodeIt.thisNode()
-            if mfnReference.containsNode(refNode):
-                children.append(Reference(refNode))
+            mObject = depNodeIt.thisNode()
+            try:
+                containsNode = refNode.containsNode(mObject)
+            except RuntimeError:
+                containsNode = False
+            if containsNode:
+                children.append(Reference(mObject))
         return children
 
     def import_(self):
