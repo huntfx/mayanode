@@ -2297,19 +2297,34 @@ class TestReference(unittest.TestCase):
             ns.delete()
         self.assertEqual(Namespace.ls(), existingNs)
 
-    def testNodes(self):
+    def testNodesGet(self):
         refNode = self.refFile.reference()
-        self.assertTrue('pCube1' in refNode.nodes)
-        self.assertTrue(refNode.namespace + ':pCube1' in refNode.nodes)
+        self.assertEqual(refNode.nodes[0], 'pCube1')
+        self.assertIn('pCube1', refNode.nodes)
+        self.assertIn(refNode.namespace + ':pCube1', refNode.nodes)
         self.assertEqual(refNode, refNode.nodes.reference)
-        self.assertFalse(refNode.children[0].namespace + ':pCube1' in refNode.nodes)
+        self.assertNotIn(refNode.children[0].namespace + ':pCube1', refNode.nodes)
 
         node = refNode.nodes['pCube1']
+        self.assertIn(node, refNode.nodes)
+        self.assertEqual(node.namespace, refNode.namespace)
+        self.assertNotEqual(node.name, 'pCube1')
+
         refNode.unload()
         self.assertFalse(refNode.nodes)
-        self.assertFalse(refNode.namespace + ':pCube1' in refNode.nodes)
-        self.assertFalse(node in refNode.nodes)
+        self.assertNotIn(refNode.namespace + ':pCube1', refNode.nodes)
+        self.assertNotIn(node, refNode.nodes)
+        refNode.delete()
 
+    def testNodesLength(self):
+        refNode = self.refFile.reference()
+        self.assertEqual(len(refNode.nodes), 4)
+        refNode.delete()
+
+    def testNodesSlice(self):
+        refNode = self.refFile.reference()
+        self.assertEqual(refNode.nodes, refNode.nodes[:2] + refNode.nodes[2:])
+        self.assertNotEqual(refNode.nodes, refNode.nodes[2:] + refNode.nodes[:2])
         refNode.delete()
 
     def testLock(self):
@@ -2336,7 +2351,7 @@ class TestReference(unittest.TestCase):
 
     def testDepth(self):
         refNode = self.refFile.reference()
-        nested = Reference.ls('*:*:*')[0]
+        nested = Reference.ls(refNode.namespace + ':*:*')[0]
         self.assertTrue(refNode.topLevel)
         self.assertFalse(nested.topLevel)
         self.assertEqual(refNode.depth, 0)
@@ -2346,7 +2361,7 @@ class TestReference(unittest.TestCase):
 
     def testRelationships(self):
         refNode = self.refFile.reference()
-        nested = Reference.ls('*:*:*')[0]
+        nested = Reference.ls(refNode.namespace + ':*:*')[0]
 
         self.assertIn(nested, refNode.descendents)
         self.assertNotIn(nested, refNode.children)

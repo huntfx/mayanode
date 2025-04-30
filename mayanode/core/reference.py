@@ -5,10 +5,10 @@ import maya.cmds as mc  # type: ignore
 
 from .node import Node
 from .. import exceptions, types, utils
-from ..type_hints import TYPE_CHECKING
+from ..type_hints import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
-    from typing import Any, Iterable
+    from typing import Any, Iterable, Iterator
     from ..type_hints import StrLike
 
 
@@ -262,6 +262,10 @@ class Reference(Node):
         utils.raiseIfNodeNotFound(self.refNode)
         mc.file(loadReference=self)
 
+    def reload(self):
+        # type: () -> None
+        """Reload the reference.
+        Note that this is the exact same as "load", both the Outliner
         and Reference Editor work this way.
         """
         self.load()
@@ -497,7 +501,7 @@ class Reference(Node):
         return _FileInfo(self)
 
 
-class ReferenceNodes(types.MappedLazyList):
+class ReferenceNodes(object):
     """Hold a list of all nodes in the reference.
     This also acts as a dict for the node names without their namespace.
 
@@ -511,23 +515,16 @@ class ReferenceNodes(types.MappedLazyList):
         True
         >>> len(nodes)
         1
-
-    TODO:
-        Tests
     """
-
-    __slots__ = ['_reference', '_apiObjects']
+    __slots__ = ['_reference', '_apiObjects', '_mappedObjects', '_mappedIndex', '_unloadCount']
 
     def __init__(self, reference):
         # type: (Reference) -> None
         self._reference = reference
-        mfnReference = self.reference.api.reference
-        assert mfnReference is not None
-        self._apiObjects = mfnReference.nodes()
-        super(ReferenceNodes, self).__init__(None for _ in self._apiObjects)
-
-    def __len__(self):
-        return self._apiObjects.__len__()
+        self._apiObjects = []  # type: list[om2.MObject]
+        self._mappedObjects = []  # type: list[Node | None]
+        self._unloadCount = 0
+        self.refresh()
 
     @property
     def reference(self):
@@ -535,41 +532,105 @@ class ReferenceNodes(types.MappedLazyList):
         """Get the associated reference."""
         return self._reference
 
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, ReferenceNodes):
+            return self._reference == other._reference
+        if isinstance(other, list):
+            self._ensureLoaded()
+            return self._mappedObjects == other
+        return False
+
+    def __repr__(self):
+        # type: () -> str
+        self._ensureLoaded()
+        return repr(self._mappedObjects)
+
+    def __str__(self):
+        # type: () -> str
+        self._ensureLoaded()
+        return str(self._mappedObjects)
+
+    def __bool__(self):
+        # type: () -> bool
+        """Determine if the reference contains any nodes."""
+        return bool(self._apiObjects)
+
+    def __len__(self):
+        # type: () -> int
+        """Get the number of nodes in the reference."""
+        return len(self._apiObjects)
+
+    def __iter__(self):
+        # type: () -> Iterator[Node]
+        """Iterate through each node within the reference."""
+        return iter(self._getNode(i) for i in range(len(self._apiObjects)))
+
+    @overload
+    def __getitem__(self, index):
+        # type: (int | StrLike) -> Node
+        pass
+    @overload
+    def __getitem__(self, index):
+        # type: (slice) -> list[Node]
+        pass
+    def __getitem__(self, index):
+        # type: (int | slice | StrLike) -> Node | list[Node]
+        """Get a node from an index, name or slice."""
+        # Get a list of nodes from a slice
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self._apiObjects))
+            return [self._getNode(i) for i in range(start, stop, step)]
+
+        # Get the node at an index
+        if isinstance(index, int):
+            return self._getNode(index)
+
+        # Get the node from its name
+        for node in self:
+            if node == index:
+                return node
+
+        raise IndexError(index)
+
     def __contains__(self, node):
+        # type (Any) -> bool
         """If a particular node belongs to a reference."""
         if isinstance(node, Node):
             return self.reference.api.reference.containsNodeExactly(node.api.object)
         if isinstance(node, om2.MObject):
             return self.reference.api.reference.containsNodeExactly(node)
-        return super(ReferenceNodes, self).__contains__(node)
+        self._ensureLoaded()
+        return node in self._mappedObjects
 
-    def generateKey(self, value):
-        # type: (Any) -> str
-        """Override this to get the dict keys for each item."""
-        return str(value).split(':')[-1]
-
-    def loadData(self, key=None):
-        # type: (int | str | None) -> bool
-        """Get the node objects."""
-        if self._apiObjects is None:
-            self._apiObjects = self.reference.api.reference.nodes()
-
-        # Load an index
-        if isinstance(key, int):
-            if self._data[key] is None:
-                self._setitem(key, Node(self._apiObjects[key]))
-            return False
-
-        # Load all
-        self._set(map(Node, self._apiObjects))
-        return True
-
-    def reload(self):
+    def _ensureLoaded(self):
         # type: () -> None
-        mfnReference = self.reference.api.reference
-        assert mfnReference is not None
-        self._apiObjects = mfnReference.nodes()
-        super(ReferenceNodes, self).reload()
+        """Ensure all mappings are loaded."""
+        if not self._unloadCount:
+            return
+        for _ in self:
+            pass
+
+    def _getNode(self, index):
+        # type: (int) -> Node
+        """Get an individual node at an index.
+        Creates a mapping if one doesn't exist.
+        """
+        node = self._mappedObjects[index]
+        if node is None:
+            node = Node(self._apiObjects[index])
+            self._mappedObjects[index] = node
+            self._unloadCount -= 1
+        return node
+
+    def refresh(self):
+        # type: () -> None
+        """Refresh the data."""
+        refNode = self.reference.api.reference
+        assert refNode is not None
+        self._apiObjects = refNode.nodes()
+        self._mappedObjects[:] = [None for _ in self._apiObjects]
+        self._unloadCount = len(self._apiObjects)
 
 
 # Handle circular dependencies
