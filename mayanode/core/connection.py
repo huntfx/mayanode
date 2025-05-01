@@ -2,10 +2,10 @@ import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
-from ..type_hints import TYPE_CHECKING
+from ..type_hints import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator
+    from typing import Any, Iterator, SupportsIndex
 
 
 class Connection(types.StrMixin):
@@ -180,8 +180,74 @@ class Connection(types.StrMixin):
         return False
 
 
-class ConnectionList(types.MappedLazyList):
+class ConnectionList(object):
     """Hold multiple connections and provide a way to connect/disconnect all."""
+
+    def __init__(self, connections=None):
+        # type: (list[Connection] | None) -> None
+        self._data = connections
+
+    def __repr__(self):
+        # type: () -> str
+        return repr(list(self))
+
+    def __str__(self):
+        # type: () -> str
+        return str(list(self))
+
+    def __bool__(self):
+        # type: () -> bool
+        return bool(self._getData())
+    __nonzero__ = __bool__
+
+    def __contains__(self, item):
+        # type: (Any) -> bool
+        if isinstance(item, Connection):
+            return item in self._getData()
+        elif isinstance(item, Node):
+            return item in self.nodes
+        elif isinstance(item, Attribute):
+            return item in self.attrs
+        item = str(item)
+        if '.' in item:
+            return item in self.attrs
+        return item in self.nodes
+
+    def __len__(self):
+        # type: () -> int
+        return len(self._getData())
+
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, ConnectionList):
+            return list(self) == list(other)
+        if isinstance(other, list):
+            return list(self) == other
+        return False
+
+    def __iter__(self):
+        # type: () -> Iterator[Connection]
+        """Iterate over the connections."""
+        return iter(self._getData())
+
+    @overload
+    def __getitem__(self, item):
+        # type: (SupportsIndex) -> Connection
+        pass
+    @overload
+    def __getitem__(self, item):
+        # type: (slice) -> list[Connection]
+        pass
+    def __getitem__(self, item):
+        # type: (SupportsIndex | slice) -> list[Connection] | Connection
+        """Get the connection at an index."""
+        return self._getData()[item]
+
+    def _getData(self):
+        # type: () -> list[Connection]
+        if self._data is None:
+            return []
+        return self._data
 
     def connect(self):
         # type: () -> ConnectionList
@@ -215,7 +281,7 @@ class ConnectionList(types.MappedLazyList):
         Equivalent:
             `mc.listConnections(self.target)`
         """
-        nodes = (connection.node for connection in self._data)
+        nodes = (connection.node for connection in self)
         seen = set()
         return [node for node in nodes if node not in seen and not seen.add(node)]  # type: ignore
 
@@ -227,7 +293,7 @@ class ConnectionList(types.MappedLazyList):
         Equivalent:
             `mc.listConnections(self.target, plugs=True)`
         """
-        attrs = (connection.target for connection in self._data)
+        attrs = (connection.target for connection in self)
         seen = set()
         return [attr for attr in attrs if attr not in seen and not seen.add(attr)]  # type: ignore
 
@@ -252,23 +318,28 @@ class ConnectionProxy(ConnectionList):
     def __bool__(self):
         # type: () -> bool
         """Determine if any connections exist."""
-        for plug in self.plugs:
-            if plug.isConnected:
-                return True
-        return False
+        return any(plug.isConnected for plug in self.plugs)
+    __nonzero__ = __bool__
+
+    def _getData(self):
+        # type: () -> list[Connection]
+        if self._data is None:
+            self._loadConnections()
+        if TYPE_CHECKING: assert self._data is not None
+        return self._data
 
     @property
     def source(self):
         # type: () -> ConnectionList
         """Get the input/source connections."""
-        self.loadConnections(source=True, destination=False)
+        self._loadConnections(source=True, destination=False)
         return ConnectionList(self._sourceConnections)
 
     @property
     def destination(self):
         # type: () -> ConnectionList
         """Get the output/destination connections."""
-        self.loadConnections(source=False, destination=True)
+        self._loadConnections(source=False, destination=True)
         return ConnectionList(self._destinationConnections)
 
     @property
@@ -283,14 +354,14 @@ class ConnectionProxy(ConnectionList):
     def nodes(self):
         # type: () -> list[Node]
         """Get all connected nodes."""
-        self.loadConnections(source=True, destination=True)
+        self._loadConnections(source=True, destination=True)
         return super(ConnectionProxy, self).nodes
 
     @property
     def attrs(self):
         # type: () -> list[Attribute]
         """Get all connected attributes."""
-        self.loadConnections(source=True, destination=True)
+        self._loadConnections(source=True, destination=True)
         return super(ConnectionProxy, self).attrs
 
     @property
@@ -301,12 +372,7 @@ class ConnectionProxy(ConnectionList):
         """
         raise NotImplementedError
 
-    def loadData(self, key=None):  # pylint: disable=unused-argument, no-self-use
-        # type: (int | str | None) -> bool
-        self.loadConnections()
-        return False
-
-    def loadConnections(self, source=True, destination=True):
+    def _loadConnections(self, source=True, destination=True):
         # type: (bool, bool) -> None
         """Get the connection data from the plugs."""
         # Ensure the data is only loaded once
@@ -334,6 +400,8 @@ class ConnectionProxy(ConnectionList):
                 self._sourceConnections.append(Connection(self.node, currentPlug, currentPlug.source(), reverse=True))
 
         # Add to main list
+        if self._data is None:
+            self._data = []
         if destination:
             self._data.extend(self._destinationConnections)
         if source:
@@ -343,7 +411,6 @@ class ConnectionProxy(ConnectionList):
         # type: () -> None
         """Refresh all the loaded data."""
         self._destinationConnections = self._sourceConnections = None
-        super(ConnectionProxy, self).reload()
 
 
 class AttributeConnectionProxy(ConnectionProxy):
