@@ -5,22 +5,26 @@ import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
 from ..ext import classutilities
-from ..type_hints import TYPE_CHECKING
+from ..type_hints import TYPE_CHECKING, cast, overload
 
 if TYPE_CHECKING:
     from typing import Any
     from ..type_hints import StrLike
 
 
+class NamespaceNodes(object):
+    """Get the nodes belonging to a namespace."""
 
-class NamespaceNodes(types.MappedLazyList):
-
-    __slots__ = ['_namespace']
+    __slots__ = ['_namespace', '_apiObjects', '_mappedObjects', '_mappedKeys', '_unloadCount']
 
     def __init__(self, namespace):
         # type: (Namespace) -> None
         self._namespace = namespace
-        super(NamespaceNodes, self).__init__()
+
+        self._apiObjects = None  # type: list[om2.MObject] | None
+        self._mappedObjects = []  # type: list[Node | None]
+        self._mappedKeys = {}  # type: dict[str, int]
+        self._unloadCount = 0
 
     @property
     def namespace(self):
@@ -28,27 +32,129 @@ class NamespaceNodes(types.MappedLazyList):
         """Get the associated namespace."""
         return self._namespace
 
-    def __contains__(self, node):
+    def __repr__(self):
+        # type: () -> str
+        return repr(self.mappedObjects)
+
+    def __str__(self):
+        # type: () -> str
+        return str(self.mappedObjects)
+
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, NamespaceNodes):
+            return self.namespace == other.namespace
+        if isinstance(other, list):
+            return self.mappedObjects == other
+        return False
+
+    def __bool__(self):
+        # type: () -> bool
+        """Determine if the namespace has any nodes."""
+        return bool(self.apiObjects)
+    __nonzero__ = __bool__
+
+    def __len__(self):
+        # type: () -> int
+        """Get the number of nodes in the namespace."""
+        return len(self.apiObjects)
+
+    def __contains__(self, item):
         # type: (StrLike) -> bool
         """If a particular node belongs to a namespace."""
-        if isinstance(node, Node):
-            return node.namespace == self.namespace
-        return super(NamespaceNodes, self).__contains__(node)
+        if isinstance(item, Node):
+            return item.api.dependencyNode.namespace == self.namespace
+        return item in self.mappedKeys or item in self.mappedObjects
 
-    def generateKey(self, value):
-        # type: (Any) -> str
-        """Override this to get the dict keys for each item."""
-        return str(value).split(':')[-1]
+    @overload
+    def __getitem__(self, index):
+        # type: (int | StrLike) -> Node
+        pass
+    @overload
+    def __getitem__(self, index):
+        # type: (slice) -> list[Node]
+        pass
+    def __getitem__(self, index):
+        # type: (int | slice | StrLike) -> Node | list[Node]
+        """Get a node from an index, name or slice."""
+        # Get a list of nodes from a slice
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self.apiObjects))
+            return [self._getNode(i) for i in range(start, stop, step)]
 
-    def loadData(self, key=None):
-        # type: (int | str | None) -> bool
-        """Get the node objects."""
-        self._set(map(Node, om2.MNamespace.getNamespaceObjects(str(self.namespace))))
-        return True
+        # Get the node at an index
+        if isinstance(index, int):
+            return self._getNode(index)
 
-    def reload(self):
+        # Get the node from its name
+        idx = self.mappedKeys[str(index)]
+        return self.mappedObjects[idx]
+
+    @property
+    def apiObjects(self):
+        # type: () -> list[om2.MObject]
+        """Get pointers to the nodes in the namespace."""
+        result = self._apiObjects
+        if result is None:
+            result = self._apiObjects = om2.MNamespace.getNamespaceObjects(str(self.namespace))
+            count = self._unloadCount = len(result)
+            self._mappedObjects = [None] * count
+            self._mappedKeys.clear()
+        return result
+
+    @apiObjects.deleter
+    def apiObjects(self):
         # type: () -> None
-        super(NamespaceNodes, self).reload()
+        """Refresh the list of node pointers."""
+        self._apiObjects = None
+
+    @property
+    def mappedObjects(self):
+        # type: () -> list[Node]
+        """Get a list of nodes in the namespace."""
+        self._ensureLoaded()
+        if TYPE_CHECKING:
+            mappedObjects = cast(list[Node], self._mappedObjects)
+        else:
+            mappedObjects = self._mappedObjects
+        return mappedObjects
+
+    @property
+    def mappedKeys(self):
+        # type: () -> dict[str, int]
+        """Get mapping of node names to their mapping index.
+        The index can be used with `apiObjects` or `mappedObjects`.
+        """
+        self._ensureLoaded()
+        return self._mappedKeys
+
+    def _ensureLoaded(self):
+        # type () -> None
+        """Check that all the data is loaded."""
+        self.apiObjects
+        if self._unloadCount:
+            for i, item in enumerate(self._mappedObjects):
+                if item is None:
+                    self._getNode(i)
+
+    def _getNode(self, index):
+        # type: (int) -> Node
+        """Get an individual node at an index.
+        Creates a mapping if one doesn't exist.
+        """
+        apiObjects = self.apiObjects
+        node = self._mappedObjects[index]
+        if node is None:
+            node = Node(apiObjects[index])
+            self._mappedObjects[index] = node
+            self._mappedKeys[str(node).split(':')[-1]] = index
+            self._unloadCount -= 1
+        return node
+
+    def refresh(self):
+        # type: () -> None
+        """Clear the data to be refreshed."""
+        del self.apiObjects
 
 
 class Namespace(classutilities.ClassPropertiesMixin, types.StrMixin):

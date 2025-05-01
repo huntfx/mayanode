@@ -2059,7 +2059,7 @@ class TestNamespace(unittest.TestCase):
         self.assertEqual(Namespace(self.ns1).descendents, [self.ns2, self.ns3])
 
     def testContains(self):
-        cube = mc.polyCube(name='namespaceContainsText')[0]
+        cube = mc.polyCube(name='namespaceContainsTest')[0]
         node = Node(cube)
         namespace = node.namespace = Namespace(self.ns2)
 

@@ -195,16 +195,16 @@ class UVSet(types.StrMixin):
 class UVSetCollection(object):
     """Store a list of UV sets."""
 
-    __slots__ = ['_node', '_faceIndex', '_apiObjects', '_mappedObjects', '_unloadCount']
+    __slots__ = ['_node', '_faceIndex', '_apiObjects', '_mappedObjects']
 
     def __init__(self, node, faceIndex=None):
         # type: (Node, int | None) -> None
         """Store the origin mesh and optionally the index of the mesh face."""
         self._node = node
         self._faceIndex = faceIndex
+
         self._apiObjects = None  # type: list[str] | None
         self._mappedObjects = []  # type: list[UVSet | None]
-        self._unloadCount = 0
 
     @property
     def node(self):
@@ -218,14 +218,6 @@ class UVSetCollection(object):
         """Get the node."""
         return self._faceIndex
 
-    def __eq__(self, other):
-        # type: (Any) -> bool
-        if isinstance(other, UVSetCollection):
-            return self._node == other._node and self._faceIndex == other._faceIndex
-        if isinstance(other, list):
-            return self.apiObjects == other
-        return False
-
     def __repr__(self):
         # type: () -> str
         return repr(self.apiObjects)
@@ -233,6 +225,14 @@ class UVSetCollection(object):
     def __str__(self):
         # type: () -> str
         return str(self.apiObjects)
+
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, UVSetCollection):
+            return self._node == other._node and self._faceIndex == other._faceIndex
+        if isinstance(other, list):
+            return self.apiObjects == other
+        return False
 
     def __bool__(self):
         # type: () -> bool
@@ -262,6 +262,11 @@ class UVSetCollection(object):
         """Iterate through each node within the reference."""
         return iter(self._getUVSet(i) for i in range(len(self)))
 
+    def __contains__(self, uvSet):
+        # type: (StrLike) -> bool
+        """Check if a particular uvSet is in the collection."""
+        return str(uvSet) in self.apiObjects
+
     @overload
     def __getitem__(self, index):
         # type: (int | StrLike) -> UVSet
@@ -283,9 +288,9 @@ class UVSetCollection(object):
             return self._getUVSet(index)
 
         # Get the node from its name
-        for node in self:
-            if node == index:
-                return node
+        for item in self:
+            if item == index:
+                return item
 
         raise IndexError(index)
 
@@ -308,7 +313,6 @@ class UVSetCollection(object):
             else:
                 self._apiObjects = list(self.node.api.mesh.getFaceUVSetNames(self._faceIndex))
             self._mappedObjects = [None for _ in self._apiObjects]
-            self._unloadCount = len(self._apiObjects)
         return self._apiObjects
 
     @apiObjects.deleter
@@ -328,7 +332,6 @@ class UVSetCollection(object):
         if uvSet is None:
             uvSet = UVSet(self.node, self.apiObjects[index])
             self._mappedObjects[index] = uvSet
-            self._unloadCount -= 1
         return uvSet
 
     def create(self, name):

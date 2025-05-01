@@ -566,6 +566,16 @@ class ReferenceNodes(object):
         """Iterate through each node within the reference."""
         return iter(self._getNode(i) for i in range(len(self._apiObjects)))
 
+    def __contains__(self, node):
+        # type (Any) -> bool
+        """If a particular node belongs to a reference."""
+        if isinstance(node, Node):
+            return self.reference.api.reference.containsNodeExactly(node.api.object)
+        if isinstance(node, om2.MObject):
+            return self.reference.api.reference.containsNodeExactly(node)
+        self._ensureLoaded()
+        return node in self._mappedObjects
+
     @overload
     def __getitem__(self, index):
         # type: (int | StrLike) -> Node
@@ -592,16 +602,6 @@ class ReferenceNodes(object):
                 return node
 
         raise IndexError(index)
-
-    def __contains__(self, node):
-        # type (Any) -> bool
-        """If a particular node belongs to a reference."""
-        if isinstance(node, Node):
-            return self.reference.api.reference.containsNodeExactly(node.api.object)
-        if isinstance(node, om2.MObject):
-            return self.reference.api.reference.containsNodeExactly(node)
-        self._ensureLoaded()
-        return node in self._mappedObjects
 
     def _ensureLoaded(self):
         # type: () -> None
