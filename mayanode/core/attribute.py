@@ -139,6 +139,8 @@ def _setPlugValue(plug, value):
 class AttributeChildren(object):
     """Access the child attributes."""
 
+    __slots__ = ['_node', '_plug', '_apiObjects', '_mappedObjects', '_mappedKeys', '_unloadCount']
+
     def __init__(self, node, plug):
         # type: (Node, om2.MPlug) -> None
         self._node = node
@@ -178,23 +180,23 @@ class AttributeChildren(object):
 
     def __bool__(self):
         # type: () -> bool
-        """Determine if the namespace has any nodes."""
+        """Determine if the attribute has any children."""
         return bool(self.apiObjects)
     __nonzero__ = __bool__
 
     def __len__(self):
         # type: () -> int
-        """Get the number of nodes in the namespace."""
+        """Get the number of child attributes."""
         return len(self.apiObjects)
 
     def __iter__(self):
         # type: () -> Iterator[Attribute]
-        """Iterate through each node within the reference."""
+        """Iterate through each child attribute."""
         return iter(self._getAttribute(i) for i in range(len(self)))
 
     def __contains__(self, item):
         # type: (StrLike) -> bool
-        """If a particular node belongs to a namespace."""
+        """If a particular attribute is a child."""
         if isinstance(item, Attribute):
             return item.api.plug in self.apiObjects
         return item in self.mappedKeys or item in self.mappedObjects
@@ -209,20 +211,20 @@ class AttributeChildren(object):
         pass
     def __getitem__(self, index):
         # type: (int | slice | StrLike) -> Attribute | list[Attribute]
-        """Get a node from an index, name or slice."""
-        # Get a list of nodes from a slice
+        """Get an attribute from an index, name or slice."""
+        # Get a list of attributes from a slice
         if isinstance(index, slice):
-            start, stop, step = index.indices(len(self.apiObjects))
+            start, stop, step = index.indices(len(self))
             return [self._getAttribute(i) for i in range(start, stop, step)]
 
-        # Get the node at an index
+        # Get the attribute at an index
         if isinstance(index, int):
             if self.plug.isArray:  # Special case if keys are integers
                 self._ensureLoaded()
                 return self.mappedObjects[self.mappedKeys[index]]
             return self._getAttribute(index)
 
-        # Get the node from its name
+        # Get the attribute from its name
         idx = self.mappedKeys[str(index)]
         return self.mappedObjects[idx]
 
@@ -240,6 +242,7 @@ class AttributeChildren(object):
                 result = self._apiObjects = [plug.child(i) for i in range(plug.numChildren())]
             else:
                 result = self._apiObjects = []
+
             count = self._unloadCount = len(result)
             self._mappedObjects = [None] * count
             self._mappedKeys.clear()
@@ -319,75 +322,91 @@ class AttributeChildren(object):
         return list(self.mappedObjects)
 
     def items(self):
-        # type: () -> list[tuple[str | int], Attribute]
+        # type: () -> list[tuple[str | int, Attribute]]
         objects = self.mappedObjects
         return [(k, objects[v]) for k, v in self.mappedKeys.items()]
 
 
-class NodeAttributes(dict):
-    """Lazy dictionary storing a cache of all the Attribute values.
-    The full list of attributes is not populated until it is requested.
-    There is no validation on checking if new attributes already exist.
-    """
+class NodeAttributes(object):
+    """Access the attributes on a node."""
 
-    __slots__ = ['node', '_loaded']
+    __slots__ = ['_node', '_apiObjects', '_mappedObjects', '_mappedKeys', '_unloadCount']
 
     def __init__(self, node):
         # type: (Node) -> None
-        self.node = node
-        self._loaded = False
-        super(NodeAttributes, self).__init__()
+        self._node = node
+
+        self._apiObjects = None  # type: list[om2.MObject] | None
+        self._mappedObjects = []  # type: list[Attribute | None]
+        self._mappedKeys = {}  # type: dict[str | int, int]
+        self._unloadCount = 0
+
+    @property
+    def node(self):
+        # type: () -> Node
+        """Get the node."""
+        return self._node
 
     def __repr__(self):
         # type: () -> str
-        self._ensureAttrs()
-        return super(NodeAttributes, self).__repr__()
+        return repr(self.mappedObjects)
 
-    def __getitem__(self, attr):
-        # type: (str) -> Attribute
-        self._ensureAttr(attr)
-        return super(NodeAttributes, self).__getitem__(attr)
+    def __str__(self):
+        # type: () -> str
+        return str(self.mappedObjects)
 
-    def __setitem__(self, attr, value):
-        # type: (str, Attribute) -> None
-        self[attr].value = value
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, NodeAttributes):
+            return self.node == other.node
+        if isinstance(other, list):
+            return self.mappedObjects == other
+        return False
 
-    def __iter__(self):
-        # type: () -> Iterator[str]
-        self._ensureAttrs()
-        return super(NodeAttributes, self).__iter__()
+    def __bool__(self):
+        # type: () -> bool
+        """Determine if the namespace has any nodes."""
+        return len(self) > 0
+    __nonzero__ = __bool__
 
     def __len__(self):
         # type: () -> int
-        self._ensureAttrs()
-        return super(NodeAttributes, self).__len__()
+        """Get the number of attributes."""
+        return self.node.api.dependencyNode.attributeCount()
 
-    def __contains__(self, value):
-        # type: (Any) -> bool
-        """Determine if the attribute exists on the node."""
-        if not self._loaded:
-            if super(NodeAttributes, self).__contains__(value):
-                return True
-            if self.node.api.dependencyNode.hasAttribute(value):
-                self._ensureAttr(value)
-                return True
-            return False
-        return super(NodeAttributes, self).__contains__(value)
+    def __iter__(self):
+        # type: () -> Iterator[Attribute]
+        """Iterate through each attribute within the reference."""
+        return iter(self._getAttribute(i) for i in range(len(self)))
 
-    def keys(self):
-        # type: () -> KeysView
-        self._ensureAttrs()
-        return super(NodeAttributes, self).keys()
+    def __contains__(self, item):
+        # type: (StrLike) -> bool
+        """If a particular node belongs to a namespace."""
+        return self.node.api.dependencyNode.hasAttribute(str(item))
 
-    def values(self):
-        # type: () -> ValuesView
-        self._ensureAttrs()
-        return super(NodeAttributes, self).values()
+    @overload
+    def __getitem__(self, index):
+        # type: (int | StrLike) -> Attribute
+        pass
+    @overload
+    def __getitem__(self, index):
+        # type: (slice) -> list[Attribute]
+        pass
+    def __getitem__(self, index):
+        # type: (int | slice | StrLike) -> Attribute | list[Attribute]
+        """Get an attribute from an index, name or slice."""
+        # Get a list of attributes from a slice
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self))
+            return [self._getAttribute(i) for i in range(start, stop, step)]
 
-    def items(self):
-        # type: () -> ItemsView
-        self._ensureAttrs()
-        return super(NodeAttributes, self).items()
+        # Get the attribute at an index
+        if isinstance(index, int):
+            return self._getAttribute(index)
+
+        # Get the attribute from its name
+        idx = self._getIndexFromName(index)
+        return self.mappedObjects[idx]
 
     def get(self, attr, default=None):
         # type: (str, Any) -> Any
@@ -396,46 +415,113 @@ class NodeAttributes(dict):
             return self[attr]
         return default
 
-    def _ensureAttr(self, attr, reload=False):
-        # type: (om2.MPlug | str, bool) -> bool
-        """Load in the attribute proxy if required."""
-        if isinstance(attr, om2.MPlug):
-            attrName = attr.partialName(useLongNames=True)
+    def __setitem__(self, attr, value):
+        # type: (str, Any) -> None
+        """Set an attribute value."""
+        self[attr].value = value
+
+    def _getIndexFromName(self, name):
+        # type: (StrLike) -> int
+        """Given a name, get the index of the item."""
+        name = str(name)
+        if name not in self:
+            raise exceptions.AttributeNotFoundError(self.node, name)
+        return self.mappedKeys[name]
+
+    @property
+    def apiObjects(self):
+        # type: () -> list[om2.MObject]
+        """Load all attribute objects."""
+        result = self._apiObjects
+        if result is None:
+            depNode = self.node.api.dependencyNode
+            result = self._apiObjects = [depNode.attribute(i) for i in range(depNode.attributeCount())]
+
+            count = self._unloadCount = len(result)
+            self._mappedObjects = [None] * count
+            self._mappedKeys.clear()
+        return result
+
+    @apiObjects.deleter
+    def apiObjects(self):
+        # type: () -> None
+        """Refresh the list of child attributes."""
+        self._apiObjects = None
+
+    @property
+    def mappedObjects(self):
+        # type: () -> list[Attribute]
+        """Get a list of child attributes."""
+        self._ensureLoaded()
+        if TYPE_CHECKING:
+            mappedObjects = cast(list[Attribute], self._mappedObjects)
         else:
-            attrName = attr
+            mappedObjects = self._mappedObjects
+        return mappedObjects
 
-        # Skip any attribute with multiple path parts at this stage
-        # eg. pCubeShape1.uvSet[-1].uvSetName / lambert1.lightDataArray.lightDirection
-        if '.' in attrName:
-            return False
-
-        if not reload and super(NodeAttributes, self).__contains__(attrName):
-            return False
-
-        value = Attribute(self.node, attr)
-        super(NodeAttributes, self).__setitem__(attrName, value)
-        return True
-
-    def _ensureAttrs(self, reload=False):
-        # type: (bool) -> None
-        """Load in all attribute proxies if required.
-
-        Equivalent:
-            `mc.listAttr(self)`
-
-        Raises:
-            NodeDeletedError
+    @property
+    def mappedKeys(self):
+        # type: () -> dict[str | int, int]
+        """Get mapping of attribute names to their mapping index.
+        The index can be used with `apiObjects` or `mappedObjects`.
         """
-        utils.raiseIfNodeNotFound(self.node)
-        if not reload and self._loaded:
-            return
+        self._ensureLoaded()
+        return self._mappedKeys
 
-        depNode = self.node.api.dependencyNode
-        attrs = map(depNode.attribute, range(depNode.attributeCount()))
-        for attr in attrs:
-            self._ensureAttr(depNode.findPlug(attr, False))
+    def _ensureLoaded(self):
+        # type () -> None
+        """Check that all the data is loaded."""
+        self.apiObjects
+        if self._unloadCount:
+            for i, item in enumerate(self._mappedObjects):
+                if item is None:
+                    self._getAttribute(i)
 
-        self._loaded = True
+    def _getAttribute(self, index):
+        # type: (int) -> Attribute
+        """Get an individual node at an index.
+        Creates a mapping if one doesn't exist.
+        """
+        apiObjects = self.apiObjects
+        attribute = self._mappedObjects[index]
+        if attribute is None:
+            plug = self.node.api.dependencyNode.findPlug(apiObjects[index], False)
+            attribute = Attribute(self.node, plug)
+            self._mappedObjects[index] = attribute
+            for key in self._generateKeys(plug):
+                self._mappedKeys[key] = index
+            self._unloadCount -= 1
+        return attribute
+
+    def _generateKeys(self, plug):
+        # type: (om2.MPlug) -> Iterator[str | int]
+        """Generate the key to access the attribute.
+
+        Skip any attribute with multiple path parts at this stage,
+        eg. pCubeShape1.uvSet[-1].uvSetName / lambert1.lightDataArray.lightDirection
+        """
+        name = plug.partialName(useLongNames=False)
+        if '.'  not in name:
+            yield name
+            yield plug.partialName(useLongNames=True)
+
+    def refresh(self):
+        # type: () -> None
+        """Clear the data to be refreshed."""
+        del self.apiObjects
+
+    def keys(self):
+        # type: () -> list[str | int]
+        return list(self.mappedKeys)
+
+    def values(self):
+        # type: () -> list[Attribute]
+        return list(self.mappedObjects)
+
+    def items(self):
+        # type: () -> list[tuple[str | int, Attribute]]
+        objects = self.mappedObjects
+        return [(k, objects[v]) for k, v in self.mappedKeys.items()]
 
     def create(self, longName, type=None, **kwargs):
         # type: (str, str | None, **Any) -> Attribute
@@ -452,6 +538,7 @@ class NodeAttributes(dict):
 
         utils.logger.info('Adding attribute "%s.%s" with arguments %s', self.node, longName, kwargs)
         mc.addAttr(self.node, longName=longName, **kwargs)
+        self.refresh()
         return self.__getitem__(longName)
 
 

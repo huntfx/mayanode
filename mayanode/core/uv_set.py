@@ -346,7 +346,7 @@ class UVSetCollection(object):
     def refresh(self):
         # type (bool) -> None
         """Refresh all the data."""
-        self.apiObjects = None
+        del self.apiObjects
 
 
 class UVSetList(list, Generic[T]):

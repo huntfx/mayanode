@@ -1169,17 +1169,10 @@ class TestAttr(unittest.TestCase):
 
     def testContains(self):
         attrs = Node('lambert1').attrs
-        self.assertEqual(dict.__len__(attrs), 0)
         self.assertNotIn('test', attrs)
-        self.assertEqual(dict.__len__(attrs), 0)
         self.assertIn('color', attrs)
-        self.assertEqual(dict.__len__(attrs), 1)
-        self.assertTrue(len(attrs) > 1)
-        self.assertTrue(dict.__len__(attrs) > 1)
 
     def testInvalidConnections(self):
-        # FATAL ERROR WARNING: Fixed now, but previously this crashed maya
-        # FATAL ERROR WARNING: Fixed now, but previously this crashed maya
         t1 = Node(mc.createNode('transform', name='connectionDeleteTest1'))
         t2 = Node(mc.createNode('transform', name='connectionDeleteTest2'))
         t2.attrs.create('test', 1)
@@ -1192,7 +1185,7 @@ class TestAttr(unittest.TestCase):
         self.assertEqual(len(connections), 2)
         mc.deleteAttr(t2.attrs['test'])
 
-        self.assertEqual(len(t2.attrs['test'].connections), 0)
+        self.assertEqual(len(attr.connections), 0)
         self.assertEqual(len(connections), 2)
 
         for connection in connections:
@@ -1243,7 +1236,9 @@ class TestAttr(unittest.TestCase):
         self.assertEqual(list(attr.children.keys()), [1])
         attr.delete()
         self.assertNotIn('test', Node(cube).attrs)
-        self.assertFalse(node.attrs['test'].exists)
+        self.assertFalse(attr.exists)
+        with self.assertRaises(exceptions.AttributeNotFoundError):
+            node.attrs['test']
         with self.assertRaises(exceptions.AttributeNotFoundError):
             attr.children
         mc.delete(cube)
