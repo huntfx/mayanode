@@ -8,7 +8,7 @@ from ..ext import classutilities
 from ..type_hints import TYPE_CHECKING, cast, overload
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Iterator
     from ..type_hints import StrLike
 
 
@@ -58,6 +58,11 @@ class NamespaceNodes(object):
         # type: () -> int
         """Get the number of nodes in the namespace."""
         return len(self.apiObjects)
+
+    def __iter__(self):
+        # type: () -> Iterator[Node]
+        """Iterate through each node in the namespace."""
+        return iter(self._getNode(i) for i in range(len(self)))
 
     def __contains__(self, item):
         # type: (StrLike) -> bool

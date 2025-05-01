@@ -113,6 +113,10 @@ class AttributeTooHighError(AttributOutOfRangeError):
     MESSAGE = 'Cannot set the attribute "{node}.{attr}" above its maximum value of {value}.'
 
 
+class AttributeNotAChildError(NodeAttributeError):
+    MESSAGE = 'The attribute "{node}.{attr}" is not a child.'
+
+
 class NoBoundingBoxError(NodeError):
     MESSAGE = '"{node}" has no bounding box'
 

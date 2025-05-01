@@ -1299,8 +1299,9 @@ class TestAttr(unittest.TestCase):
         self.assertEqual(attr.children[0], 'persp.tx')
         self.assertNotEqual(attr.children[0], 'persp.translate.tx')
         self.assertEqual(attr.children['translateY'], 'translateY')
-        with self.assertRaises(KeyError):
-            attr.children['ty']
+        self.assertEqual(attr.children['ty'], 'translateY')
+        self.assertEqual(attr.children['translateY'], 'ty')
+        self.assertEqual(attr.children['ty'], 'ty')
 
     def testChildrenPlugCompound(self):
         cube = mc.polyCube(name='compoundChildTest')[0]
