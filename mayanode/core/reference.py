@@ -8,7 +8,7 @@ from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
-    from typing import Any, Iterable, Iterator
+    from typing import Any, Iterable, Iterator, Type
     from ..type_hints import StrLike
 
 
@@ -501,7 +501,7 @@ class Reference(Node):
         return _FileInfo(self)
 
 
-class ReferenceNodes(object):
+class ReferenceNodes(types.MappedLazyList2):
     """Hold a list of all nodes in the reference.
     This also acts as a dict for the node names without their namespace.
 
@@ -516,15 +516,18 @@ class ReferenceNodes(object):
         >>> len(nodes)
         1
     """
-    __slots__ = ['_reference', '_apiObjects', '_mappedObjects', '_mappedIndex', '_unloadCount']
+
+    __slots__ = ['_reference']
+
+    @property
+    def _moduleType(self):  # type: () -> Type[Node]
+        """Return the object this list contains."""
+        return Node
 
     def __init__(self, reference):
         # type: (Reference) -> None
         self._reference = reference
-        self._apiObjects = []  # type: list[om2.MObject]
-        self._mappedObjects = []  # type: list[Node | None]
-        self._unloadCount = 0
-        self.refresh()
+        return super(ReferenceNodes, self).__init__()
 
     @property
     def reference(self):
@@ -536,35 +539,7 @@ class ReferenceNodes(object):
         # type: (Any) -> bool
         if isinstance(other, ReferenceNodes):
             return self._reference == other._reference
-        if isinstance(other, list):
-            self._ensureLoaded()
-            return self._mappedObjects == other
-        return False
-
-    def __repr__(self):
-        # type: () -> str
-        self._ensureLoaded()
-        return repr(self._mappedObjects)
-
-    def __str__(self):
-        # type: () -> str
-        self._ensureLoaded()
-        return str(self._mappedObjects)
-
-    def __bool__(self):
-        # type: () -> bool
-        """Determine if the reference contains any nodes."""
-        return bool(self._apiObjects)
-
-    def __len__(self):
-        # type: () -> int
-        """Get the number of nodes in the reference."""
-        return len(self._apiObjects)
-
-    def __iter__(self):
-        # type: () -> Iterator[Node]
-        """Iterate through each node within the reference."""
-        return iter(self._getNode(i) for i in range(len(self._apiObjects)))
+        return super(ReferenceNodes, self).__eq__(other)
 
     def __contains__(self, node):
         # type (Any) -> bool
@@ -573,64 +548,29 @@ class ReferenceNodes(object):
             return self.reference.api.reference.containsNodeExactly(node.api.object)
         if isinstance(node, om2.MObject):
             return self.reference.api.reference.containsNodeExactly(node)
-        self._ensureLoaded()
-        return node in self._mappedObjects
+        return super(ReferenceNodes, self).__contains__(node)
 
-    @overload
-    def __getitem__(self, index):
-        # type: (int | StrLike) -> Node
-        pass
-    @overload
-    def __getitem__(self, index):
-        # type: (slice) -> list[Node]
-        pass
-    def __getitem__(self, index):
-        # type: (int | slice | StrLike) -> Node | list[Node]
-        """Get a node from an index, name or slice."""
-        # Get a list of nodes from a slice
-        if isinstance(index, slice):
-            start, stop, step = index.indices(len(self._apiObjects))
-            return [self._getNode(i) for i in range(start, stop, step)]
+        # TODO: Test if worth searching for the node
+        node = str(node)
+        sl = om2.MSelectionList()
+        try:
+            sl.add(node)
+        except RuntimeError:
+            return False
+        return self.reference.api.reference.containsNodeExactly(sl.getDependNode(0))
 
-        # Get the node at an index
-        if isinstance(index, int):
-            return self._getNode(index)
-
-        # Get the node from its name
-        for node in self:
-            if node == index:
-                return node
-
-        raise IndexError(index)
-
-    def _ensureLoaded(self):
-        # type: () -> None
-        """Ensure all mappings are loaded."""
-        if not self._unloadCount:
-            return
-        for _ in self:
-            pass
-
-    def _getNode(self, index):
-        # type: (int) -> Node
-        """Get an individual node at an index.
-        Creates a mapping if one doesn't exist.
-        """
-        node = self._mappedObjects[index]
-        if node is None:
-            node = Node(self._apiObjects[index])
-            self._mappedObjects[index] = node
-            self._unloadCount -= 1
-        return node
-
-    def refresh(self):
-        # type: () -> None
-        """Refresh the data."""
+    def _loadApiObjects(self):
+        # type: () -> list[om2.MObject]
+        """Load all API objects."""
         refNode = self.reference.api.reference
         assert refNode is not None
-        self._apiObjects = refNode.nodes()
-        self._mappedObjects[:] = [None for _ in self._apiObjects]
-        self._unloadCount = len(self._apiObjects)
+        return refNode.nodes()
+
+    def _generateKeys(self, apiObject, moduleObject):
+        # type: (str, Node) -> Iterator[str]
+        """Use the API object to get keys for the dict mapping."""
+        node = str(moduleObject)
+        yield node.rsplit(':', 1)[-1]
 
 
 # Handle circular dependencies

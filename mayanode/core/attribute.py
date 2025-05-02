@@ -136,20 +136,27 @@ def _setPlugValue(plug, value):
         raise NotImplementedError(type(value))
 
 
-class AttributeChildren(object):
+class AttributeChildren(types.MappedLazyList2):
     """Access the child attributes."""
 
-    __slots__ = ['_node', '_plug', '_apiObjects', '_mappedObjects', '_mappedKeys', '_unloadCount']
+    __slots__ = ['_node', '_plug']
+
+    @property
+    def _moduleType(self):  # type: () -> Type[Attribute]
+        """Return the object this list contains."""
+        return Attribute
+
+    @property
+    def _indexType(self):  # type: () -> Type[str | int]
+        if self.plug.isArray:
+            return int
+        return str
 
     def __init__(self, node, plug):
         # type: (Node, om2.MPlug) -> None
+        super(AttributeChildren, self).__init__()
         self._node = node
         self._plug = plug
-
-        self._apiObjects = None  # type: list[om2.MPlug] | None
-        self._mappedObjects = []  # type: list[Attribute | None]
-        self._mappedKeys = {}  # type: dict[str | int, int]
-        self._unloadCount = 0
 
     @property
     def node(self):
@@ -162,184 +169,61 @@ class AttributeChildren(object):
         """Get the parent plug."""
         return self._plug
 
-    def __repr__(self):
-        # type: () -> str
-        return repr(self.mappedObjects)
-
-    def __str__(self):
-        # type: () -> str
-        return str(self.mappedObjects)
-
     def __eq__(self, other):
         # type: (Any) -> bool
         if isinstance(other, AttributeChildren):
             return self.node == other.node and self.plug == other.plug
-        if isinstance(other, list):
-            return self.mappedObjects == other
-        return False
-
-    def __bool__(self):
-        # type: () -> bool
-        """Determine if the attribute has any children."""
-        return bool(self.apiObjects)
-    __nonzero__ = __bool__
-
-    def __len__(self):
-        # type: () -> int
-        """Get the number of child attributes."""
-        return len(self.apiObjects)
-
-    def __iter__(self):
-        # type: () -> Iterator[Attribute]
-        """Iterate through each child attribute."""
-        return iter(self._getAttribute(i) for i in range(len(self)))
+        return super(AttributeChildren, self).__eq__(other)
 
     def __contains__(self, item):
         # type: (StrLike) -> bool
         """If a particular attribute is a child."""
         if isinstance(item, Attribute):
-            return item.api.plug in self.apiObjects
-        return item in self.mappedKeys or item in self.mappedObjects
+            return item.api.plug in self._getApiObjects()
+        if isinstance(item, om2.MPlug):
+            return item in self._getApiObjects()
+        return super(AttributeChildren, self).__contains__(item)
 
-    @overload
-    def __getitem__(self, index):
-        # type: (int | StrLike) -> Attribute
-        pass
-    @overload
-    def __getitem__(self, index):
-        # type: (slice) -> list[Attribute]
-        pass
-    def __getitem__(self, index):
-        # type: (int | slice | StrLike) -> Attribute | list[Attribute]
-        """Get an attribute from an index, name or slice."""
-        # Get a list of attributes from a slice
-        if isinstance(index, slice):
-            start, stop, step = index.indices(len(self))
-            return [self._getAttribute(i) for i in range(start, stop, step)]
-
-        # Get the attribute at an index
-        if isinstance(index, int):
-            if self.plug.isArray:  # Special case if keys are integers
-                self._ensureLoaded()
-                return self.mappedObjects[self.mappedKeys[index]]
-            return self._getAttribute(index)
-
-        # Get the attribute from its name
-        idx = self.mappedKeys[str(index)]
-        return self.mappedObjects[idx]
-
-    @property
-    def apiObjects(self):
+    def _loadApiObjects(self):
         # type: () -> list[om2.MPlug]
-        """Get a list of plugs to the child attributes."""
-        result = self._apiObjects
-        if result is None:
-            plug = self.plug
-            if self.plug.isArray:
-                result = self._apiObjects = [plug.elementByLogicalIndex(i)
-                                             for i in plug.getExistingArrayAttributeIndices()]
-            elif self.plug.isCompound:
-                result = self._apiObjects = [plug.child(i) for i in range(plug.numChildren())]
-            else:
-                result = self._apiObjects = []
+        """Load all API objects."""
+        plug = self.plug
+        if plug.isArray:
+            return [plug.elementByLogicalIndex(i) for i in plug.getExistingArrayAttributeIndices()]
+        if plug.isCompound:
+            return [plug.child(i) for i in range(plug.numChildren())]
+        return []
 
-            count = self._unloadCount = len(result)
-            self._mappedObjects = [None] * count
-            self._mappedKeys.clear()
-        return result
+    def _loadModuleObject(self, apiObject):
+        # type: (om2.MPlug) -> Attribute
+        """Load the Attribute from the plug."""
+        return self._moduleType(self.node, apiObject)
 
-    @apiObjects.deleter
-    def apiObjects(self):
-        # type: () -> None
-        """Refresh the list of child attributes."""
-        self._apiObjects = None
-
-    @property
-    def mappedObjects(self):
-        # type: () -> list[Attribute]
-        """Get a list of child attributes."""
-        self._ensureLoaded()
-        if TYPE_CHECKING:
-            mappedObjects = cast(list[Attribute], self._mappedObjects)
-        else:
-            mappedObjects = self._mappedObjects
-        return mappedObjects
-
-    @property
-    def mappedKeys(self):
-        # type: () -> dict[str | int, int]
-        """Get mapping of attribute names to their mapping index.
-        The index can be used with `apiObjects` or `mappedObjects`.
-        """
-        self._ensureLoaded()
-        return self._mappedKeys
-
-    def _ensureLoaded(self):
-        # type () -> None
-        """Check that all the data is loaded."""
-        self.apiObjects
-        if self._unloadCount:
-            for i, item in enumerate(self._mappedObjects):
-                if item is None:
-                    self._getAttribute(i)
-
-    def _getAttribute(self, index):
-        # type: (int) -> Attribute
-        """Get an individual node at an index.
-        Creates a mapping if one doesn't exist.
-        """
-        apiObjects = self.apiObjects
-        attribute = self._mappedObjects[index]
-        if attribute is None:
-            plug = apiObjects[index]
-            attribute = Attribute(self.node, plug)
-            self._mappedObjects[index] = attribute
-            for key in self._generateKeys(plug):
-                self._mappedKeys[key] = index
-            self._unloadCount -= 1
-        return attribute
-
-    def _generateKeys(self, plug):
-        # type: (om2.MPlug) -> Iterator[str | int]
+    def _generateKeys(self, apiObject, moduleObject):
+        # type: (om2.MPlug, Attribute) -> Iterator[str | int]
         """Generate possible keys to use to get the children."""
-        if plug.isChild:
-            yield plug.partialName(useLongNames=True, includeInstancedIndices=True).split('.')[-1]
-            yield plug.partialName(useLongNames=False, includeInstancedIndices=True).split('.')[-1]
-        elif plug.isCompound or plug.isElement:
-            yield plug.logicalIndex()
+        if apiObject.isChild:
+            yield apiObject.partialName(useLongNames=True, includeInstancedIndices=True).split('.')[-1]
+            yield apiObject.partialName(useLongNames=False, includeInstancedIndices=True).split('.')[-1]
 
-    def refresh(self):
-        # type: () -> None
-        """Clear the data to be refreshed."""
-        del self.apiObjects
-
-    def keys(self):
-        # type: () -> list[str | int]
-        return list(self.mappedKeys)
-
-    def values(self):
-        # type: () -> list[Attribute]
-        return list(self.mappedObjects)
-
-    def items(self):
-        # type: () -> list[tuple[str | int, Attribute]]
-        objects = self.mappedObjects
-        return [(k, objects[v]) for k, v in self.mappedKeys.items()]
+        elif apiObject.isCompound or apiObject.isElement:
+            yield apiObject.logicalIndex()
 
 
-class NodeAttributes(object):
+class NodeAttributes(types.MappedLazyList2):
     """Access the attributes on a node."""
 
-    __slots__ = ['_node', '_apiObjects', '_mappedObjects', '_mappedKeys', '_unloadCount']
+    __slots__ = ['_node']
+
+    @property
+    def _moduleType(self):  # type: () -> Type[Attribute]
+        """Return the object this list contains."""
+        return Attribute
 
     def __init__(self, node):
         # type: (Node) -> None
+        super(NodeAttributes, self).__init__()
         self._node = node
-
-        self._apiObjects = None  # type: list[om2.MObject] | None
-        self._mappedObjects = []  # type: list[Attribute | None]
-        self._mappedKeys = {}  # type: dict[str | int, int]
-        self._unloadCount = 0
 
     @property
     def node(self):
@@ -347,66 +231,28 @@ class NodeAttributes(object):
         """Get the node."""
         return self._node
 
-    def __repr__(self):
-        # type: () -> str
-        return repr(self.mappedObjects)
-
-    def __str__(self):
-        # type: () -> str
-        return str(self.mappedObjects)
-
     def __eq__(self, other):
         # type: (Any) -> bool
         if isinstance(other, NodeAttributes):
             return self.node == other.node
-        if isinstance(other, list):
-            return self.mappedObjects == other
-        return False
-
-    def __bool__(self):
-        # type: () -> bool
-        """Determine if the namespace has any nodes."""
-        return len(self) > 0
-    __nonzero__ = __bool__
+        return super(NodeAttributes, self).__eq__(other)
 
     def __len__(self):
         # type: () -> int
         """Get the number of attributes."""
         return self.node.api.dependencyNode.attributeCount()
 
-    def __iter__(self):
-        # type: () -> Iterator[Attribute]
-        """Iterate through each attribute within the reference."""
-        return iter(self._getAttribute(i) for i in range(len(self)))
-
     def __contains__(self, item):
-        # type: (StrLike) -> bool
+        # type: (Any) -> bool
         """If a particular node belongs to a namespace."""
-        return self.node.api.dependencyNode.hasAttribute(str(item))
+        item = str(item)
+        return self.node.api.dependencyNode.hasAttribute(str(item)) or item in self._mappedKeys
 
-    @overload
     def __getitem__(self, index):
-        # type: (int | StrLike) -> Attribute
-        pass
-    @overload
-    def __getitem__(self, index):
-        # type: (slice) -> list[Attribute]
-        pass
-    def __getitem__(self, index):
-        # type: (int | slice | StrLike) -> Attribute | list[Attribute]
-        """Get an attribute from an index, name or slice."""
-        # Get a list of attributes from a slice
-        if isinstance(index, slice):
-            start, stop, step = index.indices(len(self))
-            return [self._getAttribute(i) for i in range(start, stop, step)]
-
-        # Get the attribute at an index
-        if isinstance(index, int):
-            return self._getAttribute(index)
-
-        # Get the attribute from its name
-        idx = self._getIndexFromName(index)
-        return self.mappedObjects[idx]
+        try:
+            return super(NodeAttributes, self).__getitem__(index)
+        except KeyError as e:
+            raise exceptions.AttributeNotFoundError(self.node, e)
 
     def get(self, attr, default=None):
         # type: (str, Any) -> Any
@@ -418,110 +264,32 @@ class NodeAttributes(object):
     def __setitem__(self, attr, value):
         # type: (str, Any) -> None
         """Set an attribute value."""
-        self[attr].value = value
+        self.__getitem__(attr).value = value
 
-    def _getIndexFromName(self, name):
-        # type: (StrLike) -> int
-        """Given a name, get the index of the item."""
-        name = str(name)
-        if name not in self:
-            raise exceptions.AttributeNotFoundError(self.node, name)
-        return self.mappedKeys[name]
-
-    @property
-    def apiObjects(self):
+    def _loadApiObjects(self):
         # type: () -> list[om2.MObject]
-        """Load all attribute objects."""
-        result = self._apiObjects
-        if result is None:
-            depNode = self.node.api.dependencyNode
-            result = self._apiObjects = [depNode.attribute(i) for i in range(depNode.attributeCount())]
+        """Load all API objects."""
+        depNode = self.node.api.dependencyNode
+        return [depNode.attribute(i) for i in range(depNode.attributeCount())]
 
-            count = self._unloadCount = len(result)
-            self._mappedObjects = [None] * count
-            self._mappedKeys.clear()
-        return result
+    def _loadModuleObject(self, apiObject):
+        # type: (om2.MObject) -> Attribute
+        """Load the Attribute from the plug."""
+        plug = self.node.api.dependencyNode.findPlug(apiObject, False)
+        return self._moduleType(self.node, plug)
 
-    @apiObjects.deleter
-    def apiObjects(self):
-        # type: () -> None
-        """Refresh the list of child attributes."""
-        self._apiObjects = None
-
-    @property
-    def mappedObjects(self):
-        # type: () -> list[Attribute]
-        """Get a list of child attributes."""
-        self._ensureLoaded()
-        if TYPE_CHECKING:
-            mappedObjects = cast(list[Attribute], self._mappedObjects)
-        else:
-            mappedObjects = self._mappedObjects
-        return mappedObjects
-
-    @property
-    def mappedKeys(self):
-        # type: () -> dict[str | int, int]
-        """Get mapping of attribute names to their mapping index.
-        The index can be used with `apiObjects` or `mappedObjects`.
-        """
-        self._ensureLoaded()
-        return self._mappedKeys
-
-    def _ensureLoaded(self):
-        # type () -> None
-        """Check that all the data is loaded."""
-        self.apiObjects
-        if self._unloadCount:
-            for i, item in enumerate(self._mappedObjects):
-                if item is None:
-                    self._getAttribute(i)
-
-    def _getAttribute(self, index):
-        # type: (int) -> Attribute
-        """Get an individual node at an index.
-        Creates a mapping if one doesn't exist.
-        """
-        apiObjects = self.apiObjects
-        attribute = self._mappedObjects[index]
-        if attribute is None:
-            plug = self.node.api.dependencyNode.findPlug(apiObjects[index], False)
-            attribute = Attribute(self.node, plug)
-            self._mappedObjects[index] = attribute
-            for key in self._generateKeys(plug):
-                self._mappedKeys[key] = index
-            self._unloadCount -= 1
-        return attribute
-
-    def _generateKeys(self, plug):
-        # type: (om2.MPlug) -> Iterator[str | int]
+    def _generateKeys(self, apiObject, moduleObject):
+        # type: (om2.MObject, Attribute) -> Iterator[str | int]
         """Generate the key to access the attribute.
 
         Skip any attribute with multiple path parts at this stage,
         eg. pCubeShape1.uvSet[-1].uvSetName / lambert1.lightDataArray.lightDirection
         """
+        plug = moduleObject.api.plug
         name = plug.partialName(useLongNames=False)
         if '.'  not in name:
             yield name
             yield plug.partialName(useLongNames=True)
-
-    def refresh(self):
-        # type: () -> None
-        """Clear the data to be refreshed."""
-        del self.apiObjects
-
-    def keys(self):
-        # type: () -> list[str | int]
-        return list(self.mappedKeys)
-
-    def values(self):
-        # type: () -> list[Attribute]
-        return list(self.mappedObjects)
-
-    def items(self):
-        # type: () -> list[tuple[str | int, Attribute]]
-        objects = self.mappedObjects
-        return [(k, objects[v]) for k, v in self.mappedKeys.items()]
 
     def create(self, longName, type=None, **kwargs):
         # type: (str, str | None, **Any) -> Attribute

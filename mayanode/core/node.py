@@ -577,7 +577,7 @@ class Node(types._NodeType):
     then it will raise `TypeError: Object  is invalid`.
     """
 
-    __slots__ = ['api', '_attrs']
+    __slots__ = ['api']
 
     def __init__(self, name, _instanceNumber=-1):
         # type: (Any, int) -> None
@@ -601,8 +601,6 @@ class Node(types._NodeType):
             self.api = _ApiData.fromReference(name)
         else:
             self.api = _ApiData.fromName(name, instanceNumber=_instanceNumber)
-
-        self._attrs = NodeAttributes(self)
 
     def __eq__(self, other):
         # type: (Any) -> bool
@@ -892,7 +890,7 @@ class Node(types._NodeType):
         # type: () -> NodeAttributes
         """Get the attr dict."""
         utils.raiseIfNodeNotFound(self)
-        return self._attrs
+        return NodeAttributes(self)
 
     def select(self, add=None, replace=None):
         # type(bool | None, bool | None) -> None

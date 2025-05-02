@@ -1226,17 +1226,22 @@ class TestAttr(unittest.TestCase):
         mc.setAttr(cube + '.test[1].testA', 1)
 
         node = Node(cube)
-        attr = node.attrs['test']
+        attrs = node.attrs
+        attr = attrs['test']
         element = attr.children[0]
         child = element.children['testA']
 
+        self.assertIn('test', attrs)
+        self.assertIn('test', node.attrs)
         with self.assertRaises(RuntimeError):
             child.delete()
         element.delete()
         self.assertEqual(list(attr.children.keys()), [1])
         attr.delete()
-        self.assertNotIn('test', Node(cube).attrs)
+        self.assertNotIn('test', node.attrs)
+        self.assertIn('test', attrs)
         self.assertFalse(attr.exists)
+        self.assertFalse(attrs['test'].exists)
         with self.assertRaises(exceptions.AttributeNotFoundError):
             node.attrs['test']
         with self.assertRaises(exceptions.AttributeNotFoundError):

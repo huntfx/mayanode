@@ -5,7 +5,7 @@ from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING, Generic, TypeVar, overload
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator
+    from typing import Any, Iterator, Type
     from ..type_hints import StrLike
 
 
@@ -192,19 +192,22 @@ class UVSet(types.StrMixin):
         return [Node(texture) for texture in textures]
 
 
-class UVSetCollection(object):
+class UVSetCollection(types.MappedLazyList2):
     """Store a list of UV sets."""
 
-    __slots__ = ['_node', '_faceIndex', '_apiObjects', '_mappedObjects']
+    __slots__ = ['_node', '_faceIndex']
+
+    @property
+    def _moduleType(self):  # type: () -> Type[UVSet]
+        """Return the object this list contains."""
+        return UVSet
 
     def __init__(self, node, faceIndex=None):
         # type: (Node, int | None) -> None
         """Store the origin mesh and optionally the index of the mesh face."""
         self._node = node
         self._faceIndex = faceIndex
-
-        self._apiObjects = None  # type: list[str] | None
-        self._mappedObjects = []  # type: list[UVSet | None]
+        return super(UVSetCollection, self).__init__()
 
     @property
     def node(self):
@@ -220,79 +223,30 @@ class UVSetCollection(object):
 
     def __repr__(self):
         # type: () -> str
-        return repr(self.apiObjects)
+        return repr(self._getApiObjects())
 
     def __str__(self):
         # type: () -> str
-        return str(self.apiObjects)
+        return repr(self._getApiObjects())
 
     def __eq__(self, other):
         # type: (Any) -> bool
         if isinstance(other, UVSetCollection):
-            return self._node == other._node and self._faceIndex == other._faceIndex
-        if isinstance(other, list):
-            return self.apiObjects == other
-        return False
-
-    def __bool__(self):
-        # type: () -> bool
-        """Determine if any UV sets are present."""
-        if self._apiObjects is not None:
-            return bool(self._apiObjects)
-
-        mesh = self.node.api.mesh
-        if mesh is None:
-            return False
-        return mesh.numUVSets > 0
-    __nonzero__ = __bool__
+            return self.node == other.node and self.faceIndex == other.faceIndex
+        return super(UVSetCollection, self).__eq__(other)
 
     def __len__(self):
         # type: () -> int
         """Get the number of UV sets."""
-        if self._apiObjects is not None:
-            return len(self._apiObjects)
-
         mesh = self.node.api.mesh
         if mesh is None:
             return 0
         return mesh.numUVSets
 
-    def __iter__(self):
-        # type: () -> Iterator[UVSet]
-        """Iterate through each node within the reference."""
-        return iter(self._getUVSet(i) for i in range(len(self)))
-
     def __contains__(self, uvSet):
         # type: (StrLike) -> bool
         """Check if a particular uvSet is in the collection."""
-        return str(uvSet) in self.apiObjects
-
-    @overload
-    def __getitem__(self, index):
-        # type: (int | StrLike) -> UVSet
-        pass
-    @overload
-    def __getitem__(self, index):
-        # type: (slice) -> UVSetList[UVSet]
-        pass
-    def __getitem__(self, index):
-        # type: (int | slice | StrLike) -> UVSet | UVSetList[UVSet]
-        """Get a node from an index, name or slice."""
-        # Get a list of nodes from a slice
-        if isinstance(index, slice):
-            start, stop, step = index.indices(len(self))
-            return UVSetList(self._getUVSet(i) for i in range(start, stop, step))
-
-        # Get the node at an index
-        if isinstance(index, int):
-            return self._getUVSet(index)
-
-        # Get the node from its name
-        for item in self:
-            if item == index:
-                return item
-
-        raise IndexError(index)
+        return str(uvSet) in self._getApiObjects()
 
     def __delitem__(self, index):
         # type: (int | slice | StrLike) -> None
@@ -304,49 +258,34 @@ class UVSetCollection(object):
             for uvSet in result:
                 uvSet.delete()
 
-    @property
-    def apiObjects(self):
-        """Get the list of UV names."""
-        if self._apiObjects is None:
-            if self._faceIndex is None:
-                self._apiObjects = list(self.node.api.mesh.getUVSetNames())
-            else:
-                self._apiObjects = list(self.node.api.mesh.getFaceUVSetNames(self._faceIndex))
-            self._mappedObjects = [None for _ in self._apiObjects]
-        return self._apiObjects
-
-    @apiObjects.deleter
-    def apiObjects(self):
-        """Refresh the list of UV names."""
-        self._apiObjects = None
-
-    def _getUVSet(self, index):
-        # type: (int) -> UVSet
-        """Get an individual node at an index.
-        Creates a mapping if one doesn't exist.
-        """
-        if self._apiObjects is None:
-            uvSet = None
-        else:
-            uvSet = self._mappedObjects[index]
-        if uvSet is None:
-            uvSet = UVSet(self.node, self.apiObjects[index])
-            self._mappedObjects[index] = uvSet
-        return uvSet
-
     def create(self, name):
         # type: (str) -> UVSet
         """Add a new UV set to the node."""
         uvSetName = mc.polyUVSet(self.node, create=True, uvSet=name)[0]
-        self.apiObjects.append(uvSetName)
-        uvSet = UVSet(self.node, uvSetName)
-        self._mappedObjects.append(uvSet)
-        return uvSet
+        self.refresh()
+        return UVSet(self.node, uvSetName)
 
-    def refresh(self):
-        # type (bool) -> None
-        """Refresh all the data."""
-        del self.apiObjects
+    def _loadApiObjects(self):
+        # type: () -> list[str]
+        """Load all API objects."""
+        mesh = self.node.api.mesh
+        if mesh is None:
+            return []
+
+        faceIndex = self._faceIndex
+        if faceIndex is None:
+            return list(mesh.getUVSetNames())
+        return list(mesh.getFaceUVSetNames(faceIndex))
+
+    def _loadModuleObject(self, apiObject):
+        # type: (str) -> UVSet
+        return UVSet(self.node, apiObject)
+
+    def _generateKeys(self, apiObject, moduleObject):
+        # type: (str, UVSet) -> Iterator[str]
+        """Use the API object to get keys for the dict mapping."""
+        yield apiObject
+
 
 
 class UVSetList(list, Generic[T]):

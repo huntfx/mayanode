@@ -6,7 +6,7 @@ from collections import namedtuple
 import imath  # type: ignore
 import maya.api.OpenMaya as om2
 
-from .type_hints import TYPE_CHECKING
+from .type_hints import TYPE_CHECKING, Generic, TypeVar, overload, cast
 
 if TYPE_CHECKING:
     from typing import Any, Iterable, Iterator, Type
@@ -25,6 +25,12 @@ if TYPE_CHECKING:
 if sys.version_info.major != 2:
     unicode = str  # pylint: disable=invalid-name
 
+
+T_API = TypeVar('T_API')
+
+T_MOD = TypeVar('T_MOD')
+
+T_KEY = TypeVar('T_KEY')
 
 Coordinate = namedtuple('Coordinate', ['x', 'y', 'z'])
 
@@ -436,6 +442,186 @@ class MappedLazyList(object):
         else:
             self._data[:] = [None for _ in range(self.__len__())]
         self._isDataLoaded = False
+
+
+class MappedLazyList2(Generic[T_API, T_MOD, T_KEY]):
+
+    __slots__ = ['_apiObjects', '_moduleObjects', '_mappedKeys', '_unloadCount']
+
+    @property
+    def _moduleType(self):  # type: () -> Type[T_MOD]
+        raise NotImplementedError
+
+    @property
+    def _indexType(self):  # type: () -> Type[T_KEY]
+        return str
+
+    def _generateKeys(self, apiObject, moduleObject):
+        # type: (T_API, T_MOD) -> Iterator[T_KEY]
+        """Use the API object to get keys for the dict mapping."""
+        return
+        yield
+
+    def _loadApiObjects(self):
+        # type: () -> list[T_API]
+        """Load all API objects."""
+        raise NotImplementedError
+
+    def __init__(self):
+        # type: () -> None
+        self._apiObjects = None  # type: list[T_API] | None
+        self._moduleObjects = []  # type: list[T_MOD | None]
+        self._mappedKeys = {}  # type: dict[str | int, int]
+        self._unloadCount = 0
+
+    def __repr__(self):
+        # type: () -> str
+        return repr(self._getModuleObjects())
+
+    def __str__(self):
+        # type: () -> str
+        return str(self._getModuleObjects())
+
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, list):
+            return self._getModuleObjects() == other
+        return False
+
+    def __bool__(self):
+        # type: () -> bool
+        """Determine if the attribute has any children."""
+        return len(self) > 0
+    __nonzero__ = __bool__
+
+    def __len__(self):
+        # type: () -> int
+        """Get the number of child attributes."""
+        return len(self._getApiObjects())
+
+    def __iter__(self):
+        # type: () -> Iterator[T_MOD]
+        """Iterate through each child attribute."""
+        return iter(self._getModuleObject(i) for i in range(len(self)))
+
+    def __contains__(self, item):
+        # type: (Any) -> bool
+        """If a particular attribute is a child."""
+        if isinstance(item, self._moduleType):
+            return item in self._getModuleObjects()
+        item = str(item)
+        return item in self._getIndexes() or item in self._getModuleObjects()
+
+    @overload
+    def __getitem__(self, index):
+        # type: (int | StrLike) -> T_MOD
+        pass
+    @overload
+    def __getitem__(self, index):
+        # type: (slice) -> list[T_MOD]
+        pass
+    def __getitem__(self, index):
+        # type: (int | slice | StrLike) -> T_MOD | list[T_MOD]
+        """Get an attribute from an index, name or slice."""
+        # Get a list of attributes from a slice
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self))
+            return [self._getModuleObject(i) for i in range(start, stop, step)]
+
+        # Get the attribute at an index
+        # If the index type is also an integer, then skip this part
+        indexType = self._indexType
+        if isinstance(index, int) and indexType is not int:
+            return self._getModuleObject(index)
+
+        # Get the attribute from its name
+        self._ensureFullyLoaded()
+        idx = self._getIndexes()[indexType(index)]
+        return self._getModuleObjects()[idx]
+
+    def get(self, item, default=None):
+        # type: (Any, Any) -> Any
+        """Return an item if it exists."""
+        if item in self:
+            return self[item]
+        return default
+
+    def keys(self):
+        # type: () -> list[T_KEY]
+        return list(self._getIndexes())
+
+    def values(self):
+        # type: () -> list[T_MOD]
+        return list(self._getModuleObjects())
+
+    def items(self):
+        # type: () -> list[tuple[T_KEY, T_MOD]]
+        objects = self._getModuleObjects()
+        return [(k, objects[v]) for k, v in self._getIndexes().items()]
+
+    def _getApiObjects(self):
+        # type: () -> list[T_API]
+        """Get a list of plugs to the child attributes."""
+        result = self._apiObjects
+        if result is None:
+            result = self._apiObjects = self._loadApiObjects()
+            count = self._unloadCount = len(result)
+            self._moduleObjects = [None] * count
+            self._mappedKeys.clear()
+        return result
+
+    def _getModuleObjects(self):
+        # type: () -> list[T_MOD]
+        """Get a list of child attributes."""
+        self._ensureFullyLoaded()
+        if TYPE_CHECKING:
+            result = cast(list[T_MOD], self._moduleObjects)
+        else:
+            result = self._moduleObjects
+        return result
+
+    def _getIndexes(self):
+        # type: () -> dict[T_KEY, int]
+        """Get mapping of attribute names to their mapping index.
+        The index can be used with `apiObjects` or `mappedObjects`.
+        """
+        self._ensureFullyLoaded()
+        return self._mappedKeys
+
+    def _ensureFullyLoaded(self):
+        # type () -> None
+        """Check that all the data is loaded."""
+        self._getApiObjects()
+        if self._unloadCount:
+            for i, item in enumerate(self._moduleObjects):
+                if item is None:
+                    self._getModuleObject(i)
+
+    def _getModuleObject(self, index):
+        # type: (int) -> T_MOD
+        """Get an individual attribute at an index.
+        Creates a mapping if one doesn't exist.
+        """
+        apiObjects = self._getApiObjects()
+        result = self._moduleObjects[index]
+        if result is None:
+            apiObject = apiObjects[index]
+            result = self._moduleObjects[index] = self._loadModuleObject(apiObject)
+            for key in self._generateKeys(apiObject, result):
+                self._mappedKeys[key] = index
+            self._unloadCount -= 1
+        return result
+
+    def _loadModuleObject(self, apiObject):
+        # type: (T_API) -> T_MOD
+        """Take an API object and load the corresponding module object."""
+        return self._moduleType(apiObject)
+
+    def refresh(self):
+        # type: () -> None
+        """Clear the data to be refreshed."""
+        self._apiObjects = None
+
 
 
 class _NodeType(StrMixin):
