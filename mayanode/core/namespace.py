@@ -12,13 +12,13 @@ if TYPE_CHECKING:
     from ..type_hints import StrLike
 
 
-class NamespaceNodes(types.MappedLazyList2):
+class NamespaceNodes(types.MappedLazyList['Node', om2.MObject, str]):
     """Get the nodes belonging to a namespace."""
 
     __slots__ = ['_namespace']
 
     @property
-    def _moduleType(self):  # type: () -> Type[Node]
+    def ItemType(self):  # type: () -> Type[Node]
         """Return the object this list contains."""
         return Node
 
@@ -52,7 +52,7 @@ class NamespaceNodes(types.MappedLazyList2):
         return om2.MNamespace.getNamespaceObjects(str(self.namespace))
 
     def _generateKeys(self, apiObject, moduleObject):
-        # type: (str, Node) -> Iterator[str]
+        # type: (om2.MObject, Node) -> Iterator[str]
         """Use the API object to get keys for the dict mapping."""
         node = str(moduleObject)
         yield node.rsplit(':', 1)[-1]

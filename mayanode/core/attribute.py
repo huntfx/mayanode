@@ -4,7 +4,7 @@ import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
-from ..type_hints import TYPE_CHECKING, cast, overload
+from ..type_hints import TYPE_CHECKING, Union, cast, overload
 
 if TYPE_CHECKING:
     from typing import Any, Iterator, Type
@@ -136,21 +136,30 @@ def _setPlugValue(plug, value):
         raise NotImplementedError(type(value))
 
 
-class AttributeChildren(types.MappedLazyList2):
+class AttributeChildren(types.MappedLazyList['Attribute', om2.MPlug, Union[str, int]]):
     """Access the child attributes."""
 
     __slots__ = ['_node', '_plug']
 
     @property
-    def _moduleType(self):  # type: () -> Type[Attribute]
+    def ItemType(self):  # type: () -> Type[Attribute]
         """Return the object this list contains."""
         return Attribute
 
     @property
-    def _indexType(self):  # type: () -> Type[str | int]
+    def IndexType(self):  # type: () -> Type[str | int]
+        """Get the correct index type to use.
+        For arrays use integers, otherwise use the attribute names.
+        """
         if self.plug.isArray:
             return int
         return str
+
+    def _getIndex(self, value):
+        # type: (Any) -> str | int
+        if self.plug.isArray:
+            return int(value)
+        return str(value)
 
     def __init__(self, node, plug):
         # type: (Node, om2.MPlug) -> None
@@ -194,10 +203,10 @@ class AttributeChildren(types.MappedLazyList2):
             return [plug.child(i) for i in range(plug.numChildren())]
         return []
 
-    def _loadModuleObject(self, apiObject):
+    def _loadListItem(self, apiObject):
         # type: (om2.MPlug) -> Attribute
         """Load the Attribute from the plug."""
-        return self._moduleType(self.node, apiObject)
+        return Attribute(self.node, apiObject)
 
     def _generateKeys(self, apiObject, moduleObject):
         # type: (om2.MPlug, Attribute) -> Iterator[str | int]
@@ -210,13 +219,13 @@ class AttributeChildren(types.MappedLazyList2):
             yield apiObject.logicalIndex()
 
 
-class NodeAttributes(types.MappedLazyList2):
+class NodeAttributes(types.MappedLazyList['Attribute', om2.MObject, str]):
     """Access the attributes on a node."""
 
     __slots__ = ['_node']
 
     @property
-    def _moduleType(self):  # type: () -> Type[Attribute]
+    def ItemType(self):  # type: () -> Type[Attribute]
         """Return the object this list contains."""
         return Attribute
 
@@ -272,11 +281,11 @@ class NodeAttributes(types.MappedLazyList2):
         depNode = self.node.api.dependencyNode
         return [depNode.attribute(i) for i in range(depNode.attributeCount())]
 
-    def _loadModuleObject(self, apiObject):
+    def _loadListItem(self, apiObject):
         # type: (om2.MObject) -> Attribute
         """Load the Attribute from the plug."""
         plug = self.node.api.dependencyNode.findPlug(apiObject, False)
-        return self._moduleType(self.node, plug)
+        return Attribute(self.node, plug)
 
     def _generateKeys(self, apiObject, moduleObject):
         # type: (om2.MObject, Attribute) -> Iterator[str | int]

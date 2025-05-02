@@ -1,25 +1,37 @@
 from .. import types
+from ..type_hints import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any, Type
+    from ..type_hints import StrLike
 
 
-class FaceList(types.MappedLazyList, types.StrMixin):
-    """Hold a list of all the faces on a mesh.
-
-    The data is of the correct size, but lazily populated when needed.
-
-    TODO: Test
-    """
+class FaceList(types.MappedLazyList['Face', int, str], types.StrMixin):
+    """List all the faces on a mesh."""
 
     __slots__ = ['_node']
 
+    @property
+    def ItemType(self):  # type: () -> Type[Face]
+        """Return the object this list contains."""
+        return Face
+
     def __init__(self, node):
-        # type: (Node) -> None
+        # type: (StrLike) -> None
         """Initialise the data from a node."""
-        self._node = node
-        super(FaceList, self).__init__(None for _ in range(self.__len__()))
+        self._node = Node(node)
+        super(FaceList, self).__init__()
+
+    def __str__(self):
+        # type: () -> str
+        return self.name
 
     def __bool__(self):
         # type: () -> bool
-        return not len(self)
+        mesh = self.node.api.mesh
+        if mesh is None:
+            return False
+        return mesh.numPolygons > 0
     __nonzero__ = __bool__
 
     def __len__(self):
@@ -29,13 +41,18 @@ class FaceList(types.MappedLazyList, types.StrMixin):
             return 0
         return mesh.numPolygons
 
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, FaceList):
+            return self.node == other.node
+        if other == str(self):
+            return True
+        return super(FaceList, self).__eq__(other)
+
     @property
     def name(self):
         # type: () -> str
-        """Get the attribute for all faces.
-
-        TODO: `self.node.attrs['f'][0:len(self)]`
-        """
+        """Get the name for all faces."""
         return '{}.f[0:{}]'.format(self.node, max(0, self.__len__() - 1))
 
     @property
@@ -44,43 +61,30 @@ class FaceList(types.MappedLazyList, types.StrMixin):
         """Get the node."""
         return self._node
 
-    def _loadData(self, key=None):
-        # type: (int | str | None) -> bool
-        """Load the `Face` objects when needed."""
-        indexes = []
-        if isinstance(key, int):
-            indexes = [key]
-        else:
-            indexes = [i for i, item in enumerate(self._data) if item is None]
+    def _loadApiObjects(self):
+        # type: () -> list[int]
+        return list(range(len(self)))
 
-        for idx in indexes:
-            self._data[idx] = Face(self.node, idx)
-
-        return not isinstance(key, int)
+    def _loadListItem(self, apiObject):
+        # type: (int) -> Face
+        return Face(self.node, apiObject)
 
 
 class Face(types.StrMixin):
-    """Handle a face of a mesh.
-
-    TODO: Test
-    TODO: Should this inherit `Attribute`?
-    """
+    """Handle a face of a mesh."""
 
     __all__ = ['_node', '_index']
 
     def __init__(self, node, index):
-        # type: (Node, int) -> None
-        self._node = node
+        # type: (StrLike, int) -> None
+        self._node = Node(node)
         self._index = index
 
     @classmethod
     def fromNode(cls, node):
-        # type: (Node) -> list[Face]
+        # type: (StrLike) -> FaceList
         """Get a list of faces for a node."""
-        mesh = node.api.mesh
-        if mesh is None:
-            return []
-        return [Face(node, i) for i in range(mesh.numPolygons)]
+        return FaceList(node)
 
     @property
     def name(self):

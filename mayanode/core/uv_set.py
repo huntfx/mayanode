@@ -192,13 +192,13 @@ class UVSet(types.StrMixin):
         return [Node(texture) for texture in textures]
 
 
-class UVSetCollection(types.MappedLazyList2):
+class UVSetCollection(types.MappedLazyList[UVSet, str, str]):
     """Store a list of UV sets."""
 
     __slots__ = ['_node', '_faceIndex']
 
     @property
-    def _moduleType(self):  # type: () -> Type[UVSet]
+    def ItemType(self):  # type: () -> Type[UVSet]
         """Return the object this list contains."""
         return UVSet
 
@@ -220,14 +220,6 @@ class UVSetCollection(types.MappedLazyList2):
         # type: () -> int | None
         """Get the node."""
         return self._faceIndex
-
-    def __repr__(self):
-        # type: () -> str
-        return repr(self._getApiObjects())
-
-    def __str__(self):
-        # type: () -> str
-        return repr(self._getApiObjects())
 
     def __eq__(self, other):
         # type: (Any) -> bool
@@ -277,7 +269,7 @@ class UVSetCollection(types.MappedLazyList2):
             return list(mesh.getUVSetNames())
         return list(mesh.getFaceUVSetNames(faceIndex))
 
-    def _loadModuleObject(self, apiObject):
+    def _loadListItem(self, apiObject):
         # type: (str) -> UVSet
         return UVSet(self.node, apiObject)
 
@@ -285,7 +277,6 @@ class UVSetCollection(types.MappedLazyList2):
         # type: (str, UVSet) -> Iterator[str]
         """Use the API object to get keys for the dict mapping."""
         yield apiObject
-
 
 
 class UVSetList(list, Generic[T]):

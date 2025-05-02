@@ -137,6 +137,7 @@ __all__ = [
     'Node',
     'BoundingBox',
     'Camera',
+    'Face',
     'File',
     'FileInfo',
     'Maya',
@@ -159,6 +160,7 @@ from .core.node import Node
 from .core.attribute import Attribute
 from .core.bounding_box import BoundingBox
 from .core.camera import Camera
+from .core.face import Face
 from .core.file import File
 from .core.file_info import FileInfo
 from .core.mayanode import MayaNode

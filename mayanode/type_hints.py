@@ -10,7 +10,7 @@ from six import with_metaclass
 TYPE_CHECKING = False
 
 if TYPE_CHECKING:
-    from typing import Generic, TypeVar, cast, overload
+    from typing import Generic, TypeVar, Union, cast, overload
     from . import types
 
     StrLike = types.StrMixin | str
@@ -18,8 +18,11 @@ if TYPE_CHECKING:
 else:
     cast = lambda typ, var: var
     overload = lambda fn: fn  # pylint: disable=unnecessary-lambda-assignment
-    class _GenericMeta(type):
+    class _TypingMeta(type):
         def __getitem__(cls, item): return cls
-    class Generic(with_metaclass(_GenericMeta)): pass
+    class Generic(with_metaclass(_TypingMeta)): pass
     class TypeVar(object):
         def __init__(self, *args, **kwargs): pass
+    class Union(with_metaclass(_TypingMeta)):
+        def __init__(self, *args, **kwargs): pass
+

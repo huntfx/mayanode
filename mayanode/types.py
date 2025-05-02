@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 if sys.version_info.major != 2:
     unicode = str  # pylint: disable=invalid-name
 
+T = TypeVar('T')
 
 T_API = TypeVar('T_API')
 
@@ -182,335 +183,88 @@ class StrMixin(object):  # pylint: disable=useless-object-inheritance
         return self.name.replace(old, new)
 
 
-class MappedLazyList(object):
-    """Lazy list-like object that supports dict item mapping.
+class MappedLazyList(Generic[T_MOD, T_API, T_KEY]):
+    """Hold a list of items with mappings to access them."""
 
-    Note:
-        It is expected that the items will all result in unique strings when fed into `generateKey`.
-        For optimisation purposes, this does not support using strings or None as list items.
-
-    TODO:
-        Add support for intermediate API types before they get converted.
-            ie. Load plugs/UV set names etc separately.
-        Allow duplicate keys to be mapped (eg. link "tx" to "translateX").
-    """
-
-    __slots__ = ['_data', '_mapping', '_unmapped', '_isDataLoaded', '_expectedLength', '_keyType']
-
-    def __init__(self, data=None, keyType=None):
-        # type: (Iterable[Any] | None, MappingKeyType | tuple[MappingKeyType, ...] | None) -> None
-        """Set up the list.
-
-        Parameters:
-            data: Initial data to load.
-                If this is given, then the list is assumed to be a set
-                length.
-            keyType: What type the mapping is.
-                If `int`, then the list lookups will be overridden with
-                the dict key counterpart.
-        """
-        self._isDataLoaded = False
-        if data is None:
-            self._data = []  # type: list[Any]
-            self._expectedLength = None
-        else:
-            self._data = list(data)
-            self._expectedLength = len(self._data)
-        self._unmapped = []  # type: list[int]
-        self._mapping = None  # type: dict[str, MappingKey] | None
-
-        if not keyType or keyType in (str, unicode):
-            keyType = (str, unicode)
-        self._keyType = keyType
-
-    def __repr__(self):
-        # type: () -> str
-        self._loadData()
-        return self._data.__repr__()
-
-    def __bool__(self):
-        # type: () -> bool
-        if self._data:
-            return True
-        if self._expectedLength is None:
-            self._loadData()
-        return bool(self._data)
-    __nonzero__ = __bool__
-
-    def __contains__(self, value):
-        # type: (Any) -> bool
-        self._loadData(value)
-        if not isinstance(value, self._keyType):
-            return value in self._data
-
-        # If the mapping is already loaded then use that
-        if self._mapping is not None:
-            if value in self.mapping:
-                return True
-
-        # Check for a match in the actual data (if __eq__ is overridden)
-        if value in self._data:
-            return True
-
-        # Finally load the mapping and check if it exists
-        return value in self.mapping
-
-    def __iter__(self):
-        # type: () -> Iterator[Any]
-        self._loadData()
-        return self._data.__iter__()
-
-    def __len__(self):
-        # type: () -> int
-        if self._expectedLength is None:
-            self._loadData()
-        if self._expectedLength is not None:
-            return self._expectedLength
-        return self._data.__len__()
-
-    def __eq__(self, other):
-        # type: (Any) -> bool
-        self._loadData()
-        return self._data == other
-
-    def __ne__(self, other):
-        # type: (Any) -> bool
-        self._loadData()
-        return self._data != other
-
-    def _loadData(self, value=None):
-        """Wrap the `loadData` method."""
-        # Prevent re-running if all data is loaded
-        if self._isDataLoaded:
-            return
-
-        # Run and check if all data is loaded
-        if self.loadData(value):
-            self._isDataLoaded = True
-
-    def loadData(self, key=None):  # pylint: disable=unused-argument, no-self-use
-        # type: (int | str | None) -> bool
-        """Load all data or for a specific index or key.
-        Requires override.
-
-        An integer is for an index of the list. If the number of items
-        is not known, then it is recommended to load all items.
-        A string is to check for a dictionary mapping. If the mapping is
-        still set to `None`, then it is recommended to load all items.
-        An input of `None` is to request a load of all data.
-
-        Returns:
-            True if all data has been loaded.
-        """
-        return True
-
-    def generateKey(self, value):
-        # type: (Any) -> MappingKey
-        """Override this to get the dict keys for each item."""
-        return str(value)
-
-    def _append(self, value):
-        # type: (Any) -> None
-        """Append to the list.
-        This is for internal use only.
-        """
-        if value is None or isinstance(value, self._keyType):
-            raise TypeError('"{}" not supported'.format(type(value).__name__))
-
-        self._data.append(value)
-
-        # Update the mapping data
-        if self._mapping is not None:
-            self._unmapped.append(len(self._data) - 1)
-
-    def _insert(self, index, value):
-        # type: (int, Any) -> None
-        """Append to the list.
-        This is for internal use only.
-        """
-        if value is None or isinstance(value, self._keyType):
-            raise TypeError('"{}" not supported'.format(type(value).__name__))
-
-        self._data.insert(index, value)
-
-        # Update the mapping data
-        if self._mapping is not None:
-            for i, idx in enumerate(self._unmapped):
-                if idx >= index:
-                    self._unmapped[i] += 1
-            for key, idx in self._mapping.items():
-                if idx >= index:
-                    self._mapping[key] += 1
-            self._unmapped.append(index)
-
-    def _setitem(self, index, value):
-        # type: (int, Any) -> None
-        """Set a value at an index.
-        This is for internal use only.
-        """
-        self._data[index] = value
-        if self._mapping is not None:
-            if index < 0:
-                index = len(self._data) - index - 1
-            self._unmapped.append(index)
-
-    def _set(self, values):
-        # type: (Iterator[Any]) -> None
-        """Replace the list with new data.
-        This is for internal use only.
-        """
-        self._data[:] = list(values)
-        self._mapping = None
-        self._unmapped = []
-        self._expectedLength = len(self._data)
-
-    def _extend(self, value):
-        # type: (Iterable[Any]) -> None
-        """Update the list.
-        This is for internal use only.
-        """
-        length = len(self._data)
-        self._data.extend(value)
-        self._expectedLength = len(self._data)
-
-        # Update the mapping data
-        if self._mapping is not None:
-            self._unmapped.extend(range(length, len(self._data)))
+    __slots__ = ['_apiObjects', '_listItems', '_mappedKeys', '_unloadCount']
 
     @property
-    def mapping(self):
-        # type: () -> dict[MappingKey, Any]
-        """Get the mapping of keys to indexes."""
-        if self._mapping is None:
-            self._mapping = {self.generateKey(item): i for i, item in enumerate(self._data)}
-        elif self._unmapped:
-            self._mapping.update({self.generateKey(item): i for i, item
-                                  in enumerate(map(self._data.__getitem__, self._unmapped))})
-            self._unmapped[:] = []
-        return self._mapping
-
-    def __getitem__(self, value):
-        # type: (slice | int | str) -> Any
-        """Get the value at a specific key or index."""
-        if isinstance(value, slice):
-            for i in range(value.start, value.stop, value.step or 1):
-                if self._data[i] is None:
-                    self._loadData(i)
-            return self._data[value]
-
-        if isinstance(value, self._keyType):
-            self._loadData(value)
-
-        elif isinstance(value, int):
-            if self._expectedLength is None or self._data[value] is None:
-                self._loadData(value)
-            return self._data[value]
-
-        return self._data[self.mapping[value]]
-
-    def get(self, value, default=None):
-        # type: (Any, Any) -> Any
-        """Get the value at a specific key, or fallback to a default value."""
-        if isinstance(value, self._keyType):
-            self._loadData(value)
-        try:
-            return self._data[self.mapping[value]]
-        except KeyError:
-            return default
-
-    def keys(self):
-        # type: () -> list[MappingKey]
-        """Get all the mapped keys."""
-        return list(self.mapping)
-
-    def values(self):
-        # type: () -> list[Any]
-        """Get all of the data."""
-        return list(self._data)
-
-    def items(self):
-        # type: () -> Iterator[tuple[MappingKey, Any]]
-        """Get all the mapped items."""
-        for k, v in self.mapping.items():
-            yield k, self._data[v]
-
-    def reload(self):
-        # type: () -> None
-        """Refresh the data."""
-        if self._expectedLength is None:
-            self._data[:] = []
-        else:
-            self._data[:] = [None for _ in range(self.__len__())]
-        self._isDataLoaded = False
-
-
-class MappedLazyList2(Generic[T_API, T_MOD, T_KEY]):
-
-    __slots__ = ['_apiObjects', '_moduleObjects', '_mappedKeys', '_unloadCount']
-
-    @property
-    def _moduleType(self):  # type: () -> Type[T_MOD]
+    def ItemType(self):  # type: () -> Type[T_MOD]
+        """Return the list item type.
+        If this requires more than one argument, override the
+        `_loadListItem` method.
+        """
         raise NotImplementedError
 
     @property
-    def _indexType(self):  # type: () -> Type[T_KEY]
+    def IndexType(self):  # type: () -> Type[T_KEY]
+        """Get the index type to use for the dict keys."""
+        if TYPE_CHECKING:
+            return cast(Type[T_KEY], str)
         return str
 
     def _generateKeys(self, apiObject, moduleObject):
         # type: (T_API, T_MOD) -> Iterator[T_KEY]
-        """Use the API object to get keys for the dict mapping."""
-        return
-        yield
+        """Generate possible keys to use for the dict mapping."""
+        yield str(moduleObject)
 
     def _loadApiObjects(self):
         # type: () -> list[T_API]
         """Load all API objects."""
         raise NotImplementedError
 
+    def _loadListItem(self, apiObject):
+        # type: (T_API) -> T_MOD
+        """Load the list item from the internal API object.
+        This will require overriding if more than one argument.
+        """
+        return self.ItemType(apiObject)  # type: ignore[call-arg]
+
     def __init__(self):
         # type: () -> None
         self._apiObjects = None  # type: list[T_API] | None
-        self._moduleObjects = []  # type: list[T_MOD | None]
-        self._mappedKeys = {}  # type: dict[str | int, int]
+        self._listItems = []  # type: list[T_MOD | None]
+        self._mappedKeys = {}  # type: dict[T_KEY, int]
         self._unloadCount = 0
 
     def __repr__(self):
         # type: () -> str
-        return repr(self._getModuleObjects())
+        return repr(self._getListItems())
 
     def __str__(self):
         # type: () -> str
-        return str(self._getModuleObjects())
+        return str(self._getListItems())
 
     def __eq__(self, other):
         # type: (Any) -> bool
+        """Check if the list is equal."""
         if isinstance(other, list):
-            return self._getModuleObjects() == other
+            return self._getListItems() == other
         return False
 
     def __bool__(self):
         # type: () -> bool
-        """Determine if the attribute has any children."""
+        """Determine if any list items exist."""
         return len(self) > 0
     __nonzero__ = __bool__
 
     def __len__(self):
         # type: () -> int
-        """Get the number of child attributes."""
+        """Get the number of list items."""
         return len(self._getApiObjects())
 
     def __iter__(self):
         # type: () -> Iterator[T_MOD]
-        """Iterate through each child attribute."""
-        return iter(self._getModuleObject(i) for i in range(len(self)))
+        """Iterate over each list item."""
+        return iter(self._getListItem(i) for i in range(len(self)))
 
     def __contains__(self, item):
-        # type: (Any) -> bool
-        """If a particular attribute is a child."""
-        if isinstance(item, self._moduleType):
-            return item in self._getModuleObjects()
+        # type: (StrLike) -> bool
+        """Check if a list item exists."""
+        if isinstance(item, self.ItemType):
+            return item in self._getListItems()
         item = str(item)
-        return item in self._getIndexes() or item in self._getModuleObjects()
+        return item in self._getIndexes() or item in self._getListItems()
 
     @overload
     def __getitem__(self, index):
@@ -522,106 +276,249 @@ class MappedLazyList2(Generic[T_API, T_MOD, T_KEY]):
         pass
     def __getitem__(self, index):
         # type: (int | slice | StrLike) -> T_MOD | list[T_MOD]
-        """Get an attribute from an index, name or slice."""
+        """Get a list item from an index, name or slice."""
         # Get a list of attributes from a slice
         if isinstance(index, slice):
             start, stop, step = index.indices(len(self))
-            return [self._getModuleObject(i) for i in range(start, stop, step)]
+            return [self._getListItem(i) for i in range(start, stop, step)]
 
         # Get the attribute at an index
         # If the index type is also an integer, then skip this part
-        indexType = self._indexType
+        indexType = self.IndexType
         if isinstance(index, int) and indexType is not int:
-            return self._getModuleObject(index)
+            return self._getListItem(index)
 
         # Get the attribute from its name
         self._ensureFullyLoaded()
-        idx = self._getIndexes()[indexType(index)]
-        return self._getModuleObjects()[idx]
-
-    def get(self, item, default=None):
-        # type: (Any, Any) -> Any
-        """Return an item if it exists."""
-        if item in self:
-            return self[item]
-        return default
+        convertedIndex = indexType(index)  # type: ignore[call-arg]
+        idx = self._getIndexes()[convertedIndex]
+        return self._getListItems()[idx]
 
     def keys(self):
         # type: () -> list[T_KEY]
+        """Get all mapped keys for the list items."""
         return list(self._getIndexes())
 
     def values(self):
         # type: () -> list[T_MOD]
-        return list(self._getModuleObjects())
+        """Get all list items."""
+        return list(self._getListItems())
 
     def items(self):
         # type: () -> list[tuple[T_KEY, T_MOD]]
-        objects = self._getModuleObjects()
+        """Get a mapping of keys to list items."""
+        objects = self._getListItems()
         return [(k, objects[v]) for k, v in self._getIndexes().items()]
 
     def _getApiObjects(self):
         # type: () -> list[T_API]
-        """Get a list of plugs to the child attributes."""
+        """Get all the internal API objects."""
         result = self._apiObjects
         if result is None:
             result = self._apiObjects = self._loadApiObjects()
             count = self._unloadCount = len(result)
-            self._moduleObjects = [None] * count
+            self._listItems = [None] * count
             self._mappedKeys.clear()
         return result
 
-    def _getModuleObjects(self):
+    def _getListItems(self):
         # type: () -> list[T_MOD]
-        """Get a list of child attributes."""
+        """Get all the list objects."""
         self._ensureFullyLoaded()
         if TYPE_CHECKING:
-            result = cast(list[T_MOD], self._moduleObjects)
+            result = cast(list[T_MOD], self._listItems)
         else:
-            result = self._moduleObjects
+            result = self._listItems
         return result
 
     def _getIndexes(self):
         # type: () -> dict[T_KEY, int]
-        """Get mapping of attribute names to their mapping index.
-        The index can be used with `apiObjects` or `mappedObjects`.
+        """Get all the available mappings for the list items.
+        The index is for the internal data.
         """
         self._ensureFullyLoaded()
         return self._mappedKeys
 
     def _ensureFullyLoaded(self):
         # type () -> None
-        """Check that all the data is loaded."""
+        """Check that all the list items are loaded."""
         self._getApiObjects()
         if self._unloadCount:
-            for i, item in enumerate(self._moduleObjects):
+            for i, item in enumerate(self._listItems):
                 if item is None:
-                    self._getModuleObject(i)
+                    self._getListItem(i)
 
-    def _getModuleObject(self, index):
+    def _getListItem(self, index):
         # type: (int) -> T_MOD
-        """Get an individual attribute at an index.
-        Creates a mapping if one doesn't exist.
-        """
+        """Get an individual item at an index."""
         apiObjects = self._getApiObjects()
-        result = self._moduleObjects[index]
+        result = self._listItems[index]
         if result is None:
             apiObject = apiObjects[index]
-            result = self._moduleObjects[index] = self._loadModuleObject(apiObject)
+            result = self._listItems[index] = self._loadListItem(apiObject)
             for key in self._generateKeys(apiObject, result):
                 self._mappedKeys[key] = index
             self._unloadCount -= 1
         return result
-
-    def _loadModuleObject(self, apiObject):
-        # type: (T_API) -> T_MOD
-        """Take an API object and load the corresponding module object."""
-        return self._moduleType(apiObject)
 
     def refresh(self):
         # type: () -> None
         """Clear the data to be refreshed."""
         self._apiObjects = None
 
+
+class LazyDict(Generic[T_KEY, T_MOD]):
+
+    __slots__ = ['_items', '_invalidItems', '_loaded']
+
+    @property
+    def ItemType(self):  # type: () -> Type[T_MOD]
+        """Return the dict value item type.
+        If this requires more than one argument, override the
+        `_loadListItem` method.
+        """
+        raise NotImplementedError
+
+    @property
+    def IndexType(self):  # type: () -> Type[T_KEY]
+        """Get the index type to use for the mapping."""
+        if TYPE_CHECKING:
+            return cast(Type[T_KEY], str)
+        return str
+
+    def _loadIndividualObject(self, item):
+        # type: (T_KEY) -> T_MOD | None
+        """Get the dict value for a given key."""
+        raise NotImplementedError
+
+    def _loadAllObjects(self):
+        # type: () -> list[T_MOD]
+        """Get all possible dict values."""
+        raise NotImplementedError
+
+    def _generateKeys(self, item):
+        # type: (T_MOD) -> Iterator[T_KEY]
+        """Add rules on how to map keys to each value."""
+        yield self.IndexType(item)  # type: ignore[call-arg]
+
+    def __init__(self):
+        # type: () -> None
+        self._items = {}  # type: dict[T_KEY, T_MOD]
+        self._invalidItems = set()  # type: set[T_KEY]
+        self._loaded = False
+
+    def __repr__(self):
+        # type: () -> str
+        return repr(self._getAllObjects())
+
+    def __str__(self):
+        # type: () -> str
+        return str(self._getAllObjects())
+
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, dict):
+            return self._getAllObjects() == other
+        return False
+
+    def __bool__(self):
+        # type: () -> bool
+        """Determine if any data exists."""
+        if self._loaded:
+            return bool(self._items)
+        if self._items:
+            return True
+        return bool(self._getAllObjects())
+    __nonzero__ = __bool__
+
+    def __len__(self):
+        # type: () -> int
+        return len(self._items)
+
+    def __iter__(self):
+        # type: () -> Iterator[T_KEY]
+        """Iterate through each key."""
+        return iter(self._getAllObjects().keys())
+
+    def __contains__(self, item):
+        # type: (T_KEY | T_MOD) -> bool
+        """Check if an item exists in the dict.
+        This checks both keys and values.
+        """
+        if isinstance(item, self.ItemType):
+            if item in self._items.values():
+                return True
+            if self._loaded:
+                return False
+            self._loadAllObjects()
+            return item in self._items.values()
+        if TYPE_CHECKING: item = cast(T_KEY, item)
+        return self._getIndividualObject(item) is not None
+
+    def _getIndividualObject(self, key):
+        # type: (T_KEY) -> T_MOD | None
+        """Get the value for a given key."""
+        if key in self._invalidItems:
+            return None
+        if key in self._items:
+            return self._items[key]
+        if self._loaded:
+            return None
+
+        item = self._loadIndividualObject(key)
+        if item is None:
+            self._invalidItems.add(key)
+        else:
+            for key in self._generateKeys(item):
+                self._items[key] = item
+        return item
+
+    def _getAllObjects(self):
+        # type: () -> dict[T_KEY, T_MOD]
+        """Get all possible values."""
+        if not self._loaded:
+            for result in self._loadAllObjects():
+                for key in self._generateKeys(result):
+                    self._items[key] = result
+        return self._items
+
+    def __getitem__(self, item):
+        # type: (Any) -> T_MOD
+        """Get a value from a key."""
+        result = self.get(item)
+        if result is None:
+            raise KeyError(item)
+        return result
+
+    def get(self, item, default=None):
+        # type: (Any, T | None) -> T_MOD | T | None
+        """Get a value from a key."""
+        item = self.IndexType(item)  # type: ignore[call-arg]
+        if self._loaded:
+            return self._items[item]
+        result = self._getIndividualObject(item)
+        if result is None:
+            return default
+        return result
+
+    def keys(self):
+        # type: () -> list[T_KEY]
+        return list(self._getAllObjects().keys())
+
+    def values(self):
+        # type: () -> list[T_MOD]
+        return list(self._getAllObjects().values())
+
+    def items(self):
+        # type: () -> list[tuple[T_KEY, T_MOD]]
+        return list(self._getAllObjects().items())
+
+    def refresh(self):
+        # type: () -> None
+        """Clear the data to be refreshed."""
+        self._items.clear
+        self._invalidItems.clear()
+        self._loaded = False
 
 
 class _NodeType(StrMixin):

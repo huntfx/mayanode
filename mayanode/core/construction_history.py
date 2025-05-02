@@ -15,13 +15,13 @@ if TYPE_CHECKING:
     from typing import Type
 
 
-class ConstructionHistory(types.MappedLazyList2):
+class ConstructionHistory(types.MappedLazyList['Node', om2.MObject, str]):
     """Get nodes in the construction history."""
 
     __slots__ = ['_node', '_future']
 
     @property
-    def _moduleType(self):  # type: () -> Type[Node]
+    def ItemType(self):  # type: () -> Type[Node]
         """Return the object this list contains."""
         return Node
 

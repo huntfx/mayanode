@@ -8,11 +8,11 @@ from .. import constants, exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Type
     from ..type_hints import StrLike
 
 
-class Ancestors(types.MappedLazyList):
+class Ancestors(types.MappedLazyList['Node', om2.MDagPath, str]):
     """Only load the ancestor nodes when needed.
 
     This is very fast when requesting the first or last ancestor or a
@@ -25,124 +25,46 @@ class Ancestors(types.MappedLazyList):
         use `node.longName.startswith('|topLevelNode|')`.
     """
 
-    __slots__ = ['_node', '_ancestors', '_loadedAllAncestors']
+    __slots__ = ['_node']
+
+    @property
+    def ItemType(self):  # type: () -> Type[Node]
+        """Return the object this list contains."""
+        return Node
 
     def __init__(self, node):
         # type: (Node) -> None
         self._node = node
-        self._ancestors = []  # type: list[om2.MDagPath | None]
-        self._loadedAllAncestors = False
-        super(Ancestors, self).__init__(None if node.api.dagPath.isValid() else [])
+        super(Ancestors, self).__init__()
 
     @property
     def node(self):
         # type: () -> Node
         return self._node
 
-    def __bool__(self):
-        # type: () -> bool
-        """Determine if there are any ancestors."""
-        dagPath = self.node.api.dagPath
-        if not dagPath.isValid():
-            return False
-        return dagPath.length() > 1
-    __nonzero__ = __bool__
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if isinstance(other, Ancestors):
+            return self.node == other.node
+        return super(Ancestors, self).__eq__(other)
 
     def __len__(self):
         # type: () -> int
         """Get the number of ancestors."""
-        if self._expectedLength is not None:
-            return self._expectedLength
-
-        # Get the DAG path length
         dagPath = self.node.api.dagPath
         if not dagPath.isValid():
-            self._loadedAllAncestors = True
             return 0
-        ancestorLength = dagPath.length() - 1
+        return dagPath.length() - 1
 
-        # Populate the data lists
-        self._ancestors.extend(None for _ in range(ancestorLength - len(self._ancestors)))
-        self._set(None for _ in range(ancestorLength))
-        return ancestorLength
-
-    def loadData(self, key=None):
-        # type: (int | str | None) -> bool
-        """Load the ancestor data.
-
-        If a negative index is requested, then all the DAG paths will
-        be loaded, but only the index will get an attached class
-        instance. If no index is requested, then all DAG paths will be
-        loaded, and all will get a class instance. If a positive index
-        is requested, then it will find the latest known DAG path, jump
-        ahead to the specified index, and create a node for that.
-
-        Simple benchmark from fastest to slowest:
-            `ancestors[0]`  # 18
-            `ancestors[n]`  # 24
-            `ancestors[-i]`  # 32
-            `list(ancestors)`  # 59
-            `[ancestors[i] for i in range(n)]`  # 67
-            `[ancestors[i] for i in reversed(range(n))]`  # 74
-        """
-        if not self.node.api.dagPath.isValid():
-            return True
-
-        if not self._loadedAllAncestors:
-            ancestorLength = self.__len__()
-
-            # Load in all the missing data
-            # If a negative index then not all data needs loading
-            if not isinstance(key, int) or key < 0:
-
-                previousDagPath = self.node.api.dagPath
-                for i, ancestor in enumerate(self._ancestors):
-                    if ancestor is None:
-                        self._ancestors[i] = previousDagPath = om2.MDagPath(previousDagPath).pop()
-                    else:
-                        previousDagPath = ancestor
-
-                self._loadedAllAncestors = True
-
-            # Load a single positive index
-            elif 0 <= key < ancestorLength and self._ancestors[key] is None:
-
-                # Find the closest child DAG path
-                dagPath = None
-                if key:
-                    i = key - 1
-                    while i >= 0:
-                        if self._ancestors[i] is not None:
-                            dagPath = om2.MDagPath(self._ancestors[i])
-                            dagOffset = i
-                            break
-                        i -= 1
-
-                # Use the nodes DAG path
-                if dagPath is None:
-                    dagPath = om2.MDagPath(self.node.api.dagPath)
-                    dagOffset = -1
-
-                # Jump down the required number of levels
-                self._ancestors[key] = dagPath.pop(key - dagOffset)
-
-        # Get the requested indexes
-        indexes = []  # type: list[int]
-        if isinstance(key, int):
-            # Ignore any index error here as it's only loading the data
-            try:
-                if self._data[key] is None:
-                    indexes = [key]
-            except IndexError:
-                pass
-        else:
-            indexes.extend(i for i, item in enumerate(self._data) if item is None)
-
-        # Map nodes to indexes
-        for index in indexes:
-            self._setitem(index, Node(self._ancestors[index]))
-
-        return not isinstance(key, int)
+    def _loadApiObjects(self):
+        # type: () -> list[om2.MDagPath]
+        """Load all API objects."""
+        previousDagPath = self.node.api.dagPath
+        result = []
+        for _ in range(len(self)):
+            previousDagPath = om2.MDagPath(previousDagPath).pop()
+            result.append(previousDagPath)
+        return result
 
 
 class _ApiData(object):

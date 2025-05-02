@@ -2562,5 +2562,37 @@ class TestVersion(unittest.TestCase):
         self.assertEqual(standardiseVersions('a.b', 'a.2'), (['a', 'b'], ['a', 2]))
 
 
+class TestScene(unittest.TestCase):
+    def testRoot(self):
+        self.assertEqual(Scene.root, 'world')
+        self.assertIn('persp', Scene.root.children)
+
+    def testNodes(self):
+        self.assertIn('persp', Scene.nodes)
+        self.assertIn(Node('persp'), Scene.nodes)
+        self.assertNotIn('test', Scene.nodes)
+        self.assertEqual(set(Scene.nodes.values()), set(Node.ls()))
+        self.assertEqual(Node('persp'), Scene.nodes['persp'])
+
+
+class TestMesh(unittest.TestCase):
+    def setUp(self):
+        self.node = Node(mc.polyCube(name='meshTest')[0]).shape
+
+    def tearDown(self):
+        mc.delete(self.node.parent)
+
+    def testFaces(self):
+        self.assertEqual(self.node.faces, self.node + '.f[0:5]')
+        self.assertEqual(str(self.node.faces), self.node + '.f[0:5]')
+        self.assertEqual(self.node.faces.name, self.node + '.f[0:5]')
+        self.assertEqual(self.node.faces, ['{}.f[{}]'.format(self.node, i) for i in range(6)])
+        self.assertEqual(repr(self.node.faces), repr([self.node.faces[i] for i in range(6)]))
+
+        self.assertEqual(len(self.node.faces), 6)
+        self.assertEqual(self.node.faces[1], '{}.f[1]'.format(self.node))
+        self.assertIn('map1', self.node.faces[1].uvSets)
+
+
 if __name__ == '__main__':
     unittest.main()

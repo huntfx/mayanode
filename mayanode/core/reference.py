@@ -501,7 +501,7 @@ class Reference(Node):
         return _FileInfo(self)
 
 
-class ReferenceNodes(types.MappedLazyList2):
+class ReferenceNodes(types.MappedLazyList[Node, om2.MObject, str]):
     """Hold a list of all nodes in the reference.
     This also acts as a dict for the node names without their namespace.
 
@@ -520,7 +520,7 @@ class ReferenceNodes(types.MappedLazyList2):
     __slots__ = ['_reference']
 
     @property
-    def _moduleType(self):  # type: () -> Type[Node]
+    def ItemType(self):  # type: () -> Type[Node]
         """Return the object this list contains."""
         return Node
 
@@ -567,7 +567,7 @@ class ReferenceNodes(types.MappedLazyList2):
         return refNode.nodes()
 
     def _generateKeys(self, apiObject, moduleObject):
-        # type: (str, Node) -> Iterator[str]
+        # type: (om2.MObject, Node) -> Iterator[str]
         """Use the API object to get keys for the dict mapping."""
         node = str(moduleObject)
         yield node.rsplit(':', 1)[-1]

@@ -4,18 +4,16 @@ import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
 import maya.mel as mel  # type: ignore
 
-from .. import types, utils
+from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Any, Type
     from ..type_hints import StrLike
 
 
 class _Scene(object):
-    """Singleton for accessing data related to the scene.
-
-    TODO: Tests
-    """
+    """Singleton for accessing data related to the scene."""
 
     @property
     def path(self):
@@ -189,26 +187,20 @@ class _Scene(object):
         return FileInfo
 
 
-class SceneNodes(types.MappedLazyList):
+class SceneNodes(types.LazyDict[str, 'Node']):
     """Hold a dict of all nodes currently in the scene."""
 
-    def loadData(self, key=None):
-        # type: (int | str | None) -> bool
-        """Get the node objects."""
-        if key is None or isinstance(key, int):
-            self._extend(Node.ls())
-            return True
+    def _loadIndividualObject(self, item):
+        # type: (str) -> Node | None
+        """Return the object this list contains."""
+        try:
+            return Node(item)
+        except exceptions.NodeNotFoundError:
+            return None
 
-        if self._mapping is not None and key in self._mapping:
-            return False
-
-        if self._mapping is None or key not in self._mapping:
-            node = Node(key)
-            self._append(node)
-            if self._mapping is not None:
-                self._mapping[key] = node
-
-        return False
+    def _loadAllObjects(self):
+        # type: () -> list[Node]
+        return Node.ls()
 
 
 Scene = _Scene()
