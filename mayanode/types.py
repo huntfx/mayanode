@@ -206,7 +206,7 @@ class MappedLazyList(Generic[T_MOD, T_API, T_KEY]):
     def _generateKeys(self, apiObject, moduleObject):
         # type: (T_API, T_MOD) -> Iterator[T_KEY]
         """Generate possible keys to use for the dict mapping."""
-        yield str(moduleObject)
+        yield self.IndexType(moduleObject)  # type: ignore[call-arg]
 
     def _loadApiObjects(self):
         # type: () -> list[T_API]
