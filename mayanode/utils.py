@@ -104,24 +104,65 @@ def unnetworkPlug(plug):
     return new
 
 
-def iterConstructionHistory(mObject, future=False):
-    # type: (om2.MObject, bool) -> Iterator[om2.MObject]
+def _validateConstructionHistoryNode(mObject, future):
+    # type: (om2.MObject, bool) -> bool
+    """Check that a node is valid for the construction history.
+    Any node that causes this to return False will be skipped.
+    """
+    return future or not mObject.hasFn(om2.MFn.kSet)
+
+
+def iterConstructionHistory(mObject, future=False, allConnections=False, _seen=None):
+    # type: (om2.MObject, bool, bool, set[int] | None) -> Iterator[om2.MObject]
     """Get the construction history of a node.
-    Note that this will not automatically convert a transform to a mesh.
+    Note that if a transform is given, then it will not select the
+    corresponding shape node.
 
     Equivalent:
-        `mc.listHistory(node)`
+        `mc.listHistory(node, future=future, allConnections=allConnections)`
     """
-    iterator = om2.MItDependencyGraph(
-        mObject,
-        om2.MFn.kInvalid,
-        om2.MItDependencyGraph.kDownstream if future else om2.MItDependencyGraph.kUpstream,
-        om2.MItDependencyGraph.kDepthFirst,
-        om2.MItDependencyGraph.kNodeLevel,
-    )
-    iterator.next()  # Skip the current node
-    for _ in iterator:
-        yield iterator.currentNode()
+    if allConnections:
+        if not _validateConstructionHistoryNode(mObject, future):
+            return
+
+        # Keep track of seen nodes
+        skipFirst = False
+        if _seen is None:
+            _seen = set()
+            skipFirst = True
+
+        hashCode = om2.MObjectHandle(mObject).hashCode()
+        if hashCode in _seen:
+            return
+        _seen.add(hashCode)
+
+        if not skipFirst:
+            yield mObject
+
+        for plug in om2.MFnDependencyNode(mObject).getConnections():
+            plugs = []  # type: list[om2.MPlug]
+            if future and plug.isSource:
+                plugs.extend(plug.destinations())
+            if not future and plug.isDestination:
+                plugs.append(plug.source())
+
+            for otherPlug in plugs:
+                for plugObj in iterConstructionHistory(otherPlug.node(), future, True, _seen):
+                    yield plugObj
+
+    else:
+        iterator = om2.MItDependencyGraph(
+            mObject,
+            om2.MFn.kInvalid,
+            om2.MItDependencyGraph.kDownstream if future else om2.MItDependencyGraph.kUpstream,
+            om2.MItDependencyGraph.kDepthFirst,
+            om2.MItDependencyGraph.kNodeLevel,
+        )
+        iterator.next()  # Skip the current node
+        for _ in iterator:
+            node = iterator.currentNode()
+            if _validateConstructionHistoryNode(node, future):
+                yield node
 
 
 def iterShadingGroups(mObject):

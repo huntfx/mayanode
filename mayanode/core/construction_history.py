@@ -18,17 +18,18 @@ if TYPE_CHECKING:
 class ConstructionHistory(types.MappedLazyList['Node', om2.MObject, str]):
     """Get nodes in the construction history."""
 
-    __slots__ = ['_node', '_future']
+    __slots__ = ['_node', '_future', '_allConnections']
 
     @property
     def ItemType(self):  # type: () -> Type[Node]
         """Return the object this list contains."""
         return Node
 
-    def __init__(self, node, future=False):
-        # type: (Node, bool) -> None
+    def __init__(self, node, future=False, allConnections=False):
+        # type: (Node, bool, bool) -> None
         self._node = node
         self._future = future
+        self._allConnections = allConnections
         super(ConstructionHistory, self).__init__()
 
     @property
@@ -52,7 +53,7 @@ class ConstructionHistory(types.MappedLazyList['Node', om2.MObject, str]):
         Equivalent:
             mc.listHistory(self)[1:]
         """
-        return self
+        return ConstructionHistory(self.node, future=False, allConnections=self._allConnections)
 
     @property
     def future(self):
@@ -62,12 +63,27 @@ class ConstructionHistory(types.MappedLazyList['Node', om2.MObject, str]):
         Equivalent:
             mc.listHistory(self, future=True)[1:]
         """
-        return ConstructionHistory(self.node, future=True)
+        return ConstructionHistory(self.node, future=True, allConnections=self._allConnections)
+
+    @property
+    def allConnections(self):
+        # type: () -> ConstructionHistory
+        """Get all the connected nodes.
+
+        Equivalent:
+            mc.listHistory(self, allConnections=True)[1:]
+        """
+        return ConstructionHistory(self.node, future=self._future, allConnections=True)
 
     def _loadApiObjects(self):
         # type: () -> list[om2.MObject]
         """Load the pointers to nodes in the construction history."""
-        return list(utils.iterConstructionHistory(self.node.api.object, future=self._future))
+        shape = self.node.api.getShapeDagPath()
+        if shape is None or not shape.isValid():
+            node = self.node.api.object
+        else:
+            node = shape.node()
+        return list(utils.iterConstructionHistory(node, future=self._future, allConnections=self._allConnections))
 
 
 # Handle circular dependencies

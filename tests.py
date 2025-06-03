@@ -601,8 +601,7 @@ class TestNode(unittest.TestCase):
         node = Node(transform)
         smoothNode = mc.polySmooth(node)[0]
         reduceNode = mc.polyReduce(node)[0]
-        self.assertEqual(len(node.constructionHistory), 0)
-
+        self.assertEqual(len(node.constructionHistory), 3)
         self.assertEqual(len(node.shape.constructionHistory), 3)
         self.assertEqual(node.shape.constructionHistory[0], reduceNode)
 
@@ -612,6 +611,30 @@ class TestNode(unittest.TestCase):
         self.assertEqual(Node(smoothNode).constructionHistory.future, [reduceNode, node.shape])
 
         mc.delete(transform)
+
+    def testConstructionHistoryAllConnections(self):
+        transform = mc.polyCube(name='constructionHistoryTest')[0]
+        node = Node(transform)
+        smoothNode = mc.polySmooth(node)[0]
+        reduceNode = mc.polyReduce(node)[0]
+        clusterNode = mc.cluster()
+
+        nodeHistories = [
+            node.constructionHistory,
+            node.constructionHistory.future,
+            node.constructionHistory.allConnections,
+            node.constructionHistory.future.allConnections,
+        ]
+        mcHistories = [
+            mc.listHistory(node),
+            mc.listHistory(node, future=True),
+            mc.listHistory(node, allConnections=True),
+            mc.listHistory(node, future=True, allConnections=True),
+        ]
+
+        for nodeHistory, mcHistory in zip(nodeHistories, mcHistories):
+            self.assertEqual(len(nodeHistory), len(mcHistory) - 1)
+            self.assertEqual(set(nodeHistory) | set([node.shape]), set(Node.ls(mcHistory)))
 
     def testTexelDensity(self):
         node = Node(mc.polyPlane(name='texelDensityTest')[0])
