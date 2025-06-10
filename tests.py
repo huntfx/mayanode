@@ -1740,14 +1740,33 @@ class TestKeyframes(unittest.TestCase):
 
         attr.keyframes[100].value = 1
         attr.keyframes.lock()
-        self.node.keyframes[100] = 5
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            self.node.keyframes[100] = 5
         self.assertEqual(attr.keyframes[100].value, 1)
         with self.assertRaises(exceptions.LockedKeyframeError):
             attr.keyframes[100].value = 5
-        del self.node.keyframes[100]
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            del self.node.keyframes[100]
         self.assertEqual(attr.keyframes[100].value, 1)
         attr.keyframes.unlock()
         del self.node.keyframes[100]
+        self.assertIsNone(attr.keyframes[100].value)
+
+    def testLockedAttrChild(self):
+        attr = self.node.attrs['tx']
+
+        attr.keyframes[10].value = 5
+        attr.keyframes[100].value = 10
+        attr.keyframes[100].lock()
+        attr.keyframes[10].value = -5
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            attr.keyframes[100].value = -10
+        with self.assertRaises(exceptions.LockedKeyframeError):
+            attr.keyframes.offset(1)
+        self.assertIn(10, attr.keyframes)
+        attr.keyframes[100].unlock()
+        attr.keyframes.offset(1)
+        self.assertIn(11, attr.keyframes)
 
     def testLockNonKeyframedAttr(self):
         with self.assertRaises(exceptions.KeyframeLockError):

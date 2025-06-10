@@ -21,6 +21,26 @@ def _getKtvPlug(plug):
     return om2.MFnDependencyNode(curveNode).findPlug('keyTimeValue', False)
 
 
+def _getKtvPlugChild(ktvPlug, frame):
+    # type: (om2.MPlug, int | float) -> om2.MPlug | None
+    """Get all the child plugs from the ktv attribute."""
+    for element in map(ktvPlug.elementByLogicalIndex, range(ktvPlug.numElements())):
+        for compound in map(element.child, range(element.numChildren())):
+            if compound.partialName().endswith('.kt') and compound.asMTime().value == frame:
+                return element
+    return None
+
+
+def _iterKtvPlugs(plug):
+    # type: (om2.MPlug) -> Iterator[om2.MPlug]
+    """Get the ktv plug and its children for an attribute."""
+    ktv = _getKtvPlug(plug)
+    if ktv is not None:
+        yield ktv
+        for i in ktv.getExistingArrayAttributeIndices():
+            yield ktv.elementByLogicalIndex(i)
+
+
 def _toTime(value, setKeyframe=False):
     # type: (slice | float | None, bool) -> Iterator[tuple[str | int | float, ...]]
     """Convert an input to a time tuple compatible with `mc.keyframe`.
@@ -385,7 +405,7 @@ class AttributeKeyframes(KeyframeBase):
         utils.logger.info('Setting %s keyframe locked state: %r', self.attr, value)
         ktvPlug = _getKtvPlug(self.attr.api.plug)
         if ktvPlug is None:
-            raise exceptions.KeyframeLockError(self.node, self.attr)
+            raise exceptions.KeyframeLockError(self.node, self.attr.attr)
         mc.setAttr(ktvPlug.name(), lock=value)
 
     def lock(self):
@@ -535,13 +555,12 @@ class Keyframe(KeyframeBase):
                           attr if attr is not None else node, frame, value)
 
         if attr is not None:
-            ktvPlug = _getKtvPlug(attr.api.plug)
-            if ktvPlug is not None and ktvPlug.isLocked:
-                raise exceptions.LockedKeyframeError(attr.node, attr.attr)
             kwargs['attribute'] = attr.attr
 
         if value is not None:
             kwargs['value'] = value
+
+        self._testIfLocked()
 
         count = 0
         for time in _toTime(frame, setKeyframe=True):
@@ -561,12 +580,10 @@ class Keyframe(KeyframeBase):
             utils.logger.info('Deleting keyframe on "%s" (frame %s)', attr if attr is not None else node, frame)
 
         if attr is not None:
-            ktvPlug = _getKtvPlug(attr.api.plug)
-            if ktvPlug is None:
-                return 0
-            if ktvPlug.isLocked:
-                raise exceptions.LockedKeyframeError(attr.node, attr.attr)
             kwargs['attribute'] = attr.attr
+
+        if not self._testIfLocked():
+            return 0
 
         count = 0
         for time in _toTime(frame):
@@ -590,16 +607,57 @@ class Keyframe(KeyframeBase):
                               attr if attr is not None else node, frame, value)
 
         kwargs = {'edit': True, 'relative': relative, 'timeChange': value}  # type: dict[str, Any]
+
         if attr is not None:
-            ktvPlug = _getKtvPlug(attr.api.plug)
-            if ktvPlug is not None and ktvPlug.isLocked:
-                raise exceptions.LockedKeyframeError(attr.node, attr.attr)
             kwargs['attribute'] = attr.attr
+
+        self._testIfLocked()
 
         count = 0
         for time in _toTime(frame):
             count += mc.keyframe(node, time=time, **kwargs)
         return count
+
+    def _getLockedPlug(self):
+        # type: () -> om2.MPlug | bool
+        """Get a plug if it is locked.
+        If not, then a boolean is returned if any plugs were found.
+        """
+        attr = self.attr
+        frame = self.frame
+
+        count = 0
+        if attr is None:
+            plugs = self.node.api.dependencyNode.getConnections()
+        else:
+            plugs = [attr.api.plug]
+
+        if frame is None:
+            for plug in plugs:
+                for i, ktvPlug in enumerate(_iterKtvPlugs(plug)):
+                    count += 1
+                    if ktvPlug.isLocked:
+                        return plug
+
+        for plug in plugs:
+            ktvPlug = _getKtvPlug(plug)
+            if ktvPlug is not None:
+                count += 1
+                if ktvPlug.isLocked:
+                    return plug
+                ktvChild = _getKtvPlugChild(ktvPlug, frame)
+                if ktvChild is not None and ktvChild.isLocked:
+                    return plug
+
+        return bool(count)
+
+    def _testIfLocked(self):
+        # type: () -> int
+        """Check if the keyframe is locked."""
+        result = self._getLockedPlug()
+        if isinstance(result, om2.MPlug):
+            raise exceptions.LockedKeyframeError(self.node, result.partialName(useLongNames=True))
+        return result
 
     @property
     def value(self):
@@ -612,6 +670,56 @@ class Keyframe(KeyframeBase):
         # type: (float | None) -> None
         """Set a keyframe."""
         self.set(value)
+
+    @property
+    def locked(self):
+        # type: () -> bool
+        """Get the locked state of the keyframe."""
+        frame = self.frame
+        if not isinstance(frame, (int, float)):
+            raise NotImplementedError('reading lock state not yet supported on multiple frames')
+
+        return bool(self._getLockedPlug())
+
+    @locked.setter
+    def locked(self, value):
+        # type: (bool) -> None
+        """Lock or unlock the keyframe.
+
+        Raises:
+            KeyframeLockError
+        """
+        frame = self.frame
+        utils.logger.info('Setting %s keyframe %s locked state: %r', self.attr, self.frame, value)
+
+        if not isinstance(frame, (int, float)):
+            raise NotImplementedError('setting lock state not yet supported on multiple frames')
+
+        ktvPlug = _getKtvPlug(self.attr.api.plug)
+        if ktvPlug is None:
+            raise exceptions.KeyframeLockError(self.node, self.attr)
+        childPlug = _getKtvPlugChild(ktvPlug, frame)
+        if childPlug is None:
+            raise exceptions.KeyframeLockError(self.node, self.attr)
+        mc.setAttr(childPlug.name(), lock=value)
+
+    def lock(self):
+        # type: () -> None
+        """Lock the keyframe.
+
+        Raises:
+            KeyframeLockError
+        """
+        self.locked = True
+
+    def unlock(self):
+        # type: () -> None
+        """Unlock the keyframe.
+
+        Raises:
+            KeyframeLockError
+        """
+        self.locked = False
 
 
 # Handle circular dependencies
