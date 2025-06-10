@@ -109,6 +109,11 @@ def _getPlugData(attr, plug=None, value=True):
     if apiType == om2.MFn.kAttribute4Double:
         return tuple(plug.child(i).asDouble() for i in range(4)) if value else (float, float, float, float)
 
+    if apiType == om2.MFn.kTimeAttribute:
+        if value:
+            return plug.asMTime().value
+        return float
+
     if value and apiType == om2.MFn.kMessageAttribute:
         raise RuntimeError('Message attributes have no data values')  # Match the mc.getAttr error
     return None
