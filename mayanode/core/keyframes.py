@@ -18,7 +18,10 @@ def _getKtvPlug(plug):
         return None
     curvePlug = plug.source()
     curveNode = curvePlug.node()
-    return om2.MFnDependencyNode(curveNode).findPlug('keyTimeValue', False)
+    depNode = om2.MFnDependencyNode(curveNode)
+    if not depNode.hasAttribute('keyTimeValue'):
+        return None
+    return depNode.findPlug('keyTimeValue', False)
 
 
 def _getKtvPlugChild(ktvPlug, frame):
