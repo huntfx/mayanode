@@ -1016,7 +1016,7 @@ class TestAttr(unittest.TestCase):
         self.assertEqual(outColor.value, (0, 0, 0))
 
     def testCompoundIndex(self):
-        cube = mc.polyCube(name='compoundExistsTest')[0]
+        cube = mc.polyCube(name='compoundIndexTest')[0]
 
         mc.addAttr(cube, longName='test', attributeType='compound', numberOfChildren=1, multi=True)
         mc.addAttr(cube, longName='testA', attributeType='float', parent='test')
@@ -1242,7 +1242,7 @@ class TestAttr(unittest.TestCase):
         mc.delete(t1)
 
     def testDelete(self):
-        cube = mc.polyCube(name='compoundExistsTest')[0]
+        cube = mc.polyCube(name='compoundDeleteTest')[0]
         mc.addAttr(cube, longName='test', attributeType='compound', numberOfChildren=1, multi=True)
         mc.addAttr(cube, longName='testA', attributeType='float', parent='test')
         mc.setAttr(cube + '.test[0].testA', 1)
@@ -1272,21 +1272,21 @@ class TestAttr(unittest.TestCase):
         mc.delete(cube)
 
     def testCreateFromDelete(self):
-        cube = mc.polyCube(name='compoundExistsTest')[0]
+        cube = mc.polyCube(name='compoundCreateDeleteTest')[0]
 
         mc.addAttr(cube, longName='test', attributeType='long')
         attr = Node(cube).attrs['test']
         attr.value = 5
         attr.delete()
         attr.create()
-        self.assertIs(attr.type, int)
+        self.assertIs(attr.type, float)  # Default type
         self.assertEqual(attr.value, 0)
         attr.delete()
 
         mc.delete(cube)
 
     def testCreateFromDeleteUnknownType(self):
-        cube = mc.polyCube(name='compoundExistsTest')[0]
+        cube = mc.polyCube(name='compoundCreateDeleteUnkownTest')[0]
 
         mc.addAttr(cube, longName='test', attributeType='compound', numberOfChildren=1, multi=True)
         mc.addAttr(cube, longName='testA', attributeType='float', parent='test')
@@ -1294,8 +1294,10 @@ class TestAttr(unittest.TestCase):
         mc.setAttr(cube + '.test[1].testA', 1)
         attr = Node(cube).attrs['test']
         attr.delete()
+        with self.assertRaises(exceptions.AttributeNotFoundError):
+            attr.type
         attr.create()
-        self.assertIs(attr.type, float)  # Falls back to default with a non standard type
+        self.assertIs(attr.type, float)  # Default type
         attr.delete()
         attr.create(attributeType='bool')
         self.assertIs(attr.type, bool)
@@ -1446,6 +1448,21 @@ class TestAttr(unittest.TestCase):
         self.assertEqual(attr.value, 1200)
 
         mc.delete(cube, cam)
+
+    def testCompoundChildrenValue(self):
+        node = Node(mc.polyCube(name='compoundChildrenValueTest1')[0])
+        tx = node.attrs['tx']
+        tx.keyframes[2] = 10
+        tx.keyframes[1] = 5
+        curve = tx.connections[0].node
+
+        ktv = curve.attrs['ktv']
+        self.assertEqual(ktv.value, ((1.0, 5.0), (2.0, 10.0)))
+        self.assertEqual(ktv.type, ((float, float), (float, float)))
+        self.assertEqual(ktv.children[0].value, (1.0, 5.0))
+        self.assertEqual(ktv.children[0].type, (float, float))
+
+        mc.delete(node)
 
 
 class TestKeyframes(unittest.TestCase):

@@ -15,6 +15,7 @@ from .type_hints import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Any, Iterator
     from .type_hints import StrLike
+    from .core.attribute import Attribute
     from .core.node import Node
 
 
@@ -47,6 +48,14 @@ def raiseIfNodeNotFound(node):
         if handle.object().isNull():
             raise exceptions.NullMObjectError
         raise exceptions.NodeDeletedError
+
+
+def raiseIfAttrNotFound(attribute):
+    # type: (Attribute) -> None
+    """Raise an error if the attribute doesn't exist."""
+    if not attribute.exists:
+        raiseIfNodeNotFound(attribute.node)
+        raise exceptions.AttributeDeletedError(attribute.node, attribute.attr)
 
 
 def addToRecentFiles(path):
@@ -530,3 +539,22 @@ def validateNamespace(namespace):
     """Validate a namespace input."""
     split = str(namespace).strip(':').split(':')
     return ':' + ':'.join(filter(bool, map(om2.MNamespace.validateName, split)))
+
+
+def refreshPlug(obj, plug):
+    # type: (om2.MObject, om2.MPlug) -> om2.MPlug | None
+    """Get an up to date version of the plug.
+    This may return a null plug.
+    For now, child plugs are ignored.
+
+    If an attribute is deleted, then recreated with a different type,
+    then any existing plug will still point to the old type, but
+    otherwise it seems to work fine.
+    """
+    if plug.isNull or plug.isElement or plug.isChild:
+        return plug
+    fnNode = om2.MFnDependencyNode(obj)
+    newAttr = fnNode.attribute(plug.partialName(useLongNames=True))
+    if newAttr == plug.attribute():
+        return plug
+    return om2.MPlug(obj, newAttr)

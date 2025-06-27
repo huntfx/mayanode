@@ -117,8 +117,12 @@ class AttributeNotAChildError(NodeAttributeError):
     MESSAGE = 'The attribute "{node}.{attr}" is not a child.'
 
 
+class AttributeDeletedError(NodeAttributeError):
+    MESSAGE = 'The attribute "{node}.{attr}" no longer exists.'
+
+
 class NoBoundingBoxError(NodeError):
-    MESSAGE = '"{node}" has no bounding box'
+    MESSAGE = '"{node}" has no bounding box.'
 
 
 class UVSetError(NodeError):

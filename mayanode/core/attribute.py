@@ -77,12 +77,12 @@ def _getPlugData(attr, plug=None, value=True):
 
     if apiType in (om2.MFn.kFloatAngleAttribute, om2.MFn.kDoubleAngleAttribute):
         if not value:
-            return None  # TODO
+            return float
         return plug.asMAngle().asDegrees()  # Equivalent to `math.degrees(plug.asDouble())`
 
     if apiType in (om2.MFn.kFloatLinearAttribute, om2.MFn.kDoubleLinearAttribute):
         if not value:
-            return None  # TODO
+            return float
         return plug.asMDistance().asCentimeters()  # Equivalent to `plug.asDouble()`
 
     if apiType == om2.MFn.kEnumAttribute:
@@ -114,9 +114,18 @@ def _getPlugData(attr, plug=None, value=True):
             return plug.asMTime().value
         return float
 
+    if apiType == om2.MFn.kCompoundAttribute:
+        children = []  # type: list[om2.MPlug]
+        if not plug.isNull:
+            if plug.isArray:
+                children.extend(map(plug.elementByLogicalIndex, plug.getExistingArrayAttributeIndices()))
+            elif plug.isCompound:
+                children.extend(map(plug.child, range(plug.numChildren())))
+        return tuple(_getPlugData(attr, child, value=value) for child in children)
+
     if value and apiType == om2.MFn.kMessageAttribute:
         raise RuntimeError('Message attributes have no data values')  # Match the mc.getAttr error
-    return None
+    return mc.getAttr(attr, type=not value)
 
 
 def _setPlugValue(plug, value):
@@ -436,6 +445,15 @@ class Attribute(types.StrMixin):
             """
             return self._plug
 
+        @plug.setter
+        def plug(self, plug):
+            # type: (om2.MPlug) -> None
+            """Update the plug."""
+            if plug is not self._plug:
+                self._plug = plug
+                self._attribute = None
+                self._numericAttribute = None
+
         @property
         def plugs(self):
             # type: () -> list[om2.MPlug]
@@ -657,11 +675,11 @@ class Attribute(types.StrMixin):
             else:
                 break
 
-        # Check
+        # Check the attribute actually exist
         if not self.node.api.dependencyNode.hasAttribute(plug.partialName()):
             return False
 
-        # This needs to be done after, because if the attribute is deleted
+        # This needs to be done last, because if the attribute is deleted
         # then `getExistingArrayAttributeIndices` will crash Maya
         for child, parent in checkElementIn:
             if child.logicalIndex() not in parent.getExistingArrayAttributeIndices():
@@ -683,6 +701,7 @@ class Attribute(types.StrMixin):
             List of a single type if an array attribute.
             String if unsupported (eg. "enum").
         """
+        self.api.plug = utils.refreshPlug(self.node.api.object, self.api.plug)
         if not self.api.plug.isNull:
             result = _getPlugData(self, value=False)
             if result is not None:
@@ -693,6 +712,8 @@ class Attribute(types.StrMixin):
         except ValueError as e:
             if 'No object matches name' in str(e):
                 raise exceptions.AttributeNotFoundError(self.node, self.attr)
+            if 'The value for the attribute could not be retrieved.' in str(e):
+                raise exceptions.InvalidAttributeTypeError(self.node, self.attr)
         return ATTR_TYPES.get(attrType, attrType)
 
     @property
@@ -709,6 +730,7 @@ class Attribute(types.StrMixin):
         Raises:
             InvalidAttributeTypeError
         """
+        self.api.plug = utils.refreshPlug(self.node.api.object, self.api.plug)
         if not self.api.plug.isNull:
             result = _getPlugData(self, value=True)
             if result is not None:
@@ -722,13 +744,14 @@ class Attribute(types.StrMixin):
 
         Raises:
             NodeDeletedError
+            AttributeDeletedError
             AttributeLockedError
             AttributeConnectedError
             AttributeTooLowError
             AttributeTooHighError
         """
         utils.logger.info('Setting %s value: %r', self, value)
-        utils.raiseIfNodeNotFound(self.node)
+        utils.raiseIfAttrNotFound(self)
         plug = self.api.plug
         if not plug.isNull:
             if plug.isLocked:
@@ -768,9 +791,10 @@ class Attribute(types.StrMixin):
 
         Raises:
             NodeDeletedError
+            AttributeDeletedError
         """
         utils.logger.info('Setting %s locked state: %r', self, value)
-        utils.raiseIfNodeNotFound(self.node)
+        utils.raiseIfAttrNotFound(self)
         mc.setAttr(self, lock=value)
 
     def lock(self):
@@ -798,9 +822,10 @@ class Attribute(types.StrMixin):
 
         Raises:
             NodeDeletedError
+            AttributeDeletedError
         """
         utils.logger.info('Setting %s keyable state: %s', self, value)
-        utils.raiseIfNodeNotFound(self.node)
+        utils.raiseIfAttrNotFound(self)
         mc.setAttr(self, keyable=value)
 
     def connect(self, target, reverse=False):
@@ -880,6 +905,7 @@ class Attribute(types.StrMixin):
 
         utils.logger.info('Adding attribute %s with arguments %s', self, kwargs)
         mc.addAttr(self.node, longName=self.attr, **kwargs)
+        self.api.plug = utils.unnetworkPlug(self.node.api.dependencyNode.findPlug(self.attr, False))
 
     def delete(self):
         # type: () -> None
@@ -887,11 +913,12 @@ class Attribute(types.StrMixin):
 
         Raises:
             NodeDeletedError
+            AttributeDeletedError
             RuntimeError: Cannot delete static attribute 'pCube1.translate' from node 'pCube1'.
             RuntimeError: Cannot delete child 'pCube1.translateX' of compound attribute 'translate'.
         """
         utils.logger.info('Deleting attribute: %s', self)
-        utils.raiseIfNodeNotFound(self.node)
+        utils.raiseIfAttrNotFound(self)
         if self.api.plug.isElement:
             mc.removeMultiInstance(self, b=True)
         else:
