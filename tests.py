@@ -1790,6 +1790,105 @@ class TestKeyframes(unittest.TestCase):
             self.node.attrs['sz'].keyframes.lock()
 
 
+class TestKeyframeCopy(unittest.TestCase):
+    def setUp(self):
+        self.src = Node(mc.camera(name='keyframeCopyTestSrc')[0])
+        self.dst = Node(mc.camera(name='keyframeCopyTestDst')[0])
+
+        self.tx1 = self.src.attrs['tx']
+        self.tx2 = self.dst.attrs['tx']
+        self.fl1 = self.src.shape.attrs['focalLength']
+        self.fl2 = self.dst.shape.attrs['focalLength']
+
+        self.tx1.keyframes[2] = 1
+        self.tx1.keyframes[5] = 2
+        self.tx1.keyframes[7] = 3
+
+        self.tx2.keyframes[0] = 1
+        self.tx2.keyframes[2] = 2
+        self.tx2.keyframes[3] = 3
+        self.tx2.keyframes[6] = 4
+        self.tx2.keyframes[10] = 5
+
+        self.fl1.keyframes[10] = 55
+
+    def tearDown(self):
+        self.src.delete()
+        self.dst.delete()
+
+    def testShape(self):
+        self.dst.keyframes = self.src.keyframes
+        self.assertEqual(self.fl2.keyframes.keys(), [10.0])
+
+    def testCopyAllToAll(self):
+        self.assertIsNone(self.tx2.keyframes[5].value)
+        self.dst.keyframes = self.src.keyframes
+        self.assertEqual(self.tx2.keyframes[5].value, 2)
+        self.assertEqual(self.tx2.keyframes.keys(), [2, 5, 7])
+        self.assertEqual(self.fl2.keyframes.keys(), [10])
+
+    def testCopyAllToSlice(self):
+        keys = self.tx2.keyframes.keys()
+        self.dst.keyframes[20:24] = self.src.keyframes
+        keys.append(20)
+        keys.append(23)
+        self.assertEqual(keys, self.tx2.keyframes.keys())
+
+        self.dst.keyframes[1:4] = self.src.keyframes
+        self.assertEqual(keys[1], 2)
+        keys[1] = 1
+        self.assertEqual(keys[2], 3)
+        keys[2] = 4
+        self.assertEqual(keys, self.tx2.keyframes.keys())
+
+        del keys[-2]
+        del keys[-2]
+        self.dst.keyframes[1:22] = self.src.keyframes
+        self.assertEqual(keys, self.tx2.keyframes.keys())
+
+    def testCopyAllToStart(self):
+        with self.assertRaises(ValueError):
+            self.dst.keyframes[10:] = self.src.keyframes
+
+    def testCopyAllToEnd(self):
+        with self.assertRaises(ValueError):
+            self.dst.keyframes[:10] = self.src.keyframes
+
+    def testCopyAllToSingle(self):
+        keys = self.tx2.keyframes.keys()
+        self.dst.keyframes[20] = self.src.keyframes
+        keys.append(20)
+        keys.append(23)
+        keys.append(25)
+        self.assertEqual(keys, self.tx2.keyframes.keys())
+
+        keys.append(18)
+        keys.append(21)
+        keys.sort()
+        self.dst.keyframes[18] = self.src.keyframes
+        self.assertEqual(keys, self.tx2.keyframes.keys())
+
+    def testCopySliceToAll(self):
+        self.dst.keyframes = self.src.keyframes[5:7]
+        self.assertEqual(self.tx2.keyframes.keys(), [5, 7])
+
+    def testCopyFrameToAll(self):
+        self.dst.keyframes = self.src.keyframes[5]
+        self.assertEqual(self.tx2.keyframes.keys(), [5])
+
+        with self.assertRaises(exceptions.KeyframePasteError):
+            self.dst.keyframes = self.src.keyframes[4]
+
+    def testCopyFrameToFrame(self):
+        keys = self.tx2.keyframes.keys()
+        self.dst.keyframes[20] = self.src.keyframes[5]
+        self.assertEqual(keys + [20], self.tx2.keyframes.keys())
+
+    def testCopyStartToAll(self):
+        with self.assertRaises(ValueError):
+            self.dst.keyframes = self.src.keyframes[4:]
+
+
 class TestUVSets(unittest.TestCase):
     def setUp(self):
         self.node = Node(mc.polyCube(name='uvSetTest')[0]).shape

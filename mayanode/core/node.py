@@ -1226,6 +1226,13 @@ class Node(types._NodeType):
         """Get the keyframes on the node."""
         return NodeKeyframes(self)
 
+    @keyframes.setter
+    def keyframes(self, keyframes):
+        # type:  (KeyframeBase) -> None
+        """Copy the keyframes from something else."""
+        keyframes.copyKey()
+        self.keyframes.pasteKey()
+
     @keyframes.deleter
     def keyframes(self):
         # type: () -> None
@@ -1828,7 +1835,7 @@ from .camera import Camera
 from .color_set import ColorSet
 from .connection import NodeConnectionProxy
 from .face import FaceList
-from .keyframes import NodeKeyframes
+from .keyframes import NodeKeyframes, KeyframeBase
 from .mayanode import MayaNode
 from .namespace import Namespace
 from .node_type import NodeType

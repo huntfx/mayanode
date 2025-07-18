@@ -173,6 +173,63 @@ class KeyframeBase(object):
         """Get the keys and values."""
         return []
 
+    def copyKey(self):
+        # type: () -> int
+        """Copy keys."""
+        attr = self.attr
+        kwargs = {}  # type: dict[str, Any]
+        if attr is not None:
+            kwargs['attribute'] = attr.attr
+
+        if isinstance(self._frame, slice):
+            if (self._frame.step or 1) != 1:
+                raise ValueError('unable to copy stepped key')
+            if self._frame.start is None:
+                raise ValueError('start must be given')  # TODO: Get start key
+            if self._frame.stop is None:
+                raise ValueError('end must be given')  # TODO: Get end key
+            else:
+                kwargs['time'] = (self._frame.start, self._frame.stop)
+
+        elif self._frame is not None:
+            kwargs['time'] = (self._frame, self._frame)
+
+        return mc.copyKey(self.node, **kwargs)
+
+    def pasteKey(self):
+        # type: () -> int
+        """Paste keys."""
+        attr = self.attr
+        kwargs = {}  # type: dict[str, Any]
+        if attr is not None:
+            kwargs['attribute'] = attr.attr
+
+        if isinstance(self._frame, slice):
+            if (self._frame.step or 1) != 1:
+                raise ValueError('unable to copy stepped key')
+            if self._frame.start is None:
+                raise ValueError('start must be given')  # TODO: Get start key
+                kwargs['option'] = 'fitReplace'
+            if self._frame.stop is None:
+                raise ValueError('end must be given')  # TODO: Get end key
+                kwargs['option'] = 'replace'
+            else:
+                kwargs['option'] = 'fitReplace'
+                kwargs['time'] = (self._frame.start, self._frame.stop)
+
+        elif self._frame is None:
+            kwargs['option'] = 'replaceCompletely'
+        else:
+            kwargs['option'] = 'replace'
+            kwargs['time'] = (self._frame, self._frame + 1)
+
+        try:
+            return mc.pasteKey(self.node, **kwargs)
+        except RuntimeError as e:
+            if 'Nothing to paste from' in str(e):
+                raise exceptions.KeyframePasteError(self.node, attr)  # TODO: Clear keyframes accordingly
+            raise
+
 
 class NodeKeyframes(KeyframeBase):
     __slots__ = ['_node', '_data']
@@ -267,8 +324,12 @@ class NodeKeyframes(KeyframeBase):
         return NodeKeyframes(self, frame)
 
     def __setitem__(self, frame, value):
-        # type: (float | slice, float) -> None
-        Keyframe(self.node, frame).set(value)
+        # type: (float | slice, float | KeyframeBase) -> None
+        if isinstance(value, KeyframeBase):
+            if value.copyKey():
+                self[frame].pasteKey()
+        else:
+            Keyframe(self.node, frame).set(value)
 
     def set(self, value=None, **kwargs):
         # type: (float | None, **Any) -> None
@@ -371,9 +432,13 @@ class AttributeKeyframes(KeyframeBase):
         return AttributeKeyframes(self, frame)
 
     def __setitem__(self, frame, value):
-        # type: (float | slice, float) -> None
+        # type: (float | slice, float | KeyframeBase) -> None
         """Set a keyframe."""
-        Keyframe(self.attr, frame).set(value)
+        if isinstance(value, KeyframeBase):
+            if value.copyKey():
+                self[frame].pasteKey()
+        else:
+            Keyframe(self.attr, frame).set(value)
 
     def set(self, value=None, **kwargs):
         # type: (float | None, **Any) -> None
@@ -670,9 +735,13 @@ class Keyframe(KeyframeBase):
 
     @value.setter
     def value(self, value):
-        # type: (float | None) -> None
+        # type: (float | KeyframeBase | None) -> None
         """Set a keyframe."""
-        self.set(value)
+        if isinstance(value, KeyframeBase):
+            if value.copyKey():
+                self.pasteKey()
+        else:
+            self.set(value)
 
     @property
     def locked(self):

@@ -72,6 +72,7 @@ class MFn:
     kAttribute4Double: int
     kCamera: int
     kCreaseSet: int
+    kCompoundAttribute: int
     kDagNode: int
     kDoubleAngleAttribute: int
     kDoubleLinearAttribute: int
@@ -87,6 +88,7 @@ class MFn:
     kReference: int
     kSet: int
     kShadingEngine: int
+    kTimeAttribute: int
     kTransform: int
     kTypedAttribute: int
 
@@ -327,6 +329,7 @@ class MPlug:
     def asDouble(self) -> float: ...
     def asMAngle(self) -> MAngle: ...
     def asMDistance(self) -> MDistance: ...
+    def asMTime(self) -> MTime: ...
     def attribute(self) -> MObject: ...
     def child(self, index: int) -> MPlug: ...
     def connectedTo(self, asDst: bool, asSrc: bool) -> list[MPlug]: ...

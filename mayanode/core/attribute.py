@@ -930,6 +930,13 @@ class Attribute(types.StrMixin):
         """Get the keyframe dict."""
         return AttributeKeyframes(self)
 
+    @keyframes.setter
+    def keyframes(self, keyframes):
+        # type:  (KeyframeBase) -> None
+        """Copy the keyframes from something else."""
+        keyframes.copyKey()
+        self.keyframes.pasteKey()
+
     @keyframes.deleter
     def keyframes(self):
         # type: () -> None
@@ -1009,6 +1016,6 @@ class Attribute(types.StrMixin):
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
 from .connection import AttributeConnectionProxy, Connection
-from .keyframes import AttributeKeyframes
+from .keyframes import AttributeKeyframes, KeyframeBase
 from .node import Node
 ConnectionType = om2.MPlug
