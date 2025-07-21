@@ -245,21 +245,21 @@ class NodeKeyframes(KeyframeBase):
 
         else:
             self._node = node
-            currentNode = node
-
             # Get connections from both the node and its shape
             # This matches the `mc.keyframe` behaviour
-            for i in range(2):
-                if i:
-                    nodeShape = node.shape
-                    if nodeShape is None:
-                        continue
-                    currentNode = nodeShape
 
-                for plug in currentNode.api.dependencyNode.getConnections():
-                    for childPlug in utils.getChildPlugs(plug):
-                        attr = Attribute(currentNode, childPlug)
-                        self._data.append(AttributeKeyframes(attr))
+            # The equivalent of `oma2.MAnimUtil.findAnimatedPlugs` is
+            # [*utils.getChildPlugs(plug) for plug in node.api.dependencyNode.getConnections()]
+            dagPath = node.api.dagPath
+            for plug in oma2.MAnimUtil.findAnimatedPlugs(dagPath):
+                attr = Attribute(node, plug)
+                self._data.append(AttributeKeyframes(attr))
+
+            shapeDagPath = node.api.getShapeDagPath()
+            if shapeDagPath != dagPath:
+                for plug in oma2.MAnimUtil.findAnimatedPlugs(shapeDagPath):
+                    attr = Attribute(node.shape, plug)
+                    self._data.append(AttributeKeyframes(attr))
 
         super(NodeKeyframes, self).__init__(frame)
 
