@@ -363,14 +363,13 @@ class AttributeKeyframes(KeyframeBase):
             self._attr = attr
             self._keyframes = {}
 
-            plug = attr.api.plug
-            for otherPlug in plug.connectedTo(True, False):
-                otherNode = otherPlug.node()
-                if otherNode.hasFn(om2.MFn.kAnimCurve):
-                    animCurveFn = oma2.MFnAnimCurve(otherNode)
-                    numKeys = animCurveFn.numKeys
-                    for i in range(numKeys):
-                        self._keyframes[animCurveFn.input(i).value] = animCurveFn.value(i)
+            # `oma2.MAnimUtil.findAnimation` is the equivalent to
+            # `[p.node() for p in plug.connectedTo(True, False) if p.node().hasFn(om2.MFn.kAnimCurve)]`
+            for animCurve in oma2.MAnimUtil.findAnimation(attr.api.plug):
+                animCurveFn = oma2.MFnAnimCurve(animCurve)
+                numKeys = animCurveFn.numKeys
+                for i in range(numKeys):
+                    self._keyframes[animCurveFn.input(i).value] = animCurveFn.value(i)
 
         super(AttributeKeyframes, self).__init__(frame)
 
