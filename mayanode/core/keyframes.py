@@ -263,6 +263,10 @@ class NodeKeyframes(KeyframeBase):
 
         super(NodeKeyframes, self).__init__(frame)
 
+    def __bool__(self):
+        # type: () -> bool
+        return oma2.MAnimUtil.isAnimated(self.node.api.dagPath)
+
     def __repr__(self):
         # type: () -> str
         return '{}({!r})'.format(type(self).__name__, self.node)
@@ -378,6 +382,10 @@ class AttributeKeyframes(KeyframeBase):
         # type: () -> Attribute
         """Get the associated attribute."""
         return self._attr
+
+    def __bool__(self):
+        # type: () -> bool
+        return oma2.MAnimUtil.isAnimated(self.attr.api.plug)
 
     def __str__(self):
         # type: () -> str
