@@ -258,7 +258,7 @@ class NodeKeyframes(KeyframeBase):
             shapeDagPath = node.api.getShapeDagPath()
             if shapeDagPath != dagPath:
                 for plug in oma2.MAnimUtil.findAnimatedPlugs(shapeDagPath):
-                    attr = Attribute(node.shape, plug)
+                    attr = Attribute(Node(shapeDagPath), plug)
                     self._data.append(AttributeKeyframes(attr))
 
         super(NodeKeyframes, self).__init__(frame)
@@ -709,20 +709,22 @@ class Keyframe(KeyframeBase):
 
         if frame is None:
             for plug in plugs:
-                for i, ktvPlug in enumerate(_iterKtvPlugs(plug)):
+                for ktvPlug in _iterKtvPlugs(plug):
                     count += 1
                     if ktvPlug.isLocked:
                         return plug
 
         for plug in plugs:
             ktvPlug = _getKtvPlug(plug)
-            if ktvPlug is not None:
-                count += 1
-                if ktvPlug.isLocked:
-                    return plug
-                ktvChild = _getKtvPlugChild(ktvPlug, frame)
-                if ktvChild is not None and ktvChild.isLocked:
-                    return plug
+            if ktvPlug is None:
+                continue
+
+            count += 1
+            if ktvPlug.isLocked:
+                return plug
+            ktvChild = _getKtvPlugChild(ktvPlug, frame)
+            if ktvChild is not None and ktvChild.isLocked:
+                return plug
 
         return bool(count)
 
