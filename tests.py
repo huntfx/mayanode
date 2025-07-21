@@ -1590,8 +1590,7 @@ class TestKeyframes(unittest.TestCase):
     def testSetNodeFrame(self):
         self.node.keyframes[10].set(-5)
         values = [kf.value for kf in self.node.keyframes[10]]
-        keyable = [attr for attr in self.node.attrs.values() if attr.keyable]
-        keyable.extend(attr for attr in self.node.shape.attrs.values() if attr.keyable)
+        keyable = list(self.node.attrs.keyable) + list(self.node.shape.attrs.keyable)
         self.assertEqual(len(values), len(keyable))
         self.assertEqual(set(values), {-5})
 

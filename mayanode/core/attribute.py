@@ -332,6 +332,12 @@ class NodeAttributes(types.MappedLazyList['Attribute', om2.MObject, str]):
         self.refresh()
         return self.__getitem__(longName)
 
+    @property
+    def keyable(self):
+        # type: () -> list[Attribute]
+        """Get all keyable attributes."""
+        return [attr for attr in self.values() if attr.keyable]
+
 
 def _getPlugFromDepNode(depNode, attr):
     # type: (om2.MFnDependencyNode, str) -> om2.MPlug | None
