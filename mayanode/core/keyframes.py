@@ -771,17 +771,21 @@ class Keyframe(KeyframeBase):
             KeyframeLockError
         """
         frame = self.frame
-        utils.logger.info('Setting %s keyframe %s locked state: %r', self.attr, self.frame, value)
+        attr = self.attr
+        if attr is None:
+            raise NotImplementedError('setting lock state not supported for entire nodes')
+
+        utils.logger.info('Setting %s keyframe %s locked state: %r', attr, self.frame, value)
 
         if not isinstance(frame, (int, float)):
             raise NotImplementedError('setting lock state not yet supported on multiple frames')
 
-        ktvPlug = _getKtvPlug(self.attr.api.plug)
+        ktvPlug = _getKtvPlug(attr.api.plug)
         if ktvPlug is None:
-            raise exceptions.KeyframeLockError(self.node, self.attr)
+            raise exceptions.KeyframeLockError(self.node, attr)
         childPlug = _getKtvPlugChild(ktvPlug, frame)
         if childPlug is None:
-            raise exceptions.KeyframeLockError(self.node, self.attr)
+            raise exceptions.KeyframeLockError(self.node, attr)
         mc.setAttr(childPlug.name(), lock=value)
 
     def lock(self):
