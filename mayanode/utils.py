@@ -401,7 +401,7 @@ def iterDAG(apiType=om2.MFn.kInvalid, allPaths=True):
 class Ls(object):
     """Get a selection list for an `ls` command."""
 
-    __slots__ = ['args', 'kwargs', 'type']
+    __slots__ = ['args', 'kwargs']
 
     def __init__(self, *args, **kwargs):
         # type: (*Any, **Any) -> None
