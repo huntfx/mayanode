@@ -2249,6 +2249,67 @@ class TestNamespace(unittest.TestCase):
         self.assertFalse(Namespace(':').lstrip())
         self.assertFalse(Namespace(':').rstrip())
 
+    def testContains(self):
+        ns1 = Namespace(self.ns1)
+        ns2 = Namespace(self.ns2)
+
+        node = Node(mc.polyCube()[0])
+        parent = Node(mc.polyCube()[0])
+        node.parent = parent
+
+        nodeShortName = node.name
+        nodeLongName = node.longName
+        parentShortName = parent.name
+        parentLongName = parent.longName
+
+        self.assertNotIn(node, ns1.nodes)
+        self.assertNotIn(parent, ns1.nodes)
+        self.assertNotIn(nodeShortName, ns1.nodes)
+        self.assertNotIn(nodeLongName, ns1.nodes)
+        self.assertNotIn(parentShortName, ns1.nodes)
+        self.assertNotIn(parentLongName, ns1.nodes)
+
+        node.namespace = parent.namespace = ns1
+
+        self.assertIn(node, ns1.nodes)
+        self.assertIn(parent, ns1.nodes)
+        self.assertIn(nodeShortName, ns1.nodes)
+        self.assertIn(nodeLongName, ns1.nodes)
+        self.assertIn(parentShortName, ns1.nodes)
+        self.assertIn(parentLongName, ns1.nodes)
+
+        nodeShortNameNs = node.name
+        nodeLongNameNs = node.longName
+        parentShortNameNs = parent.name
+        parentLongNameNs = parent.longName
+
+        self.assertIn(nodeShortNameNs, ns1.nodes)
+        self.assertIn(nodeLongNameNs, ns1.nodes)
+        self.assertIn(parentShortNameNs, ns1.nodes)
+        self.assertIn(parentLongNameNs, ns1.nodes)
+
+        node.namespace = parent.namespace = ns2
+
+        self.assertNotIn(nodeShortName, ns1.nodes)
+        self.assertNotIn(nodeLongName, ns1.nodes)
+        self.assertNotIn(parentShortName, ns1.nodes)
+        self.assertNotIn(parentLongName, ns1.nodes)
+        self.assertIn(nodeShortName, ns2.nodes)
+        self.assertIn(nodeLongName, ns2.nodes)
+        self.assertIn(parentShortName, ns2.nodes)
+        self.assertIn(parentLongName, ns2.nodes)
+        self.assertNotIn(nodeShortNameNs, ns2.nodes)
+        self.assertNotIn(nodeLongNameNs, ns2.nodes)
+        self.assertNotIn(parentShortNameNs, ns2.nodes)
+        self.assertNotIn(parentLongNameNs, ns2.nodes)
+
+        self.assertNotIn(':' + nodeShortName, ns1.nodes)
+        self.assertNotIn(':' + nodeShortName, ns2.nodes)
+        self.assertNotIn(nodeLongName.replace('|', '|{}:'.format(ns2)), ns1.nodes)
+        self.assertIn(nodeLongName.replace('|', '|{}:'.format(ns2)), ns2.nodes)
+
+        mc.delete(node, parent)
+
 
 class TestProgressBar(unittest.TestCase):
     def setUp(self):

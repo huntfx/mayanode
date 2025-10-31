@@ -1,4 +1,5 @@
 import itertools
+import sys
 
 import maya.api.OpenMaya as om2
 import maya.cmds as mc  # type: ignore
@@ -10,6 +11,9 @@ from ..type_hints import TYPE_CHECKING, cast, overload
 if TYPE_CHECKING:
     from typing import Any, Iterator, Type
     from ..type_hints import StrLike
+
+if sys.version_info.major != 2:
+    unicode = str  # pylint: disable=invalid-name
 
 
 class NamespaceNodes(types.MappedLazyList['Node', om2.MObject, str]):
@@ -44,6 +48,13 @@ class NamespaceNodes(types.MappedLazyList['Node', om2.MObject, str]):
         """If a particular node belongs to a namespace."""
         if isinstance(item, Node):
             return item.api.dependencyNode.namespace == self.namespace
+        if not isinstance(item, (str, unicode, bytes)):
+            return False
+
+        # Add the namespace if a string was given
+        parts = str(item).split('|')
+        if not any(':' in part for part in parts):
+            item = '|'.join((self.namespace + ':' + part) if part else '' for part in parts)
         return super(NamespaceNodes, self).__contains__(item)
 
     def _loadApiObjects(self):
