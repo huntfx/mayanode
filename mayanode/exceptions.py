@@ -81,23 +81,39 @@ class NodeAttributeError(NodeError):
 
 
 class AttributeNotFoundError(NodeAttributeError):
-    MESSAGE = 'The attribute "{node}.{attr}" was not found'
+    MESSAGE = 'The attribute "{node}.{attr}" was not found.'
 
 
 class AttributeLockedError(NodeAttributeError):
-    MESSAGE = 'The attribute "{node}.{attr}" is locked and cannot be modified'
+    MESSAGE = 'The attribute "{node}.{attr}" is locked and cannot be modified.'
 
 
 class AttributeConnectedError(NodeAttributeError):
-    MESSAGE = 'The attribute "{node}.{attr}" is connected and cannot be modified'
+    MESSAGE = 'The attribute "{node}.{attr}" is connected and cannot be modified.'
+
+
+class AttributeNotWritableError(NodeAttributeError):
+    MESSAGE = 'The attribute "{node}.{attr}" is not writable.'
 
 
 class ConnectToSelfError(NodeAttributeError):
     MESSAGE = 'Cannot connect attribute "{node}.{attr}" to itself.'
 
 
-class InvalidAttributeTypeError(NodeAttributeError):
+class AttributeTypeError(NodeAttributeError):
+    MESSAGE = 'The attribute "{node}.{attr}" is not a numeric or string value and cannot be displayed.'
+
+
+class InvalidAttributeTypeError(AttributeTypeError):
     MESSAGE = 'The value for the attribute "{node}.{attr}" could not be retrieved.'
+
+
+class UnknownAttributeTypeError(AttributeTypeError):
+    MESSAGE = 'The type of the attribute "{node}.{attr}" could not be determined.'
+
+
+class MessageAttributeTypeError(AttributeTypeError):
+    MESSAGE = 'The attribute "{node}.{attr}" is a message type and has no data values.'
 
 
 class AttributOutOfRangeError(NodeAttributeError):

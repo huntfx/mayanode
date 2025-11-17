@@ -7,7 +7,7 @@ from .. import exceptions, types, utils
 from ..type_hints import TYPE_CHECKING, Union, cast, overload
 
 if TYPE_CHECKING:
-    from typing import Any, Iterator, Type
+    from typing import Any, Callable, Iterator, Type
     from typing import KeysView, ValuesView, ItemsView
     from ..type_hints import StrLike
 
@@ -40,40 +40,132 @@ ATTR_TYPES = {
     'float3': (float, float, float),
     'floatArray': [float],
     'int3': (int, int, int),
+    'matrix': (int,) * 16
 }
+
+API_TUPLE_TYPES = {
+    om2.MFn.kAttribute2Float: (float, float),
+    om2.MFn.kAttribute2Double: (float, float),
+    om2.MFn.kAttribute2Int: (int, int),
+    om2.MFn.kAttribute2Short: (int, int),
+    om2.MFn.kAttribute3Float: (float, float, float),
+    om2.MFn.kAttribute3Double: (float, float, float),
+    om2.MFn.kAttribute3Int: (int, int, int),
+    om2.MFn.kAttribute3Short: (int, int, int),
+    om2.MFn.kAttribute4Double: (float, float, float, float),
+}
+
+
+def _getArrayIndices(plug):
+    # type: (om2.MPlug) -> tuple[int, ...]
+    """Get the indices of an array plug.
+
+    The majority of plugs support `getExistingArrayAttributeIndices`,
+    but "controlPoints" for example does not, so this is required for now.
+    """
+    numElements = plug.numElements()
+    indices = plug.getExistingArrayAttributeIndices()
+    if len(indices) == numElements:
+        return tuple(indices)
+    return tuple(range(numElements))
 
 
 def _getPlugData(attr, plug=None, value=True):
     # type: (Attribute, om2.MPlug | None, bool) -> Any
-    """Get the type or value of a plug."""
+    """Get the type or value of a plug.
+
+    Raises:
+        RuntimeError: (kFailure): Unexpected Internal Failure
+            One example is the "edge" attribute.
+    """
     if plug is None:
         plug = attr.api.plug
+
+    isArray = plug.isArray
+    isCompound = plug.isCompound
+
+    # Handle parent plugs first if querying values
+    if isArray:  # Example: pCubeShape1.uvSet
+        if value:
+            return list(_getPlugData(attr, child, value=value)
+                        for child in map(plug.elementByLogicalIndex, _getArrayIndices(plug)))
+    elif isCompound:  # Example: pCube1.translate
+        return tuple(_getPlugData(attr, child, value=value)
+                     for child in map(plug.child, range(plug.numChildren())))
+
     attribute = plug.attribute()
     apiType = attribute.apiType()
+
+    # Simple tuple types such as "double2" mapping to (float, float)
+    # These should be guaranteed to be arrays at this point
+    if apiType in API_TUPLE_TYPES:  # Example: pCubeShape1.uvSet[0].uvSetPoints
+        assert isArray
+        return [API_TUPLE_TYPES[apiType]]
+
+    # Get types of array containing compound attributes
+    if apiType == om2.MFn.kCompoundAttribute:  # Example: pCubeShape1.uvSet
+        assert isArray
+        return [_getPlugData(attr, plug.elementByLogicalIndex(0), value=value)]
 
     if apiType == om2.MFn.kTypedAttribute:
         attrType = om2.MFnTypedAttribute(attribute).attrType()
         if attrType == om2.MFnData.kString:
             return plug.asString() if value else str
+
+        if attrType == om2.MFnData.kMatrix:
+            if not value:
+                return ATTR_TYPES['matrix']
+            return types.Matrix4D(om2.MFnMatrixData(plug.asMObject()).matrix())
+
+        if attrType == om2.MFnData.kIntArray:
+            if value:
+                intArrayData = om2.MFnIntArrayData(attribute)
+                return list(intArrayData)
+            return [int]
+
+        if attrType == om2.MFnData.kMesh:
+            if value:
+                raise exceptions.AttributeTypeError(attr.node, attr.attr)
+            return 'mesh'
+
         if attrType == om2.MFnData.kInvalid:
             raise exceptions.InvalidAttributeTypeError(attr.node, attr.attr)
 
         # If the type is kAny then it may be connected to another value
-        if attrType == om2.MFnData.kAny and plug.isDestination:
-            return _getPlugData(attr, plug.source(), value=value)
+        if attrType == om2.MFnData.kAny:
+
+            # Example: initialShadingGroup.surfaceShader
+            if plug.isDestination:
+                return _getPlugData(attr, plug.source(), value=value)
+
+            # Example: pCube1.uvSet[0].uvSetTweakLocation
+            return None
+
+        # Component lists are rarer and more complicated, so support is very incomplete
+        # Example: pCube1.instObjGroups...objectGrpCompList
+        if attrType == om2.MFnData.kComponentList:
+            componentListData = om2.MFnComponentListData(plug.asMObject())
+            for componentGroup in map(componentListData.get, range(componentListData.length())):
+                componentType = componentGroup.apiType()
+                if componentType == om2.MFn.kMeshPolygonComponent:
+                    singleIndex = om2.MFnSingleIndexedComponent(componentGroup)
+                    return list(singleIndex.getElements())
+                raise NotImplementedError(componentGroup.apiTypeStr)
+            return []
 
     if apiType == om2.MFn.kNumericAttribute:
         numericType = om2.MFnNumericAttribute(attribute).numericType()
+
         if numericType == om2.MFnNumericData.kBoolean:
-            return plug.asBool() if value else bool
+            return [bool] if isArray else plug.asBool() if value else bool
         if numericType in (om2.MFnNumericData.kInt, om2.MFnNumericData.kInt64, om2.MFnNumericData.kLong):
-            return plug.asInt() if value else int
+            return [int] if isArray else plug.asInt() if value else int
         if numericType == om2.MFnNumericData.kFloat:
-            return plug.asFloat() if value else float
+            return [float] if isArray else plug.asFloat() if value else float
         if numericType == om2.MFnNumericData.kDouble:
-            return plug.asDouble() if value else float
+            return [float] if isArray else plug.asDouble() if value else float
         if numericType == om2.MFnNumericData.kShort:
-            return plug.asShort() if value else int
+            return [int] if isArray else plug.asShort() if value else int
 
     if apiType in (om2.MFn.kFloatAngleAttribute, om2.MFn.kDoubleAngleAttribute):
         if not value:
@@ -88,44 +180,26 @@ def _getPlugData(attr, plug=None, value=True):
     if apiType == om2.MFn.kEnumAttribute:
         if value:
             return plug.asInt()
-        return 'enum'  # Match the result from `getAttr`
-
-    if apiType == om2.MFn.kAttribute2Float:
-        return tuple(plug.child(i).asFloat() for i in range(2)) if value else (float, float)
-    if apiType == om2.MFn.kAttribute2Double:
-        return tuple(plug.child(i).asDouble() for i in range(2)) if value else (float, float)
-    if apiType == om2.MFn.kAttribute2Int:
-        return tuple(plug.child(i).asInt() for i in range(2)) if value else (int, int)
-    if apiType == om2.MFn.kAttribute2Short:
-        return tuple(plug.child(i).asShort() for i in range(2)) if value else (int, int)
-    if apiType == om2.MFn.kAttribute3Float:
-        return tuple(plug.child(i).asFloat() for i in range(3)) if value else (float, float, float)
-    if apiType == om2.MFn.kAttribute3Double:
-        return tuple(plug.child(i).asDouble() for i in range(3)) if value else (float, float, float)
-    if apiType == om2.MFn.kAttribute3Int:
-        return tuple(plug.child(i).asInt() for i in range(3)) if value else (int, int, int)
-    if apiType == om2.MFn.kAttribute3Short:
-        return tuple(plug.child(i).asShort() for i in range(3)) if value else (int, int, int)
-    if apiType == om2.MFn.kAttribute4Double:
-        return tuple(plug.child(i).asDouble() for i in range(4)) if value else (float, float, float, float)
+        return int
 
     if apiType == om2.MFn.kTimeAttribute:
         if value:
             return plug.asMTime().value
         return float
 
-    if apiType == om2.MFn.kCompoundAttribute:
-        children = []  # type: list[om2.MPlug]
-        if not plug.isNull:
-            if plug.isArray:
-                children.extend(map(plug.elementByLogicalIndex, plug.getExistingArrayAttributeIndices()))
-            elif plug.isCompound:
-                children.extend(map(plug.child, range(plug.numChildren())))
-        return tuple(_getPlugData(attr, child, value=value) for child in children)
+    if apiType == om2.MFn.kMatrixAttribute:
+        if value:
+            martixData = om2.MFnMatrixData(plug.asMObject())
+            return types.Matrix4D(martixData.matrix())
+        return ATTR_TYPES['matrix']
 
-    if value and apiType == om2.MFn.kMessageAttribute:
-        raise RuntimeError('Message attributes have no data values')  # Match the mc.getAttr error
-    return mc.getAttr(attr, type=not value)
+    if value and apiType == om2.MFn.kMessageAttribute:  # Message attributes have no data values
+        raise exceptions.MessageAttributeTypeError(attr.node, attr.attr)
+
+    if apiType == om2.MFn.kGenericAttribute:
+        raise exceptions.UnknownAttributeTypeError(attr.node, attr.attr)
+
+    return mc.getAttr(plug.name(), type=not value)
 
 
 def _setPlugValue(plug, value):
@@ -212,7 +286,7 @@ class AttributeChildren(types.MappedLazyList['Attribute', om2.MPlug, Union[str, 
         """Load all API objects."""
         plug = self.plug
         if plug.isArray:
-            return [plug.elementByLogicalIndex(i) for i in plug.getExistingArrayAttributeIndices()]
+            return [plug.elementByLogicalIndex(i) for i in _getArrayIndices(plug)]
         if plug.isCompound:
             return [plug.child(i) for i in range(plug.numChildren())]
         return []
@@ -302,7 +376,7 @@ class NodeAttributes(types.MappedLazyList['Attribute', om2.MObject, str]):
         return Attribute(self.node, plug)
 
     def _generateKeys(self, apiObject, moduleObject):
-        # type: (om2.MObject, Attribute) -> Iterator[str | int]
+        # type: (om2.MObject, Attribute) -> Iterator[str]
         """Generate the key to access the attribute.
 
         Skip any attribute with multiple path parts at this stage,
@@ -469,7 +543,7 @@ class Attribute(types.StrMixin):
             plug = self.plug
             result = [plug]
             if plug.isArray:
-                result.extend(map(plug.elementByLogicalIndex, plug.getExistingArrayAttributeIndices()))
+                result.extend(map(plug.elementByLogicalIndex, _getArrayIndices(plug)))
             return result
 
         @property
@@ -480,6 +554,8 @@ class Attribute(types.StrMixin):
             Notable methods:
                 `name`
                 `shortName`
+                `writable`
+                `readable`
             """
             if self._attribute is None:
                 self._attribute = om2.MFnAttribute(self.plug.attribute())
@@ -688,7 +764,7 @@ class Attribute(types.StrMixin):
         # This needs to be done last, because if the attribute is deleted
         # then `getExistingArrayAttributeIndices` will crash Maya
         for child, parent in checkElementIn:
-            if child.logicalIndex() not in parent.getExistingArrayAttributeIndices():
+            if child.logicalIndex() not in _getArrayIndices(parent):
                 return False
         return True
 
@@ -734,11 +810,17 @@ class Attribute(types.StrMixin):
         """Get an attribute value.
 
         Raises:
-            InvalidAttributeTypeError
+            InvalidAttributeTypeErro
+            AttributeMessageTypeError
         """
         self.api.plug = utils.refreshPlug(self.node.api.object, self.api.plug)
         if not self.api.plug.isNull:
-            result = _getPlugData(self, value=True)
+            try:
+                result = _getPlugData(self, value=True)
+            except RuntimeError as e:
+                if '(kFailure): Unexpected Internal Failure' in str(e):
+                    raise exceptions.InvalidAttributeTypeError(self.node, self.attr)
+                raise
             if result is not None:
                 return result
         return mc.getAttr(self)
@@ -768,10 +850,51 @@ class Attribute(types.StrMixin):
                     if not otherPlug.node().hasFn(om2.MFn.kAnimCurve):
                         raise exceptions.AttributeConnectedError(self.node, self.attr)
 
+            if not self.api.attribute.writable:
+                raise exceptions.AttributeNotWritableError(self.node, self.attr)
+
+        # Stop here if no value is given
+        if value is None:
+            return
+
+        # Handle array/compound attributes
+        if self.api.plug.isArray or self.api.plug.isCompound:
+            children = self.children
+            assert len(children) == len(value)
+            for child, val in zip(children, value):
+                if val is not None:
+                    child.value = val
+            return
+
+        try:
+            mayaType = mc.getAttr(self, type=True)
+
+        except RuntimeError as e:
+            if 'No object matches name' in str(e):
+                raise exceptions.AttributeNotFoundError(self.node, self.attr)
+
+        # Special case for amtrix types, to handle the array attributes
+        if mayaType == 'matrix' and not plug.isNull:
+            attribute = plug.attribute()
+            apiType = attribute.apiType()
+            if apiType == om2.MFn.kTypedAttribute and plug.isArray:
+                self = self.children[0]
+
+        # Set new value
+        kwargs = {}
         if isinstance(value, (str, unicode, types.StrMixin)):
             mc.setAttr(self, value, type='string')
-        elif isinstance(value, (tuple, list)):
-            mc.setAttr(self, *value)
+
+        elif isinstance(value, (tuple, list, types.Matrix4D)):
+            if mayaType == 'TdataCompound':
+                children = self.children
+                assert len(children) == len(value)
+                for child, val in zip(children, value):
+                    child.value = val
+            else:
+                kwargs['type'] = mayaType
+                mc.setAttr(self, *value, **kwargs)
+
         else:
             if isinstance(value, (float, int)):
                 minValue = self.min
@@ -780,7 +903,10 @@ class Attribute(types.StrMixin):
                 maxValue = self.max
                 if maxValue is not None and value > maxValue:
                     raise exceptions.AttributeTooHighError(self.node, self.attr, maxValue)
-            mc.setAttr(self, value)
+            else:
+                kwargs['type'] = mayaType
+
+            mc.setAttr(self, value, **kwargs)
 
     @property
     def locked(self):

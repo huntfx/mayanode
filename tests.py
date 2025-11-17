@@ -613,11 +613,10 @@ class TestNode(unittest.TestCase):
         mc.delete(transform)
 
     def testConstructionHistoryAllConnections(self):
-        transform = mc.polyCube(name='constructionHistoryTest')[0]
-        node = Node(transform)
+        node = Node(mc.polyCube(name='constructionHistoryConnectionTest')[0])
         smoothNode = mc.polySmooth(node)[0]
         reduceNode = mc.polyReduce(node)[0]
-        clusterNode = mc.cluster()
+        clusterNode = mc.cluster(node)[0]
 
         nodeHistories = [
             node.constructionHistory,
@@ -635,6 +634,8 @@ class TestNode(unittest.TestCase):
         for nodeHistory, mcHistory in zip(nodeHistories, mcHistories):
             self.assertEqual(len(nodeHistory), len(mcHistory) - 1)
             self.assertEqual(set(nodeHistory) | set([node.shape]), set(Node.ls(mcHistory)))
+
+        mc.delete(node)
 
     def testTexelDensity(self):
         node = Node(mc.polyPlane(name='texelDensityTest')[0])
@@ -1008,7 +1009,7 @@ class TestAttr(unittest.TestCase):
         mc.delete(group1, group2)
 
     def testValueKAny(self):
-        surfaceShader =  Node('initialShadingGroup').attrs['surfaceShader']
+        surfaceShader = Node('initialShadingGroup').attrs['surfaceShader']
         outColor = Node('lambert1').attrs['outColor']
         self.assertEqual(surfaceShader.type, (float, float, float))
         self.assertEqual(outColor.type, (float, float, float))
@@ -1053,12 +1054,80 @@ class TestAttr(unittest.TestCase):
         self.assertEqual(self.node.attrs['color'].value, (0.5, 2.0, 1.0))
         self.node.attrs['color'] = [0.5] * 3
 
+    def testGetCompound(self):
+        cube = Node(mc.polyCube(name='getAdvancedTest')[0])
+        cube.uvSets.create('map2')
+
+        translate = cube.attrs['translate']  # Same type
+        uvSets = cube.shape.attrs['uvSet']  # Array of mixed type compounds
+        uvSet = uvSets.children[1]  # Mixed type compound
+        uvSetPoints = uvSet.children['uvSetPoints']  # Array type
+        vertexNormal = cube.shape.attrs['vertexNormal']  # Empty compound array
+
+        self.assertEqual(translate.type, (float, float, float))
+        self.assertEqual(translate.value, (0.0, 0.0, 0.0))
+
+        self.assertEqual(uvSets.type, [(str, [(float, float)], None)])
+        self.assertEqual(uvSets.value[1], (u'map2', [], None))
+
+        self.assertEqual(uvSet.type, (str, [(float, float)], None))
+        self.assertEqual(uvSet.value, ('map2', [], None))
+
+        self.assertEqual(uvSetPoints.type, [(float, float)])
+        self.assertEqual(uvSetPoints.value, [])
+
+        self.assertNotEqual(uvSets.children[0].children['uvSetPoints'].value, [])
+        self.assertEqual(uvSets.children[0].children['uvSetPoints'].type[0], (float, float))
+
+        self.assertFalse(vertexNormal.children)
+        self.assertEqual(vertexNormal.value, [])
+        vnType = [(
+            (float, float, float),  # vertexNormal[0].vertexNormalXYZ
+            [(  # vertexNormal[0].vertexFaceNormal
+
+                (float, float, float),  # vertexNormal[0].vertexFaceNormal[0].vertexFaceNormalXYZ
+
+            )]
+        )]
+        self.assertEqual(vertexNormal.type, vnType)
+
+        mc.delete(cube)
+
+    def testUnwritable(self):
+        cube = Node(mc.polyCube(name='unwritableAttrTest')[0])
+        bbm = cube.attrs['boundingBoxMin']
+        with self.assertRaises(exceptions.AttributeNotWritableError):
+            bbm.value = bbm.value
+        mc.delete(cube)
+
+    def testGetComponentList(self):
+        cube = mc.polyCube(name="componentListTestCube")[0]
+
+        shader1 = mc.shadingNode("lambert", asShader=True, name="componentListTestLambert")
+        sg1 = mc.sets(renderable=True, noSurfaceShader=True, empty=True, name="componentListTestLambertSG")
+        mc.connectAttr("{}.outColor".format(shader1), "{}.surfaceShader".format(sg1))
+        mc.sets("{}.f[0:2]".format(cube), edit=True, forceElement=sg1)
+
+        shader2 = mc.shadingNode("blinn", asShader=True, name="componentListTestBlinn")
+        sg2 = mc.sets(renderable=True, noSurfaceShader=True, empty=True, name="componentListTestBlinnSG")
+        mc.connectAttr("{}.outColor".format(shader2), "{}.surfaceShader".format(sg2))
+        mc.sets("{}.f[3:4]".format(cube), edit=True, forceElement=sg2)
+
+        objectGroups = Node(cube).shape.attrs['instObjGroups'].children[0].children['objectGroups']
+        result = objectGroups.value
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0][0], [5])
+        self.assertEqual(result[1][0], [0, 1, 2])
+        self.assertEqual(result[2][0], [3, 4])
+
+        mc.delete(cube, sg1, sg2)
+
     def testTypes(self):
         self.assertEqual(self.node.attrs['color'].type, (float, float, float))
         self.assertEqual(self.node.attrs['colorR'].type, float)
         self.assertEqual(self.node.attrs['diffuse'].type, float)
         self.assertEqual(self.node.attrs['hideSource'].type, bool)
-        self.assertEqual(self.node.attrs['matteOpacityMode'].type, 'enum')
+        self.assertEqual(self.node.attrs['matteOpacityMode'].type, int)
 
     def testLock(self):
         self.node.attrs['diffuse'].locked = True
@@ -1457,8 +1526,8 @@ class TestAttr(unittest.TestCase):
         curve = tx.connections[0].node
 
         ktv = curve.attrs['ktv']
-        self.assertEqual(ktv.value, ((1.0, 5.0), (2.0, 10.0)))
-        self.assertEqual(ktv.type, ((float, float), (float, float)))
+        self.assertEqual(ktv.value, [(1.0, 5.0), (2.0, 10.0)])
+        self.assertEqual(ktv.type, [(float, float)])
         self.assertEqual(ktv.children[0].value, (1.0, 5.0))
         self.assertEqual(ktv.children[0].type, (float, float))
 
@@ -1542,8 +1611,8 @@ class TestKeyframes(unittest.TestCase):
         self.assertEqual(list(self.node.keyframes[1])[0].value, -1.0)
 
     def testAttrGetSlice(self):
-        self.assertEqual(self.node.attrs['tx'].keyframes[0:3].value, [0.0, -1.0, -2.0, 10.0])
-        self.assertEqual(self.node.attrs['tx'].keyframes[4:5].value, [10.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes[0:3].values(), [0.0, -1.0, -2.0, 10.0])
+        self.assertEqual(self.node.attrs['tx'].keyframes[4:5].values(), [10.0])
 
     def testNodeGetSlice(self):
         self.assertEqual(self.node.keyframes[1:6].keys(), [1.0, 2.0, 2.0, 3.0, 5.0])
@@ -1614,7 +1683,7 @@ class TestKeyframes(unittest.TestCase):
         self.node.attrs['tx'].keyframes[1:3] = -10
         self.node.attrs['tx'].keyframes[3:5].set(-20, outTangentType='step')
         self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -10)
-        self.assertEqual(self.node.attrs['tx'].keyframes[3:5].value, [-20, -20, -20])
+        self.assertEqual(self.node.attrs['tx'].keyframes[3:5].values(), [-20, -20, -20])
 
     def testSetNodeIncompleteSlice(self):
         with self.assertRaises(ValueError):
@@ -1636,7 +1705,7 @@ class TestKeyframes(unittest.TestCase):
         self.node.attrs['tx'].keyframes[1:3] = -10
         self.node.attrs['tx'].keyframes[3:5:2].set(-20, outTangentType='step')
         self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -10)
-        self.assertEqual(self.node.attrs['tx'].keyframes[3:5].value, [-20, -20])
+        self.assertEqual(self.node.attrs['tx'].keyframes[3:5].values(), [-20, -20])
 
     def testAttrDelete(self):
         self.assertEqual(self.node.attrs['tx'].keyframes[1].value, -1)
@@ -2249,7 +2318,7 @@ class TestNamespace(unittest.TestCase):
         self.assertFalse(Namespace(':').lstrip())
         self.assertFalse(Namespace(':').rstrip())
 
-    def testContains(self):
+    def testContains2(self):
         ns1 = Namespace(self.ns1)
         ns2 = Namespace(self.ns2)
 
