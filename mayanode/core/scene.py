@@ -190,6 +190,10 @@ class _Scene(object):
 class SceneNodes(types.LazyDict[str, 'Node']):
     """Hold a dict of all nodes currently in the scene."""
 
+    @property
+    def ItemType(self):  # type: () -> Type[Node]
+        return Node
+
     def _loadIndividualObject(self, item):
         # type: (str) -> Node | None
         """Return the object this list contains."""

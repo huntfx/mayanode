@@ -450,8 +450,7 @@ class LazyDict(Generic[T_KEY, T_MOD]):
                 return True
             if self._loaded:
                 return False
-            self._loadAllObjects()
-            return item in self._items.values()
+            return item in self._getAllObjects().values()
         if TYPE_CHECKING: item = cast(T_KEY, item)
         return self._getIndividualObject(item) is not None
 
