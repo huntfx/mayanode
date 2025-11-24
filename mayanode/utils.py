@@ -79,38 +79,26 @@ def unnetworkPlug(plug):
     # type: (om2.MPlug) -> om2.MPlug
     """Ensure an `MPlug` is not networked.
 
-    In the majority of cases, this is just constucting a new plug using
-    the data in the old one, but in the case of element plugs then they
-    also require passing across the logical index.
-
-    An example of this is when a reference is unloaded, all connections
-    get pathed to `placeHolderList`. Connections are to elements in the
-    array such as `placeHolderList[1]`, and have a logical index.
-    TODO: Test
+    Reconstructs the plug by creating a fresh handle from the node and
+    attribute, then recursively applying all ancestor logical indices
+    from the bottom up.
     """
     if not plug.isNetworked:
         return plug
 
-    # Networked child plugs will lose their parent index
-    # eg. `uvSet[1].uvSetName` becomes `uvSet[-1].uvSetName`
-    # Maybe there's a better way, but it works by getting the parent,
-    # which is not networked, then checking each child for a match with
-    # the current plug
-    # TODO: What happens if there's 2 compound ancestors?
-    if plug.isChild:
-        parent = plug.parent()
-        return next(p for p in map(parent.child, range(parent.numChildren())) if p == plug)
+    newPlug = om2.MPlug(plug.node(), plug.attribute())
+    iterPlug = plug
 
-    # Create an non networked copy of the plug
-    new = om2.MPlug(plug.node(), plug.attribute())
+    while iterPlug.isElement or iterPlug.isChild:
+        if iterPlug.isElement:
+            logicalIndex = iterPlug.logicalIndex()
+            iterPlug = iterPlug.array()
+            newPlug.selectAncestorLogicalIndex(logicalIndex, iterPlug.attribute())
 
-    # If an element plug, then the index needs to be re-applied
-    # eg. `uvSet[1]` becomes `uvSet[-1]` without this
-    # Note that using `elementByLogicalIndex` creates a networked node
-    if plug.isElement:
-        new.selectAncestorLogicalIndex(plug.logicalIndex())
+        elif iterPlug.isChild:
+            iterPlug = iterPlug.parent()
 
-    return new
+    return newPlug
 
 
 def _validateConstructionHistoryNode(mObject, future):

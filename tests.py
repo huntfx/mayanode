@@ -1533,6 +1533,20 @@ class TestAttr(unittest.TestCase):
 
         mc.delete(node)
 
+    def testPlugReconstruction(self):
+        node = Node(mc.polyCube(name='plugReconstructionTestMesh')[0])
+        shader = mc.shadingNode('lambert', asShader=True, name='plugReconstructionTestShader')
+        sg = mc.sets(renderable=True, noSurfaceShader=True, empty=True, name='plugReconstructionTestSG')
+        mc.connectAttr(shader + ".outColor", sg + ".surfaceShader")
+        mc.sets(node + '.f[0:3]', edit=True, forceElement=sg)
+
+        children = node.shape.attrs['instObjGroups'].children[0].children['objectGroups'].children
+
+        self.assertEqual(len(children), 2)
+        self.assertEqual(str(children[1]), '{}.instObjGroups[0].objectGroups[1]'.format(node.shape))
+
+        mc.delete(node, shader, sg)
+
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
