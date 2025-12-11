@@ -341,7 +341,7 @@ class NodeAttributes(types.MappedLazyList['Attribute', om2.MObject, str]):
 
     def __contains__(self, item):
         # type: (Any) -> bool
-        """If a particular node belongs to a namespace."""
+        """If a particular attribute exists in a node."""
         item = str(item)
         return self.node.api.dependencyNode.hasAttribute(str(item)) or item in self._mappedKeys
 
@@ -1143,6 +1143,19 @@ class Attribute(types.StrMixin):
         if nattr is not None and nattr.hasSoftMax():
             return nattr.getSoftMax()
         return None
+
+    @property
+    def readable(self):
+        # type: () -> bool
+        """Get if the attribute is readable."""
+        return self.api.attribute.readable
+
+    @property
+    def writable(self):
+        # type: () -> bool
+        """Get if the attribute is writable."""
+        return self.api.attribute.writable
+
 
 
 # Handle circular dependencies
