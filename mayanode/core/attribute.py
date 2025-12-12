@@ -144,7 +144,11 @@ def _getPlugData(attr, plug=None, value=True):
         # Component lists are rarer and more complicated, so support is very incomplete
         # Example: pCube1.instObjGroups...objectGrpCompList
         if attrType == om2.MFnData.kComponentList:
-            componentListData = om2.MFnComponentListData(plug.asMObject())
+            try:
+                plugObj = plug.asMObject()
+            except RuntimeError:
+                return []
+            componentListData = om2.MFnComponentListData(plugObj)  # This still works if plugObj.isNull
             for componentGroup in map(componentListData.get, range(componentListData.length())):
                 componentType = componentGroup.apiType()
                 if componentType == om2.MFn.kMeshPolygonComponent:

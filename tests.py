@@ -1549,7 +1549,18 @@ class TestAttr(unittest.TestCase):
 
     def testAllType(self):
         node = Node(mc.polyCube(name='allAttrTest1')[0])
-        [attr.attr for attr in node.attrs if not isinstance(attr.type, str)]
+
+        for attr in node.attrs:
+            try:
+                attr.type
+            except exceptions.InvalidAttributeTypeError:
+                pass
+        for attr in node.shape.attrs:
+            try:
+                attr.type
+            except exceptions.InvalidAttributeTypeError:
+                pass
+
         mc.delete(node)
 
 
