@@ -144,9 +144,8 @@ def _getPlugData(attr, plug=None, value=True):
         # Component lists are rarer and more complicated, so support is very incomplete
         # Example: pCube1.instObjGroups...objectGrpCompList
         if attrType == om2.MFnData.kComponentList:
-            try:
-                plugObj = plug.asMObject()
-            except RuntimeError:
+            plugObj = plug.asMDataHandle().data()  # Note that `plug.asMObject()` raises on null
+            if plugObj.isNull():
                 return []
             componentListData = om2.MFnComponentListData(plugObj)  # This still works if plugObj.isNull
             for componentGroup in map(componentListData.get, range(componentListData.length())):
