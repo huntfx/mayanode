@@ -108,10 +108,6 @@ class InvalidAttributeTypeError(AttributeTypeError):
     MESSAGE = 'The value for the attribute "{node}.{attr}" could not be retrieved.'
 
 
-class UnknownAttributeTypeError(AttributeTypeError):
-    MESSAGE = 'The type of the attribute "{node}.{attr}" could not be determined.'
-
-
 class MessageAttributeTypeError(AttributeTypeError):
     MESSAGE = 'The attribute "{node}.{attr}" is a message type and has no data values.'
 

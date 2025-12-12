@@ -197,7 +197,7 @@ def _getPlugData(attr, plug=None, value=True):
         raise exceptions.MessageAttributeTypeError(attr.node, attr.attr)
 
     if apiType == om2.MFn.kGenericAttribute:
-        raise exceptions.UnknownAttributeTypeError(attr.node, attr.attr)
+        return None
 
     return mc.getAttr(plug.name(), type=not value)
 
@@ -789,7 +789,7 @@ class Attribute(types.StrMixin):
             Python type for standard attributes.
             Tuple of types if a compound attribute.
             List of a single type if an array attribute.
-            String if unsupported (eg. "enum").
+            String name (e.g. "message") or None if unsupported.
         """
         self.api.plug = utils.refreshPlug(self.node.api.object, self.api.plug)
         if not self.api.plug.isNull:
@@ -818,7 +818,7 @@ class Attribute(types.StrMixin):
         """Get an attribute value.
 
         Raises:
-            InvalidAttributeTypeErro
+            InvalidAttributeTypeError
             AttributeMessageTypeError
         """
         self.api.plug = utils.refreshPlug(self.node.api.object, self.api.plug)

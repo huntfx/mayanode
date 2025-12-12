@@ -1547,6 +1547,11 @@ class TestAttr(unittest.TestCase):
 
         mc.delete(node, shader, sg)
 
+    def testAllType(self):
+        node = Node(mc.polyCube(name='allAttrTest1')[0])
+        [attr.attr for attr in node.attrs if not isinstance(attr.type, str)]
+        mc.delete(node)
+
 
 class TestKeyframes(unittest.TestCase):
     def setUp(self):
