@@ -358,7 +358,7 @@ class NodeAttributes(types.MappedLazyList['Attribute', om2.MPlug, str]):
         try:
             return super(NodeAttributes, self).__getitem__(index)
         except KeyError as e:
-            raise exceptions.AttributeNotFoundError(self.node, e)
+            raise exceptions.AttributeNotFoundError(self.node, e.message)
 
     def get(self, attr, default=None):
         # type: (str, Any) -> Any
