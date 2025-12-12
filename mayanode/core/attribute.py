@@ -307,7 +307,7 @@ class AttributeChildren(types.MappedLazyList['Attribute', om2.MPlug, Union[str, 
             yield apiObject.logicalIndex()
 
 
-class NodeAttributes(types.MappedLazyList['Attribute', om2.MObject, str]):
+class NodeAttributes(types.MappedLazyList['Attribute', om2.MPlug, str]):
     """Access the attributes on a node."""
 
     __slots__ = ['_node']
@@ -336,8 +336,13 @@ class NodeAttributes(types.MappedLazyList['Attribute', om2.MObject, str]):
 
     def __len__(self):
         # type: () -> int
-        """Get the number of attributes."""
-        return self.node.api.dependencyNode.attributeCount()
+        """Get the number of attributes.
+
+        Note that `self.node.api.dependencyNode.attributeCount()` is not
+        accurate for this as it includes the child plugs we ignore. This
+        function is left in place however as a reminder.
+        """
+        return super(NodeAttributes, self).__len__()
 
     def __contains__(self, item):
         # type: (Any) -> bool
@@ -364,19 +369,22 @@ class NodeAttributes(types.MappedLazyList['Attribute', om2.MObject, str]):
         self.__getitem__(attr).value = value
 
     def _loadApiObjects(self):
-        # type: () -> list[om2.MObject]
+        # type: () -> list[om2.MPlug]
         """Load all API objects."""
         depNode = self.node.api.dependencyNode
-        return [depNode.attribute(i) for i in range(depNode.attributeCount())]
+        apiObjects = (depNode.attribute(i) for i in range(depNode.attributeCount()))
+        plugs = (depNode.findPlug(apiObject, False) for apiObject in apiObjects)
 
-    def _loadListItem(self, apiObject):
-        # type: (om2.MObject) -> Attribute
+        # Filter out the child plugs with a logical index of -1
+        return [plug for plug in plugs if not (plug.isChild and plug.parent().isElement)]
+
+    def _loadListItem(self, plug):
+        # type: (om2.MPlug) -> Attribute
         """Load the Attribute from the plug."""
-        plug = self.node.api.dependencyNode.findPlug(apiObject, False)
         return Attribute(self.node, plug)
 
-    def _generateKeys(self, apiObject, moduleObject):
-        # type: (om2.MObject, Attribute) -> Iterator[str]
+    def _generateKeys(self, plug, moduleObject):
+        # type: (om2.MPlug, Attribute) -> Iterator[str]
         """Generate the key to access the attribute.
 
         Skip any attribute with multiple path parts at this stage,
