@@ -403,12 +403,13 @@ class AttributeKeyframes(KeyframeBase):
     def __iter__(self):
         # type: () -> Iterator[Keyframe]
         """Iterate over all the attribute keyframes."""
-        return iter(Keyframe(self.attr, frame) for frame in self._keyframes)
+        valid = self.keys()
+        return iter(Keyframe(self.attr, frame) for frame in self._keyframes if frame in valid)
 
     def __contains__(self, frame):
         # type: (float) -> bool
         """Determine if a keyframe exists."""
-        return frame in self._keyframes
+        return frame in self._keyframes or frame in self.keys()
 
     @property
     def _frames(self):
