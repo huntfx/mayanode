@@ -293,10 +293,6 @@ class KeyframeLockError(KeyframeError):
     MESSAGE = '"{node}.{attr}" has no attached curves so it cannot be locked.'
 
 
-class KeyframePasteError(KeyframeError):
-    MESSAGE = 'There is nothing to paste from.'
-
-
 class ViewportError(BaseError):
     MESSAGE = 'Viewport error.'
 

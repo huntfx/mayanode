@@ -227,8 +227,9 @@ class KeyframeBase(object):
             return mc.pasteKey(self.node, **kwargs)
         except RuntimeError as e:
             if 'Nothing to paste from' in str(e):
-                raise exceptions.KeyframePasteError(self.node, attr)  # TODO: Clear keyframes accordingly
-            raise
+                self.delete()
+            else:
+                raise
 
 
 class NodeKeyframes(KeyframeBase):
@@ -445,6 +446,8 @@ class AttributeKeyframes(KeyframeBase):
         if isinstance(value, KeyframeBase):
             if value.copyKey():
                 self[frame].pasteKey()
+            else:
+                self[frame].delete()
         else:
             Keyframe(self.attr, frame).set(value)
 

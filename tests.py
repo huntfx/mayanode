@@ -1973,9 +1973,8 @@ class TestKeyframeCopy(unittest.TestCase):
     def testCopyFrameToAll(self):
         self.dst.keyframes = self.src.keyframes[5]
         self.assertEqual(self.tx2.keyframes.keys(), [5])
-
-        with self.assertRaises(exceptions.KeyframePasteError):
-            self.dst.keyframes = self.src.keyframes[4]
+        self.dst.keyframes = self.src.keyframes[4]
+        self.assertEqual(self.tx2.keyframes.keys(), [])
 
     def testCopyFrameToFrame(self):
         keys = self.tx2.keyframes.keys()
@@ -1985,6 +1984,20 @@ class TestKeyframeCopy(unittest.TestCase):
     def testCopyStartToAll(self):
         with self.assertRaises(ValueError):
             self.dst.keyframes = self.src.keyframes[4:]
+
+    def testEmpty(self):
+        persp = Node('persp')
+
+        self.assertEqual(self.tx2.keyframes.keys(), [0, 2, 3, 6, 10])
+        self.tx2.keyframes[1:2] = persp.attrs['translateX'].keyframes
+        self.assertEqual(self.tx2.keyframes.keys(), [0, 3, 6, 10])
+
+        self.tx2.keyframes[4:] = persp.attrs['translateX'].keyframes
+        self.assertEqual(self.tx2.keyframes.keys(), [0, 3])
+
+        self.dst.keyframes = persp.keyframes
+        self.assertFalse(self.tx2.keyframes.keys())
+        self.assertFalse(self.dst.keyframes.keys())
 
 
 class TestUVSets(unittest.TestCase):
