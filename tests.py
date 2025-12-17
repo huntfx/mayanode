@@ -1887,6 +1887,47 @@ class TestKeyframes(unittest.TestCase):
         with self.assertRaises(exceptions.KeyframeLockError):
             self.node.attrs['sz'].keyframes.lock()
 
+    def testConnectedPassthrough(self):
+        other = Node(mc.camera(name='keyframeConnectionTest1')[0])
+        self.assertFalse(other.keyframes)
+        self.assertTrue(self.node.keyframes)
+        self.assertTrue(self.node.attrs['tx'].keyframes)
+        self.assertFalse(other.attrs['tx'].keyframes)
+        self.assertFalse(other.attrs['ty'].keyframes)
+        self.node.attrs['tx'] >> other.attrs['tx']
+        self.assertTrue(other.keyframes)
+        self.assertTrue(other.attrs['tx'].keyframes)
+        self.assertFalse(other.attrs['ty'].keyframes)
+
+        original = {kf.frame: kf.value for kf in self.node.attrs['tx'].keyframes}
+        new = {kf.frame: kf.value for kf in other.attrs['tx'].keyframes}
+        self.assertEqual(original, new)
+
+        del other.attrs['tx'].keyframes
+        self.assertFalse(other.keyframes)
+        self.assertTrue(self.node.keyframes)
+        self.assertFalse(self.node.attrs['tx'].keyframes)
+        self.assertFalse(self.node.attrs['tx'].keyframes)
+
+        del other.keyframes
+        self.assertFalse(other.keyframes)
+        del self.node.keyframes
+        self.assertFalse(other.keyframes)
+
+        mc.delete(other)
+
+    def testCopyPaste(self):
+        self.node.attrs['tx'].keyframes.copyKey()
+        self.node.attrs['ty'].keyframes.pasteKey()
+        self.node.attrs['tx'].keyframes[2:4].copyKey()
+        self.node.attrs['tz'].keyframes.pasteKey()
+
+        newY = {kf.frame: kf.value for kf in self.node.attrs['tx'].keyframes}
+        newZ = {kf.frame: kf.value for kf in self.node.attrs['tz'].keyframes}
+
+        self.assertEqual({kf.frame: kf.value for kf in self.node.attrs['tx'].keyframes}, newY)
+        self.assertEqual({kf.frame: kf.value for kf in self.node.attrs['tx'].keyframes[2:4]}, newZ)
+
 
 class TestKeyframeCopy(unittest.TestCase):
     def setUp(self):

@@ -1,6 +1,7 @@
 import re
 
 import maya.api.OpenMaya as om2
+import maya.api.OpenMayaAnim as oma2
 import maya.cmds as mc  # type: ignore
 
 from .. import exceptions, types, utils
@@ -1168,6 +1169,17 @@ class Attribute(types.StrMixin):
         """Get if the attribute is writable."""
         return self.api.attribute.writable
 
+    @property
+    def driver(self):
+        # type: () -> Attribute
+        """Get the source attribute driving this one."""
+        plug = self.api.plug
+        while plug.isDestination:
+            new = plug.source()
+            if new.node().hasFn(om2.MFn.kAnimCurve):
+                break
+            plug = new
+        return Attribute(Node(plug.node()), plug)
 
 
 # Handle circular dependencies

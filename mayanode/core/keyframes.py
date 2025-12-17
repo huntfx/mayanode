@@ -175,11 +175,19 @@ class KeyframeBase(object):
 
     def copyKey(self):
         # type: () -> int
-        """Copy keys."""
+        """Copy keys on the current attribute or node.
+
+        Usage:
+            >>> kf1.copyKey()
+            >>> kf2.pasteKey()
+        """
+        node = self.node
         attr = self.attr
         kwargs = {}  # type: dict[str, Any]
         if attr is not None:
-            kwargs['attribute'] = attr.attr
+            driver = attr.driver
+            node = driver.node
+            kwargs['attribute'] = driver.attr
 
         if isinstance(self._frame, slice):
             if (self._frame.step or 1) != 1:
@@ -194,15 +202,18 @@ class KeyframeBase(object):
         elif self._frame is not None:
             kwargs['time'] = (self._frame, self._frame)
 
-        return mc.copyKey(self.node, **kwargs)
+        return mc.copyKey(node, **kwargs)
 
     def pasteKey(self):
         # type: () -> int
         """Paste keys."""
+        node = self.node
         attr = self.attr
         kwargs = {}  # type: dict[str, Any]
         if attr is not None:
-            kwargs['attribute'] = attr.attr
+            driver = attr.driver
+            node = driver.node
+            kwargs['attribute'] = driver.attr
 
         if isinstance(self._frame, slice):
             if (self._frame.step or 1) != 1:
@@ -224,7 +235,7 @@ class KeyframeBase(object):
             kwargs['time'] = (self._frame, self._frame + 1)
 
         try:
-            return mc.pasteKey(self.node, **kwargs)
+            return mc.pasteKey(node, **kwargs)
         except RuntimeError as e:
             if 'Nothing to paste from' in str(e):
                 self.delete()
@@ -360,6 +371,7 @@ class AttributeKeyframes(KeyframeBase):
     def __init__(self, attr, frame=None):
         # type: (Attribute | AttributeKeyframes, float | slice | None) -> None
         _validateSlice(frame)
+
         if isinstance(attr, AttributeKeyframes):
             self._attr = attr.attr
             self._keyframes = attr._keyframes  # type: dict[float, float]
@@ -383,6 +395,19 @@ class AttributeKeyframes(KeyframeBase):
         # type: () -> Attribute
         """Get the associated attribute."""
         return self._attr
+
+    def _getTargetPlug(self):
+        # type: () -> om2.MPlug
+        """Follow through the connections to the root plug."""
+        plug = self.attr.api.plug
+        while plug.isDestination:
+            plug = plug.source()
+        return plug
+
+    def _getTargetAttr(self):
+        # type: () -> Attribute
+        """Follow through the connections to the root attribute."""
+        return Attribute(self.node, self._getTargetPlug())
 
     def __bool__(self):
         # type: () -> bool
@@ -572,7 +597,9 @@ class Keyframe(KeyframeBase):
 
         kwargs = {'query': True, 'keyframeCount': True}  # type: dict[str, Any]
         if attr is not None:
-            kwargs['attribute'] = attr.attr
+            driver = attr.driver
+            node = driver.node
+            kwargs['attribute'] = driver.attr
 
         if not isinstance(frame, slice):
             if frame is not None:
@@ -613,7 +640,9 @@ class Keyframe(KeyframeBase):
 
         kwargs = {'query': True, 'valueChange': True}  # type: dict[str, Any]
         if attr is not None:
-            kwargs['attribute'] = attr.attr
+            driver = attr.driver
+            node = driver.node
+            kwargs['attribute'] = driver.attr
 
         results = []
         for time in _toTime(frame):
@@ -634,7 +663,9 @@ class Keyframe(KeyframeBase):
                           attr if attr is not None else node, frame, value)
 
         if attr is not None:
-            kwargs['attribute'] = attr.attr
+            driver = attr.driver
+            node = driver.node
+            kwargs['attribute'] = driver.attr
 
         if value is not None:
             kwargs['value'] = value
@@ -659,7 +690,9 @@ class Keyframe(KeyframeBase):
             utils.logger.info('Deleting keyframe on "%s" (frame %s)', attr if attr is not None else node, frame)
 
         if attr is not None:
-            kwargs['attribute'] = attr.attr
+            driver = attr.driver
+            node = driver.node
+            kwargs['attribute'] = driver.attr
 
         if not self._testIfLocked():
             return 0
@@ -688,7 +721,9 @@ class Keyframe(KeyframeBase):
         kwargs = {'edit': True, 'relative': relative, 'timeChange': value}  # type: dict[str, Any]
 
         if attr is not None:
-            kwargs['attribute'] = attr.attr
+            driver = attr.driver
+            node = driver.node
+            kwargs['attribute'] = driver.attr
 
         self._testIfLocked()
 
@@ -709,7 +744,7 @@ class Keyframe(KeyframeBase):
         if attr is None:
             plugs = self.node.api.dependencyNode.getConnections()
         else:
-            plugs = [attr.api.plug]
+            plugs = [attr.driver.api.plug]
 
         if frame is None:
             for plug in plugs:
@@ -784,7 +819,7 @@ class Keyframe(KeyframeBase):
         if not isinstance(frame, (int, float)):
             raise NotImplementedError('setting lock state not yet supported on multiple frames')
 
-        ktvPlug = _getKtvPlug(attr.api.plug)
+        ktvPlug = _getKtvPlug(attr.driver.api.plug)
         if ktvPlug is None:
             raise exceptions.KeyframeLockError(self.node, attr)
         childPlug = _getKtvPlugChild(ktvPlug, frame)
