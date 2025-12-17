@@ -354,6 +354,7 @@ class NodeAttributes(types.MappedLazyList['Attribute', om2.MPlug, str]):
         return self.node.api.dependencyNode.hasAttribute(str(item)) or item in self._mappedKeys
 
     def __getitem__(self, index):
+        # type: (str) -> Attribute
         try:
             return super(NodeAttributes, self).__getitem__(index)
         except KeyError as e:
