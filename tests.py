@@ -418,6 +418,33 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.translation.x, -10)
         mc.delete(node)
 
+    def testTranslateAddParent(self):
+        grp = Node(mc.createNode('transform', name='groupA'))
+        grp2 = Node(mc.createNode('transform', name='groupB'))
+        node = Node(mc.polyCube()[0])
+
+        grp.translation = (5, 5, 5)
+        grp2.translation = (7.12, 0, 0)
+        node.translation = (2, -2, -1)
+
+        node.parent = grp2
+        grp2.parent = grp
+
+        self.assertEqual(node.translation, (2, -2, -1))
+
+        tmp, loc = node, node.translation
+        while True:
+            parent = tmp.parent
+            if parent is None:
+                break
+            loc += parent.translation
+            tmp = parent
+        node.translation = loc
+
+        self.assertEqual(node.translation, (7 + 7.12, 3, 4))  # Add required for precision error
+
+        mc.delete(grp, grp2, node)
+
     def testRotate(self):
         node = Node(mc.polyCube()[0])
         self.assertEqual(node.rotation.x, 0)

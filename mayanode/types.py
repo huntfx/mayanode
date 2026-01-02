@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division
 
+import math
+import operator
 import sys
 from collections import namedtuple
 
@@ -9,7 +11,7 @@ import maya.api.OpenMaya as om2
 from .type_hints import TYPE_CHECKING, Generic, TypeVar, overload, cast
 
 if TYPE_CHECKING:
-    from typing import Any, Iterable, Iterator, Type
+    from typing import Any, Callable, Iterable, Iterator, Type
     from .type_hints import StrLike
     MappingKey = Any
     MappingKeyType = Type[MappingKey]
@@ -33,7 +35,80 @@ T_MOD = TypeVar('T_MOD')
 
 T_KEY = TypeVar('T_KEY')
 
-Coordinate = namedtuple('Coordinate', ['x', 'y', 'z'])
+_Coordinate = namedtuple('Coordinate', ['x', 'y', 'z'])
+
+
+class Coordinate(_Coordinate):
+    __slots__ = []
+
+    @classmethod
+    def _op(cls,
+            op,  # type: Callable[[int | float], int | float]
+            first,  # type: Coordinate | Iterable[float | int] | float | int
+            second=None,  # type:  Coordinate | Iterable[float | int] | float | int | None
+            ):  # type: (...) -> Coordinate
+        if isinstance(first, (float, int)):
+            first = (first, first, first)
+        if isinstance(second, (float, int)):
+            second = (second, second, second)
+        if second is None:
+            return cls(op(first[0]), op(first[1]), op(first[2]))
+        return cls(
+            op(first[0], second[0]),
+            op(first[1], second[1]),
+            op(first[2], second[2]),
+        )
+
+    def __add__(self,  other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.add, self, other)
+
+    def __radd__(self,  other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.add, other, self)
+
+    def __sub__(self,  other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.sub, self, other)
+
+    def __rsub__(self,  other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.sub, other, self)
+
+    def __mul__(self,  other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.mul, self, other)
+    __rmul__ = __mul__
+
+    def __truediv__(self,  other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.truediv, self, other)
+    __div__ = __truediv__
+
+    def __rtruediv__(self,  other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.truediv, other, self)
+    __rdiv__ = __rtruediv__
+
+    def __floordiv__(self,  other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.floordiv, self, other)
+
+    def __rfloordiv__(self,  other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.floordiv, other, self)
+
+    def __pow__(self, other):
+        # type: (Coordinate | Iterable[float | int] | float | int) -> Coordinate
+        return self._op(operator.pow, self, other)
+
+    def __neg__(self):
+        # type: () -> Coordinate
+        return self._op(operator.neg, self)
+
+    def __abs__(self):
+        # type: () -> float
+        return math.sqrt(self.x**2 + self.y**2 + self.z**2)
 
 
 class Matrix4D(object):
