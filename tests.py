@@ -778,7 +778,6 @@ class TestNode(unittest.TestCase):
         mc.delete(cube1, cube2, inst, set1, set2)
 
 
-
 class TestDgModifier(unittest.TestCase):
     def testContext(self):
         dg1 = om2.MDGModifier()
@@ -2066,6 +2065,13 @@ class TestKeyframeCopy(unittest.TestCase):
         self.dst.keyframes = persp.keyframes
         self.assertFalse(self.tx2.keyframes.keys())
         self.assertFalse(self.dst.keyframes.keys())
+
+    def testFilterOutChildren(self):
+        node = Node(mc.polyCube(name='filterChildAttrTest')[0])
+        allAttrs = [str(attr) for attr in node.shape.attrs]
+        self.assertEqual(sum('controlPoints' in attr for attr in allAttrs), 1)
+        self.assertEqual(sum('vertexNormal' in attr for attr in allAttrs), 2)
+        mc.delete(node)
 
 
 class TestUVSets(unittest.TestCase):

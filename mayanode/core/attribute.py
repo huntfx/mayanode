@@ -381,7 +381,16 @@ class NodeAttributes(types.MappedLazyList['Attribute', om2.MPlug, str]):
         plugs = (depNode.findPlug(apiObject, False) for apiObject in apiObjects)
 
         # Filter out the child plugs with a logical index of -1
-        return [plug for plug in plugs if not (plug.isChild and plug.parent().isElement)]
+        result = []
+        for plug in plugs:
+            if plug.isChild:
+                parent = plug.parent()
+                while parent.isChild:
+                    parent = parent.parent()
+                if parent.isElement:
+                    continue
+            result.append(plug)
+        return result
 
     def _loadListItem(self, plug):
         # type: (om2.MPlug) -> Attribute
