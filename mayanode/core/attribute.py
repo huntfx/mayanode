@@ -1190,6 +1190,15 @@ class Attribute(types.StrMixin):
             plug = new
         return Attribute(Node(plug.node()), plug)
 
+    @property
+    def default(self):
+        # type: () -> bool
+        """Determine if the attribute value is equiavlent to its default."""
+        plug = self.api.plug
+        if plug.isNull:
+            return True
+        return plug.isDefaultValue()
+
 
 # Handle circular dependencies
 # pylint: disable=wrong-import-position
