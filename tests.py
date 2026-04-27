@@ -135,6 +135,34 @@ class TestNode(unittest.TestCase):
 
         mc.delete('transform1', shader.name, sg.name)
 
+    def testCreateInvalid(self):
+        with self.assertRaises(exceptions.UnknownNodeTypeError):
+            node = Node.create('transform-invalid')
+        node = Node.create('transform-invalid', allowUnknownTypes=True)
+        self.assertEqual(node.type, 'unknown')
+        node.delete()
+
+    def testCreateInvalidToValid(self):
+        plugin = Plugin('AbcImport.mll')
+        wasLoaded = plugin.loaded
+        if wasLoaded:
+            plugin.unload(force=True)
+
+        with self.assertRaises(exceptions.UnknownNodeTypeError):
+            Node.create('AlembicNode')
+
+        plugin.load()
+
+        Node.create('AlembicNode').delete()
+
+        plugin.unload(force=True)
+
+        with self.assertRaises(exceptions.UnknownNodeTypeError):
+            Node.create('AlembicNode')
+
+        if wasLoaded:
+            plugin.load()
+
     def testParentGet(self):
         node, pCube = Node.ls(mc.polyCube(name='testParent'))
 

@@ -23,6 +23,17 @@ class NullMObjectError(BaseError, TypeError):
     MESSAGE = 'This object is null'
 
 
+class NodeTypeError(BaseError):
+    MESSAGE = 'Error: {nodeType}'
+
+    def __init__(self, nodeType, **kwargs):
+        super(NodeTypeError, self).__init__(nodeType=nodeType, **kwargs)
+
+
+class UnknownNodeTypeError(NodeTypeError):
+    MESSAGE = 'Unknown node type: {nodeType}'
+
+
 class NodeError(BaseError):
     MESSAGE = 'Error: {node}'
 

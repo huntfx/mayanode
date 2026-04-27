@@ -619,9 +619,14 @@ class Node(types._NodeType):
         return result
 
     @classmethod
-    def create(cls, nodeType, **kwargs):
-        # type: (str, **Any) -> Node
+    def create(cls, nodeType, allowUnknownTypes=False, **kwargs):
+        # type: (str, bool, **Any) -> Node
         """Create a new node.
+
+        Parameters:
+            nodeType: The node type to create.
+            allowUnknownTypes: Allow creating nodes with unknown types.
+                If False, then an exception will be raised instead.
 
         Usage:
             >>> node = Node('myNode')
@@ -632,6 +637,9 @@ class Node(types._NodeType):
 
         Warnings:
             Unrecognized node type '{nodeType}'; preserving node information during this session.
+
+        Raises:
+            UnknownNodeTypeError
         """
         if kwargs:
             utils.logger.info('Creating "%s" node with arguments %s', nodeType, kwargs)
@@ -650,8 +658,11 @@ class Node(types._NodeType):
             result = mc.sets(**kwargs)
 
         # Create other
-        else:
+        elif allowUnknownTypes or nodeType in AvailableNodeTypes:
             result = mc.createNode(nodeType, **kwargs)
+
+        else:
+            raise exceptions.UnknownNodeTypeError(nodeType)
 
         # Get the top level node in the case multiple were created
         if isinstance(result, (list, tuple)):
@@ -1824,6 +1835,27 @@ class Node(types._NodeType):
             else:
                 result.append(Node(depNode))
         return result
+
+
+class _AvailableNodeTypes(object):
+    """Store a cache of node types.
+    Reloads when the list of loaded plugins changes.
+    """
+
+    def __init__(self):
+        # type: () -> None
+        self._current = []  # type: list[Plugin]
+        self._nodeTypes = set()  # type: set[str]
+
+    def __contains__(self, item):
+        # type: (str) -> bool
+        new = Plugin.ls()
+        if self._current != new:
+            self.current, self._nodeTypes = new, set(mc.allNodeTypes())
+        return item in self._nodeTypes
+
+
+AvailableNodeTypes = _AvailableNodeTypes()
 
 
 # Handle circular dependencies
