@@ -657,12 +657,16 @@ class Node(types._NodeType):
             kwargs.setdefault('empty', True)
             result = mc.sets(**kwargs)
 
-        # Create other
-        elif allowUnknownTypes or nodeType in AvailableNodeTypes:
-            result = mc.createNode(nodeType, **kwargs)
-
         else:
-            raise exceptions.UnknownNodeTypeError(nodeType)
+            AvailableNodeTypes.reload()
+            if AvailableNodeTypes.isAbstract(nodeType, reload=False):
+                raise exceptions.InvalidNodeTypeError(nodeType)
+
+            if allowUnknownTypes or AvailableNodeTypes.isValid(nodeType, reload=False):
+                result = mc.createNode(nodeType, **kwargs)
+
+            else:
+                raise exceptions.UnknownNodeTypeError(nodeType)
 
         # Get the top level node in the case multiple were created
         if isinstance(result, (list, tuple)):
@@ -1840,19 +1844,52 @@ class Node(types._NodeType):
 class _AvailableNodeTypes(object):
     """Store a cache of node types.
     Reloads when the list of loaded plugins changes.
+
+    TODO: Incorporate into the NodeType class.
     """
 
     def __init__(self):
         # type: () -> None
         self._current = []  # type: list[Plugin]
         self._nodeTypes = set()  # type: set[str]
+        self._abstract = set()  # type: set[str]
+
+    def _parse(self):
+        # type: () -> tuple[set[str], set[str]]
+        nodeTypes = set()
+        abstract = set()
+        for nodeType in mc.allNodeTypes(includeAbstract=True):
+            if nodeType.endswith(' (abstract)'):
+                abstract.add(nodeType[:-11])
+            else:
+                nodeTypes.add(nodeType)
+        return nodeTypes, abstract
+
+    def reload(self):
+        # type: () -> None
+        new = Plugin.ls()
+        if self._current != new:
+            self.current, (self._nodeTypes, self._abstract) = new, self._parse()
 
     def __contains__(self, item):
         # type: (str) -> bool
-        new = Plugin.ls()
-        if self._current != new:
-            self.current, self._nodeTypes = new, set(mc.allNodeTypes())
+        """Check if the node type is known."""
+        self.reload()
+        return item in self._nodeTypes or item in self._abstract
+
+    def isValid(self, item, reload=True):
+        # type: (str, bool) -> bool
+        """Determine if a node type is valid and can be created."""
+        if reload:
+            self.reload()
         return item in self._nodeTypes
+
+    def isAbstract(self, item, reload=True):
+        # type: (str, bool) -> bool
+        """Determine if a node type is abstract."""
+        if reload:
+            self.reload()
+        return item in self._abstract
 
 
 AvailableNodeTypes = _AvailableNodeTypes()

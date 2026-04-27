@@ -34,6 +34,10 @@ class UnknownNodeTypeError(NodeTypeError):
     MESSAGE = 'Unknown node type: {nodeType}'
 
 
+class InvalidNodeTypeError(NodeTypeError):
+    MESSAGE = 'There is no such dependency node type: {nodeType}'
+
+
 class NodeError(BaseError):
     MESSAGE = 'Error: {node}'
 

@@ -142,6 +142,11 @@ class TestNode(unittest.TestCase):
         self.assertEqual(node.type, 'unknown')
         node.delete()
 
+        with self.assertRaises(exceptions.InvalidNodeTypeError):
+            node = Node.create('field')
+        with self.assertRaises(exceptions.InvalidNodeTypeError):
+            node = Node.create('field', allowUnknownTypes=True)
+
     def testCreateInvalidToValid(self):
         plugin = Plugin('AbcImport.mll')
         wasLoaded = plugin.loaded
